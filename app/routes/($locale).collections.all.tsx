@@ -35,6 +35,7 @@ async function loadCriticalData({context, request}: LoaderFunctionArgs) {
     }),
     // Add other queries here, so that they are loaded in parallel
   ]);
+
   return {products};
 }
 

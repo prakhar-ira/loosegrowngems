@@ -154,6 +154,15 @@ export function Layout({children}: {children?: React.ReactNode}) {
         <link rel="stylesheet" href={tailwindCss}></link>
         <link rel="stylesheet" href={resetStyles}></link>
         <link rel="stylesheet" href={appStyles}></link>
+        <link
+          href="https://calendly.com/assets/external/widget.css"
+          rel="stylesheet"
+        ></link>
+        <script
+          type="text/javascript"
+          src="https://assets.calendly.com/assets/external/widget.js"
+        ></script>
+
         <Meta />
         <Links />
       </head>

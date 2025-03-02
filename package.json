@@ -10,7 +10,8 @@
     "preview": "shopify hydrogen preview --build",
     "lint": "eslint --no-error-on-unmatched-pattern .",
     "typecheck": "tsc --noEmit",
-    "codegen": "shopify hydrogen codegen"
+    "codegen": "shopify hydrogen codegen",
+    "generate": "shopify hydrogen generate route"
   },
   "prettier": "@shopify/prettier-config",
   "dependencies": {
@@ -22,6 +23,7 @@
     "graphql-tag": "^2.12.6",
     "isbot": "^5.1.21",
     "react": "^18.2.0",
+    "react-calendly": "^4.3.1",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {

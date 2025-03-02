@@ -1,6 +1,11 @@
-import {Suspense} from 'react';
 import {Await, NavLink} from '@remix-run/react';
 import type {FooterQuery, HeaderQuery} from 'storefrontapi.generated';
+
+import Logo from '~/assets/logo.png';
+import {Suspense} from 'react';
+import google from '~/assets/google.png';
+import insta from '~/assets/insta.png';
+import star from '~/assets/star.png';
 
 interface FooterProps {
   footer: Promise<FooterQuery | null>;
@@ -43,32 +48,67 @@ function FooterMenu({
 }) {
   return (
     <nav className="footer-menu" role="navigation">
-      {(menu || FALLBACK_FOOTER_MENU).items.map((item) => {
-        if (!item.url) return null;
-        // if the url is internal, we strip the domain
-        const url =
-          item.url.includes('myshopify.com') ||
-          item.url.includes(publicStoreDomain) ||
-          item.url.includes(primaryDomainUrl)
-            ? new URL(item.url).pathname
-            : item.url;
-        const isExternal = !url.startsWith('/');
-        return isExternal ? (
-          <a href={url} key={item.id} rel="noopener noreferrer" target="_blank">
-            {item.title}
-          </a>
-        ) : (
-          <NavLink
-            end
-            key={item.id}
-            prefetch="intent"
-            style={activeLinkStyle}
-            to={url}
-          >
-            {item.title}
+      <section className="footer-logo-menu">
+        <div>
+          <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
+            <img src={Logo} alt={'Logo'} width={100} className="footer-logo" />
           </NavLink>
-        );
-      })}
+          <p className="footer-logo-text">
+            At Complete Carat, we are redefining fine jewellery, ensuring that
+            every piece is a testament to beauty and devotion.
+          </p>
+        </div>
+        <div className="social-media-container">
+          <a href="https://www.instagram.com/completecarat/" target="_blank">
+            <img src={insta} alt={'Instagram'} />
+          </a>
+          <a
+            href="https://www.google.com/maps/place/Complete+Carat/@40.7574844,-73.9828387,17z/data=!4m8!3m7!1s0x883b4b7804cad1dd:0x70ee511590d1d9dc!8m2!3d40.7574804!4d-73.9802638!9m1!1b1!16s%2Fg%2F11vsw3l9jh?entry=ttu&g_ep=EgoyMDI0MTIwMS4xIKXMDSoASAFQAw%3D%3D"
+            target="_blank"
+          >
+            <img src={google} alt={'Google'} />
+          </a>
+          <a
+            href="https://www.trustpilot.com/review/completecarat.com?utm_medium=trustbox&utm_source=TrustBoxReviewCollector"
+            target="_blank"
+          >
+            <img src={star} alt={'Google'} />
+          </a>
+        </div>
+      </section>
+      <section className="footer-link-menu">
+        {(menu || FALLBACK_FOOTER_MENU).items.map((item) => {
+          if (!item.url) return null;
+          // if the url is internal, we strip the domain
+          const url =
+            item.url.includes('myshopify.com') ||
+            item.url.includes(publicStoreDomain) ||
+            item.url.includes(primaryDomainUrl)
+              ? new URL(item.url).pathname
+              : item.url;
+          const isExternal = !url.startsWith('/');
+          return isExternal ? (
+            <a
+              href={url}
+              key={item.id}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {item.title}
+            </a>
+          ) : (
+            <NavLink
+              end
+              key={item.id}
+              prefetch="intent"
+              style={activeLinkStyle}
+              to={url}
+            >
+              {item.title}
+            </NavLink>
+          );
+        })}
+      </section>
     </nav>
   );
 }
@@ -91,7 +131,7 @@ const FALLBACK_FOOTER_MENU = {
       tags: [],
       title: 'Refund Policy',
       type: 'SHOP_POLICY',
-      url: '/policies/refund-policy',
+      url: '/return-policies',
       items: [],
     },
     {
@@ -115,7 +155,7 @@ const FALLBACK_FOOTER_MENU = {
   ],
 };
 
-function activeLinkStyle({
+export function activeLinkStyle({
   isActive,
   isPending,
 }: {
