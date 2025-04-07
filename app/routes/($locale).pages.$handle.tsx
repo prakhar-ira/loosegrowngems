@@ -53,7 +53,6 @@ function loadDeferredData({context}: LoaderFunctionArgs) {
 
 export default function Page() {
   const {page} = useLoaderData<typeof loader>();
-  console.log('called');
 
   return (
     <div className="page">

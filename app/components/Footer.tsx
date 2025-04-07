@@ -46,6 +46,7 @@ function FooterMenu({
   primaryDomainUrl: FooterProps['header']['shop']['primaryDomain']['url'];
   publicStoreDomain: string;
 }) {
+  console.log(JSON.stringify(menu?.items), 'menu');
   return (
     <nav className="footer-menu" role="navigation">
       <section className="footer-logo-menu">
@@ -59,20 +60,26 @@ function FooterMenu({
           </p>
         </div>
         <div className="social-media-container">
-          <a href="https://www.instagram.com/completecarat/" target="_blank">
+          <a
+            href="https://www.instagram.com/completecarat/"
+            target="_blank"
+            rel="noreferrer"
+          >
             <img src={insta} alt={'Instagram'} />
           </a>
           <a
             href="https://www.google.com/maps/place/Complete+Carat/@40.7574844,-73.9828387,17z/data=!4m8!3m7!1s0x883b4b7804cad1dd:0x70ee511590d1d9dc!8m2!3d40.7574804!4d-73.9802638!9m1!1b1!16s%2Fg%2F11vsw3l9jh?entry=ttu&g_ep=EgoyMDI0MTIwMS4xIKXMDSoASAFQAw%3D%3D"
             target="_blank"
+            rel="noreferrer"
           >
             <img src={google} alt={'Google'} />
           </a>
           <a
             href="https://www.trustpilot.com/review/completecarat.com?utm_medium=trustbox&utm_source=TrustBoxReviewCollector"
             target="_blank"
+            rel="noreferrer"
           >
-            <img src={star} alt={'Google'} />
+            <img src={star} alt={'TrustPilot'} />
           </a>
         </div>
       </section>
@@ -87,6 +94,7 @@ function FooterMenu({
               ? new URL(item.url).pathname
               : item.url;
           const isExternal = !url.startsWith('/');
+          console.log(url, 'url');
           return isExternal ? (
             <a
               href={url}
