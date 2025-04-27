@@ -12,7 +12,6 @@ import SearchIcon from '~/assets/icons/search.svg';
 import CartIcon from '~/assets/icons/cart.svg';
 import PersonIcon from '~/assets/icons/person-1.svg';
 
-
 interface HeaderProps {
   header: HeaderQuery;
   cart: Promise<CartApiQueryFragment | null>;
@@ -32,7 +31,7 @@ export function Header({
   return (
     <header className="header">
       <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
-        <img src={Logo} alt={'Logo'} className=" " />
+        <img src={Logo} alt={'Logo'} className="header-logo" />
       </NavLink>
       <HeaderMenu
         menu={menu}
@@ -110,20 +109,35 @@ function HeaderCtas({
   return (
     <nav className="header-ctas" role="navigation">
       <HeaderMenuMobileToggle />
-      <NavLink prefetch="intent" to="/account" style={activeLinkStyle} title="Account" className="header-icon-link">
-        <Suspense fallback={
-          <img src={PersonIcon} alt="Account" className="header-icon" />
-        }>
-          <Await resolve={isLoggedIn} errorElement={
-            <img src={PersonIcon} alt="Sign in" className="header-icon" />
-          }>
+      <NavLink
+        prefetch="intent"
+        to="/account"
+        style={activeLinkStyle}
+        title="Account"
+        className="header-icon-link"
+      >
+        <Suspense
+          fallback={
+            <img src={PersonIcon} alt="Account" className="header-icon" />
+          }
+        >
+          <Await
+            resolve={isLoggedIn}
+            errorElement={
+              <img src={PersonIcon} alt="Sign in" className="header-icon" />
+            }
+          >
             {(isLoggedInResolved) => (
-              <img src={PersonIcon} alt={isLoggedInResolved ? 'Account' : 'Sign in'} className="header-icon" />
+              <img
+                src={PersonIcon}
+                alt={isLoggedInResolved ? 'Account' : 'Sign in'}
+                className="header-icon"
+              />
             )}
           </Await>
         </Suspense>
       </NavLink>
-      {/* <SearchToggle /> */}
+      <SearchToggle />
       <CartToggle cart={cart} />
     </nav>
   );
@@ -144,8 +158,12 @@ function HeaderMenuMobileToggle() {
 function SearchToggle() {
   const {open} = useAside();
   return (
-    <button className="reset header-icon-button" onClick={() => open('search')} title="Search">
-      <img src={SearchIcon} alt="Search" className="header-icon"/>
+    <button
+      className="reset header-icon-button"
+      onClick={() => open('search')}
+      title="Search"
+    >
+      <img src={SearchIcon} alt="Search" className="header-icon" />
     </button>
   );
 }
@@ -171,7 +189,7 @@ function CartBadge({count}: {count: number | null}) {
       className="header-icon-link relative"
     >
       <div className="header-icon-wrapper">
-        <img src={CartIcon} alt="Cart" className="header-icon"/>
+        <img src={CartIcon} alt="Cart" className="header-icon" />
         {count !== null && count > 0 && (
           <div className="cart-count">{count}</div>
         )}
@@ -255,6 +273,6 @@ function activeLinkStyle({
   isPending: boolean;
 }) {
   return {
-    color: isPending ? 'grey' : 'black'
+    color: isPending ? 'grey' : 'black',
   };
 }

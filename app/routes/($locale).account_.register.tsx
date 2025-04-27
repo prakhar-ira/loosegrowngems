@@ -1,299 +1,316 @@
-import {Form, Link, useActionData, useNavigation, useFetcher} from '@remix-run/react';
 import {
+  data,
+  HeadersFunction,
+  redirect,
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
+  type MetaFunction,
+  json,
 } from '@shopify/remix-oxygen';
-import {redirect} from '@remix-run/server-runtime';
-import {useState} from 'react';
+import {Form, Link, useActionData, useFetcher} from '@remix-run/react';
+import {type TypedResponse} from '@remix-run/server-runtime';
+import Logo from '~/assets/logo.png'; // Import the logo
 
-export async function loader({request, context}: LoaderFunctionArgs) {
-  const isLoggedIn = await (context.customerAccount as any).isLoggedIn();
-  if (isLoggedIn) {
+// Define MetaFunction for the page title
+export const meta: MetaFunction = () => {
+  return [{title: 'Register | LGG'}];
+};
+
+type ActionResponse = {
+  error: string | null;
+  newCustomer: any | null; // TODO: Define a more specific type if possible
+};
+
+export const headers: HeadersFunction = ({actionHeaders}) => actionHeaders;
+
+export async function loader({context}: LoaderFunctionArgs) {
+  const customerAccessToken = await context.session.get('customerAccessToken');
+  if (customerAccessToken) {
     return redirect('/account');
   }
-  return null;
+  return json({}); // Return json instead of empty object
 }
 
-// Define the ActionData type
-export type ActionData = {
-  formError?: string;
-};
+export async function action({
+  request,
+  context,
+}: ActionFunctionArgs): Promise<TypedResponse<ActionResponse>> {
+  if (request.method !== 'POST') {
+    return json(
+      {error: 'Method not allowed', newCustomer: null},
+      {status: 405},
+    );
+  }
 
-export const action = async ({request, context}: ActionFunctionArgs) => {
-  const {customerAccount} = context;
-  const formData = await request.formData();
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
-  const firstName = formData.get('firstName') as string;
-  const lastName = formData.get('lastName') as string;
+  const {storefront, session} = context;
+  const form = await request.formData();
+  const email = String(form.get('email') || '');
+  const password = String(form.get('password') || '');
+  const passwordConfirm = String(form.get('passwordConfirm') || ''); // Read passwordConfirm
+  const firstName = String(form.get('firstName') || ''); // Read firstName
+  const lastName = String(form.get('lastName') || ''); // Read lastName
+
+  // Basic validation
+  const validInputs = Boolean(email && password && firstName && lastName);
+  const passwordsMatch = password === passwordConfirm;
 
   try {
-    await (customerAccount as any).register(email, password, {
-      firstName,
-      lastName,
+    if (!validInputs) {
+      throw new Error('Please fill out all fields.');
+    }
+
+    if (!passwordsMatch) {
+      throw new Error('Passwords do not match');
+    }
+
+    if (password.length < 8) {
+      throw new Error('Password must be at least 8 characters');
+    }
+
+    // Create customer
+    const {customerCreate} = await storefront.mutate(CUSTOMER_CREATE_MUTATION, {
+      variables: {
+        input: {email, password, firstName, lastName}, // Add names to input
+      },
     });
 
-    await (customerAccount as any).login(email, password);
+    if (customerCreate?.customerUserErrors?.length) {
+      throw new Error(customerCreate?.customerUserErrors[0].message);
+    }
 
-    return redirect('/account');
-  } catch (error: any) {
-    return {error: error.message};
+    const newCustomer = customerCreate?.customer;
+    if (!newCustomer?.id) {
+      throw new Error('Could not create customer');
+    }
+
+    // Log the new customer in
+    const {customerAccessTokenCreate} = await storefront.mutate(
+      REGISTER_LOGIN_MUTATION,
+      {
+        variables: {
+          input: {email, password},
+        },
+      },
+    );
+
+    if (!customerAccessTokenCreate?.customerAccessToken?.accessToken) {
+      throw new Error('Missing access token');
+    }
+    session.set(
+      'customerAccessToken',
+      customerAccessTokenCreate?.customerAccessToken,
+    );
+
+    // Action was successful, redirect to account page
+    // Using `throw redirect` is suitable here as it stops execution and sends the redirect response
+    throw redirect('/account');
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown error occurred';
+    return json({error: errorMessage, newCustomer: null}, {status: 400});
   }
-};
+}
 
 export default function Register() {
-  const data = useActionData<ActionData>();
-  const [nativeEmailError, setNativeEmailError] = useState<null | string>(null);
-  const [nativePasswordError, setNativePasswordError] = useState<null | string>(
-    null,
-  );
-
-  const fetcher = useFetcher();
-  const fetcherData = fetcher.data;
-  const fetcherState = fetcher.state;
-  const isSubmitting = fetcherState === 'submitting';
+  const actionData = useActionData<ActionResponse>(); // Use direct useActionData
+  const error = actionData?.error || null;
+  // We don't need isSubmitting state from fetcher if we use standard Form + useActionData
 
   return (
-    <div className="account-container">
-      <div className="account-register">
-        <div className="account-form-header">
-          <h1>Join Us Today</h1>
-          <p className="form-subtitle">Create your account to get started</p>
-        </div>
-
-        <fetcher.Form method="post" noValidate>
-          {data?.formError && (
-            <div className="form-error">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M12 8V13"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M11.9945 16H12.0035"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span>{data.formError}</span>
-            </div>
-          )}
-
-          <fieldset>
-            <div className="name-fields-row">
-              <div className="form-field">
-                <label htmlFor="firstName">First name</label>
-                <div className="input-icon-wrapper">
-                  <input
-                    id="firstName"
-                    name="firstName"
-                    type="text"
-                    autoComplete="given-name"
-                    required
-                    placeholder="First name"
-                    aria-label="First name"
-                  />
-                  <svg
-                    className="input-icon"
-                    width="20"
-                    height="20"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M10 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path>
-                    <path
-                      d="M2.343 15.343A10 10 0 0 0 10 18a10 10 0 0 0 7.657-2.657c-.376-.38-1.157-.986-2.292-1.476C13.947 13.26 12.137 13 10 13s-3.948.26-5.365.867c-1.135.49-1.916 1.095-2.292 1.476z"
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                    ></path>
-                  </svg>
-                </div>
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="lastName">Last name</label>
-                <div className="input-icon-wrapper">
-                  <input
-                    id="lastName"
-                    name="lastName"
-                    type="text"
-                    autoComplete="family-name"
-                    required
-                    placeholder="Last name"
-                    aria-label="Last name"
-                  />
-                  <svg
-                    className="input-icon"
-                    width="20"
-                    height="20"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M10 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path>
-                    <path
-                      d="M2.343 15.343A10 10 0 0 0 10 18a10 10 0 0 0 7.657-2.657c-.376-.38-1.157-.986-2.292-1.476C13.947 13.26 12.137 13 10 13s-3.948.26-5.365.867c-1.135.49-1.916 1.095-2.292 1.476z"
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                    ></path>
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="form-field">
-              <label htmlFor="email">Email address</label>
-              <div className="input-icon-wrapper">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  placeholder="Email address"
-                  aria-label="Email address"
-                  // eslint-disable-next-line jsx-a11y/no-autofocus
-                  autoFocus
-                />
-                <svg
-                  className="input-icon"
-                  width="20"
-                  height="20"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
-                </svg>
-              </div>
-            </div>
-
-            <div className="form-field">
-              <label htmlFor="password">Password</label>
-              <div className="input-icon-wrapper">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Password (min. 8 characters)"
-                  aria-label="Password"
-                  minLength={8}
-                  required
-                />
-                <svg
-                  className="input-icon"
-                  width="20"
-                  height="20"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z" />
-                </svg>
-              </div>
-            </div>
-          </fieldset>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="primary-button"
-          >
-            {isSubmitting ? (
-              <>
-                <span className="button-loading-spinner" aria-hidden></span>
-                <span>Creating account...</span>
-              </>
-            ) : (
-              <>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M3.41003 22C3.41003 18.13 7.26003 15 12 15"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M19 15H15"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M17 17V13"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <span>Create account</span>
-              </>
-            )}
-          </button>
-        </fetcher.Form>
-
-        <div className="account-divider">
-          <span>or</span>
-        </div>
-
-        <div className="account-links-container">
-          <p className="sign-in-link">
-            <Link to="/account/login">
-              <svg
-                width="20"
-                height="20"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M3 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5a.5.5 0 0 1 1 0V16a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9.5a.5.5 0 0 1 0 1H3z"
-                  clipRule="evenodd"
-                />
-                <path
-                  fillRule="evenodd"
-                  d="M17.354 3.146a.5.5 0 0 1 0 .708l-8 8a.5.5 0 0 1-.708-.708l8-8a.5.5 0 0 1 .708 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Sign in to existing account
+    <div className="flex justify-center items-center min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 md:p-10 rounded-xl shadow-md border border-gray-200">
+        <div className="text-center">
+          <Link to="/">
+            <img
+              className="mx-auto h-16 w-auto header-logo mb-6"
+              src={Logo}
+              alt="LGG Logo"
+            />
+          </Link>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+            Create your account
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Already have an account?{' '}
+            <Link
+              to="/account/login"
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
+              Sign in
             </Link>
           </p>
         </div>
+
+        {/* Use standard Form for direct action handling */}
+        <Form method="POST" className="mt-8 space-y-6" noValidate>
+          <fieldset className="space-y-4">
+            {/* First Name and Last Name */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="firstName" className="sr-only">
+                  First Name
+                </label>
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  autoComplete="given-name"
+                  required
+                  placeholder="First Name"
+                  aria-label="First Name"
+                  className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                />
+              </div>
+              <div>
+                <label htmlFor="lastName" className="sr-only">
+                  Last Name
+                </label>
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  autoComplete="family-name"
+                  required
+                  placeholder="Last Name"
+                  aria-label="Last Name"
+                  className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="sr-only">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                placeholder="Email address"
+                aria-label="Email address"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                placeholder="Password (min. 8 characters)"
+                aria-label="Password"
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+              />
+            </div>
+
+            {/* Re-enter Password */}
+            <div>
+              <label htmlFor="passwordConfirm" className="sr-only">
+                Re-enter password
+              </label>
+              <input
+                id="passwordConfirm"
+                name="passwordConfirm"
+                type="password"
+                autoComplete="new-password" // Use new-password to prevent autofill conflict
+                placeholder="Re-enter password"
+                aria-label="Re-enter password"
+                minLength={8}
+                required
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+              />
+            </div>
+          </fieldset>
+
+          {/* Error Display */}
+          {error && (
+            <div className="flex items-center p-3 bg-red-50 border border-red-200 text-sm text-red-700 rounded-md">
+              <svg
+                className="flex-shrink-0 h-5 w-5 mr-2"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <div>
+            <button
+              type="submit"
+              // No need for isSubmitting state here as standard Form handles it
+              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#212121] hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-60 transition duration-150 ease-in-out"
+            >
+              {/* You can add loading state indication if desired, e.g., via useNavigation */}
+              Create account
+            </button>
+          </div>
+        </Form>
       </div>
     </div>
   );
 }
+
+// NOTE: https://shopify.dev/docs/api/storefront/latest/mutations/customerCreate
+const CUSTOMER_CREATE_MUTATION = `#graphql
+  mutation customerCreate(
+    $input: CustomerCreateInput!,
+    $country: CountryCode,
+    $language: LanguageCode
+  ) @inContext(country: $country, language: $language) {
+    customerCreate(input: $input) {
+      customer {
+        id,
+        firstName
+        lastName
+        email
+      }
+      customerUserErrors {
+        code
+        field
+        message
+      }
+    }
+  }
+` as const;
+
+// NOTE: https://shopify.dev/docs/api/storefront/latest/mutations/customeraccesstokencreate
+const REGISTER_LOGIN_MUTATION = `#graphql
+  mutation registerLogin(
+    $input: CustomerAccessTokenCreateInput!,
+    $country: CountryCode,
+    $language: LanguageCode
+  ) @inContext(country: $country, language: $language) {
+    customerAccessTokenCreate(input: $input) {
+      customerUserErrors {
+        code
+        field
+        message
+      }
+      customerAccessToken {
+        accessToken
+        expiresAt
+      }
+    }
+  }
+` as const;

@@ -9,7 +9,7 @@ export function ContactUsContainer() {
     <div className="policies-container-parent">
       <div className="policies-container">
         <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
-          <img src={Logo} alt={'Logo'} width={100} className="footer-logo" />
+          <img src={Logo} alt={'Logo'} className="footer-logo" />
         </NavLink>
         <h1>CONTACT US</h1>
         <div className="w-[999px] h-[600px]">

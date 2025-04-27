@@ -59,7 +59,7 @@ export function AboutContainer() {
     <div className="policies-container-parent">
       <div className="policies-container">
         <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
-          <img src={Logo} alt={'Logo'} width={100} className="footer-logo" />
+          <img src={Logo} alt={'Logo'} className="footer-logo" />
         </NavLink>
         <h1>ABOUT COMPLETE CARAT</h1>
         <div className="how-to-return-container">
@@ -128,4 +128,3 @@ export function AboutContainer() {
     </div>
   );
 }
-

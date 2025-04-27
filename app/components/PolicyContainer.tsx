@@ -25,7 +25,7 @@ export function PolicyContainer() {
     <div className="policies-container-parent">
       <div className="policies-container">
         <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
-          <img src={Logo} alt={'Logo'} width={100} className="footer-logo" />
+          <img src={Logo} alt={'Logo'} className="footer-logo" />
         </NavLink>
         <h1>RETURN POLICY</h1>
         <p>
@@ -64,8 +64,8 @@ export function PolicyContainer() {
                 insured shipping label along with simple instructions for how to
                 return the item. Please package the jewelry securely in its
                 original box, including all grading reports, appraisals, and
-                accessories. For your security, please avoid writing “Complete
-                Carat” on the exterior of the return box.
+                accessories. For your security, please avoid writing "Complete
+                Carat" on the exterior of the return box.
               </p>
             </div>
           </div>

@@ -11,6 +11,7 @@ import {
   isRouteErrorResponse,
   type ShouldRevalidateFunction,
 } from '@remix-run/react';
+import {useEffect} from 'react';
 import favicon from '~/assets/favicon.svg';
 import resetStyles from '~/styles/reset.css?url';
 import appStyles from '~/styles/app.css?url';
@@ -131,14 +132,14 @@ function loadDeferredData({context}: LoaderFunctionArgs) {
         footerMenuHandle: 'footer', // Adjust to your footer menu handle
       },
     })
-    .catch((error) => {
+    .catch((error: any) => {
       // Log query errors, but don't throw them so the page can still render
       console.error(error);
       return null;
     });
   return {
     cart: cart.get(),
-    isLoggedIn: customerAccount.isLoggedIn(),
+    isLoggedIn: (customerAccount as any).isLoggedIn(),
     footer,
   };
 }
@@ -159,8 +160,9 @@ export function Layout({children}: {children?: React.ReactNode}) {
           href="https://calendly.com/assets/external/widget.css"
           rel="stylesheet"
         ></link>
-        <style dangerouslySetInnerHTML={{
-          __html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
             :root {
               --font-primary: 'SF Pro', Arial, sans-serif;
               --font-secondary: 'Cormorant Unicase', serif;
@@ -168,8 +170,9 @@ export function Layout({children}: {children?: React.ReactNode}) {
             body {
               font-family: var(--font-primary);
             }
-          `
-        }} />
+          `,
+          }}
+        />
         <script
           type="text/javascript"
           src="https://assets.calendly.com/assets/external/widget.js"
@@ -212,6 +215,14 @@ export function ErrorBoundary() {
   } else if (error instanceof Error) {
     errorMessage = error.message;
   }
+
+  useEffect(() => {
+    if (errorStatus === 404) {
+      document.title = 'Not Found | LGG';
+    } else {
+      document.title = 'Error | LGG';
+    }
+  }, [errorStatus]);
 
   return (
     <div className="route-error">

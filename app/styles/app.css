@@ -22,11 +22,19 @@ body.body-aside-open {
   overflow: hidden;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-primary);
 }
 
-p, span, a, li {
+p,
+span,
+a,
+li {
   font-family: var(--font-primary);
 }
 
@@ -765,7 +773,6 @@ button.reset:hover:not(:has(> *)) {
 }
 
 @media screen and (max-width: 700px) {
-
   .footer-logo-text {
     width: 75%;
   }
@@ -1098,28 +1105,29 @@ button.reset:hover:not(:has(> *)) {
 .jewellery-types {
   border-top: 1px solid #000;
   border-bottom: 1px solid #fff;
-
 }
 
 /* Adjustments for smaller screens if needed */
-@media screen and (max-width: 768px) { /* Tablet */
+@media screen and (max-width: 768px) {
+  /* Tablet */
   .diamond-types .type-item {
     flex-basis: calc(100% / 3 - 1px); /* 3 items per row */
   }
-   .jewellery-types .type-item {
+  .jewellery-types .type-item {
     flex-basis: calc(100% / 2 - 1px); /* 2 items per row */
   }
 }
 
-@media screen and (max-width: 480px) { /* Mobile */
+@media screen and (max-width: 480px) {
+  /* Mobile */
   .diamond-types .type-item {
     flex-basis: calc(100% / 2 - 1px); /* 2 items per row */
   }
-   .jewellery-types .type-item {
+  .jewellery-types .type-item {
     flex-basis: calc(100% / 2 - 1px); /* 2 items per row */
     border-bottom: 1px solid #fff;
   }
-   .type-label {
+  .type-label {
     font-size: 16px;
     font-weight: 500;
   }
@@ -1160,13 +1168,13 @@ button.reset:hover:not(:has(> *)) {
   font-weight: 500;
 }
 
-.filter-group input[type="range"] {
+.filter-group input[type='range'] {
   width: 100%;
 }
 
 /* Custom rc-slider styles */
 .filter-group .rc-slider-rail {
-  background-color: #E5E7EB; /* Light gray background for the rail */
+  background-color: #e5e7eb; /* Light gray background for the rail */
   height: 2px;
 }
 
@@ -1177,7 +1185,11 @@ button.reset:hover:not(:has(> *)) {
 
 .filter-group .rc-slider-handle {
   border: 2px solid black !important; /* Ensure black border from Figma */
-  background-image: linear-gradient(to bottom, #ffffff, #fae3c3) !important; /* Subtle gold gradient */
+  background-image: linear-gradient(
+    to bottom,
+    #ffffff,
+    #fae3c3
+  ) !important; /* Subtle gold gradient */
   background-clip: padding-box !important; /* Keep gradient inside border */
   background-color: transparent !important; /* Reset any default background color */
   opacity: 1 !important; /* Ensure handle is fully opaque */
@@ -1190,16 +1202,17 @@ button.reset:hover:not(:has(> *)) {
 /* Optional: Style for focused/hovered handles */
 .filter-group .rc-slider-handle:focus,
 .filter-group .rc-slider-handle:hover,
-.filter-group .rc-slider-handle-dragging.rc-slider-handle-dragging.rc-slider-handle-dragging {
+.filter-group
+  .rc-slider-handle-dragging.rc-slider-handle-dragging.rc-slider-handle-dragging {
   border-color: black !important; /* Keep border black */
   box-shadow: 0 0 0 4px rgba(231, 180, 104, 0.3) !important; /* Subtle gold focus ring */
   /* Keep the gradient on focus/hover */
-  background-image: linear-gradient(to bottom, #f7d794, #e7b468) !important; 
+  background-image: linear-gradient(to bottom, #f7d794, #e7b468) !important;
 }
 
 /* Specific border color for filter input boxes */
 /* Increase specificity by adding the container class */
-.filter-group .price-input-container input[type="number"] {
+.filter-group .price-input-container input[type='number'] {
   /* Override the full border property with !important */
   border: 1px solid #64748b !important; /* 1px solid slate-500 */
   /* Hide the number input spinners */
@@ -1208,8 +1221,12 @@ button.reset:hover:not(:has(> *)) {
 
 /* Hide spinners for WebKit browsers (Chrome, Safari, Edge) */
 /* Increase specificity */
-.filter-group .price-input-container input[type=number]::-webkit-inner-spin-button,
-.filter-group .price-input-container input[type=number]::-webkit-outer-spin-button {
+.filter-group
+  .price-input-container
+  input[type='number']::-webkit-inner-spin-button,
+.filter-group
+  .price-input-container
+  input[type='number']::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
@@ -1236,7 +1253,7 @@ button.reset:hover:not(:has(> *)) {
   .diamonds-collection {
     grid-template-columns: 1fr;
   }
-   .filters-section {
+  .filters-section {
     margin-bottom: 2rem;
   }
 }
@@ -1276,8 +1293,12 @@ button.reset:hover:not(:has(> *)) {
 
 /* --- Marquee Banner Styles --- */
 @keyframes marquee {
-  0% { transform: translateX(0%); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 .marquee-content {
@@ -1291,4 +1312,31 @@ button.reset:hover:not(:has(> *)) {
 
 .marquee-container:hover .animate-marquee {
   animation-play-state: paused;
+}
+
+.header-logo {
+  max-height: 80px;
+  max-width: 270px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.header img[alt='Logo'] {
+  max-height: 80px;
+  max-width: 270px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.footer-logo {
+  max-height: 70px;
+  max-width: 200px;
+  width: auto !important;
+  height: auto;
+  object-fit: contain;
+  background-color: white;
+  padding: 5px;
+  border-radius: 4px;
 }

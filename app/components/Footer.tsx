@@ -52,7 +52,7 @@ function FooterMenu({
       <section className="footer-logo-menu">
         <div>
           <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
-            <img src={Logo} alt={'Logo'} width={100} className="footer-logo" />
+            <img src={Logo} alt={'Logo'} className="footer-logo" />
           </NavLink>
           <p className="footer-logo-text">
             At Complete Carat, we are redefining fine jewellery, ensuring that
@@ -177,6 +177,6 @@ export function activeLinkStyle({
 }) {
   return {
     color: isPending ? 'grey' : 'white',
-    textDecoration: 'none'
+    textDecoration: 'none',
   };
 }
