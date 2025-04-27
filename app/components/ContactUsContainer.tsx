@@ -13,7 +13,7 @@ export function ContactUsContainer() {
         </NavLink>
         <h1>CONTACT US</h1>
         <div className="w-[999px] h-[600px]">
-          <InlineWidget url="https://calendly.com/dixitprakharbsw" />
+          <InlineWidget url="https://calendly.com/completecarat/30min" />
         </div>
       </div>
     </div>

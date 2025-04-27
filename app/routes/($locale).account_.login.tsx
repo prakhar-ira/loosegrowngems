@@ -73,12 +73,17 @@ export async function action({request, context}: ActionFunctionArgs) {
 export default function Login() {
   const data = useActionData<ActionResponse>();
   const error = data?.error || null;
-  const {state} = useNavigation();
-  const isLoading = state !== 'idle';
+  const navigation = useNavigation();
+  const isLoading = navigation.state !== 'idle';
+  const isSubmitting = navigation.state === 'submitting';
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 md:p-10 rounded-xl shadow-md border border-gray-200">
+      <div
+        className={`max-w-md w-full space-y-8 bg-white p-8 md:p-10 rounded-xl shadow-md border border-gray-200 transition-opacity duration-300 ${
+          isSubmitting ? 'opacity-95' : 'opacity-100'
+        }`}
+      >
         <div className="text-center">
           <Link to="/">
             <img
@@ -102,7 +107,7 @@ export default function Login() {
         </div>
 
         <Form method="POST" className="mt-8 space-y-6">
-          <fieldset className="-space-y-px">
+          <fieldset className="-space-y-px" disabled={isLoading}>
             <div>
               <label htmlFor="email-address" className="sr-only">
                 Email address
@@ -113,7 +118,9 @@ export default function Login() {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-t-md relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className={`appearance-none rounded-t-md relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm transition-opacity duration-300 ${
+                  isLoading ? 'opacity-75' : 'opacity-100'
+                }`}
                 placeholder="Email address"
                 aria-label="Email address"
               />
@@ -129,7 +136,9 @@ export default function Login() {
                 autoComplete="current-password"
                 required
                 minLength={8}
-                className="appearance-none rounded-b-md relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className={`appearance-none rounded-b-md relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm transition-opacity duration-300 ${
+                  isLoading ? 'opacity-75' : 'opacity-100'
+                }`}
                 placeholder="Password"
                 aria-label="Password"
               />
@@ -159,7 +168,9 @@ export default function Login() {
             <div className="text-sm">
               <Link
                 to="/account/recover"
-                className="font-medium text-blue-600 hover:text-blue-500"
+                className={`font-medium text-blue-600 hover:text-blue-500 transition-opacity duration-300 ${
+                  isLoading ? 'opacity-50 pointer-events-none' : ''
+                }`}
               >
                 Forgot your password?
               </Link>
@@ -170,12 +181,12 @@ export default function Login() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#212121] hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-60 transition duration-150 ease-in-out"
+              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#212121] hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-80 transition-all duration-300 ease-in-out"
             >
-              {isLoading ? (
-                <>
+              <span className="absolute left-0 inset-y-0 flex items-center pl-3">
+                {isLoading && (
                   <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    className="animate-spin h-5 w-5 text-gray-300"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -187,18 +198,22 @@ export default function Login() {
                       r="10"
                       stroke="currentColor"
                       strokeWidth="4"
-                    ></circle>
+                    />
                     <path
                       className="opacity-75"
                       fill="currentColor"
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
+                    />
                   </svg>
-                  Signing in...
-                </>
-              ) : (
-                'Sign in'
-              )}
+                )}
+              </span>
+              <span
+                className={`${
+                  isLoading ? 'ml-2' : ''
+                } transition-all duration-300`}
+              >
+                {isLoading ? 'Signing in...' : 'Sign in'}
+              </span>
             </button>
           </div>
         </Form>

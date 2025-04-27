@@ -30,6 +30,7 @@ declare global {
     PUBLIC_CUSTOMER_ACCOUNT_API_URL: string;
     NIVODA_USERNAME?: string; // Add optional Nivoda username
     NIVODA_PASSWORD?: string; // Add optional Nivoda password
+    PUBLIC_CALENDLY_URL?: string;
   }
 
   /**

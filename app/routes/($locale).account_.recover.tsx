@@ -1,54 +1,50 @@
-import {Form, Link, useActionData, useNavigation} from '@remix-run/react';
 import {
-  type ActionFunctionArgs,
+  data,
+  redirect,
   type LoaderFunctionArgs,
-  type MetaFunction,
-  json,
+  type ActionFunctionArgs,
 } from '@shopify/remix-oxygen';
-import {redirect, type TypedResponse} from '@remix-run/server-runtime';
-import Logo from '~/assets/logo.png';
+import {Form, Link, useActionData, useNavigation} from '@remix-run/react';
+import Logo from '~/assets/logo.png'; // Import the logo
 
-export type ActionResponse = {
+type ActionResponse = {
   error?: string;
-  success?: boolean;
+  resetRequested?: boolean;
 };
 
-export const meta: MetaFunction = () => {
-  return [{title: 'Recover Password | LGG'}];
-};
-
-export async function loader({request, context}: LoaderFunctionArgs) {
-  const isLoggedIn = await (context.customerAccount as any).isLoggedIn();
-  if (isLoggedIn) {
+export async function loader({context}: LoaderFunctionArgs) {
+  const customerAccessToken = await context.session.get('customerAccessToken');
+  if (customerAccessToken) {
     return redirect('/account');
   }
-  return null;
+
+  return {};
 }
 
-export async function action({
-  request,
-  context,
-}: ActionFunctionArgs): Promise<TypedResponse<ActionResponse>> {
-  const {customerAccount} = context;
-  const formData = await request.formData();
-  const email = formData.get('email') as string;
+export async function action({request, context}: ActionFunctionArgs) {
+  const {storefront} = context;
+  const form = await request.formData();
+  const email = form.has('email') ? String(form.get('email')) : null;
 
-  if (!email || typeof email !== 'string') {
-    return json(
-      {error: 'Please provide a valid email address.'},
-      {status: 400},
-    );
+  if (request.method !== 'POST') {
+    return data({error: 'Method not allowed'}, {status: 405});
   }
 
   try {
-    await (customerAccount as any).recoverPassword(email);
-    return json({success: true});
-  } catch (error: any) {
-    console.error('Password Recovery Error:', error);
-    return json(
-      {error: error.message ?? 'Failed to request password recovery.'},
-      {status: 400},
-    );
+    if (!email) {
+      throw new Error('Please provide an email.');
+    }
+    await storefront.mutate(CUSTOMER_RECOVER_MUTATION, {
+      variables: {email},
+    });
+
+    return {resetRequested: true};
+  } catch (error: unknown) {
+    const resetRequested = false;
+    if (error instanceof Error) {
+      return data({error: error.message, resetRequested}, {status: 400});
+    }
+    return data({error, resetRequested}, {status: 400});
   }
 }
 
@@ -71,14 +67,14 @@ export default function Recover() {
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
             Reset your password
           </h2>
-          {!actionData?.success && (
+          {!actionData?.resetRequested && (
             <p className="mt-2 text-sm text-gray-600">
               Enter your email to receive a reset link.
             </p>
           )}
         </div>
 
-        {actionData?.success ? (
+        {actionData?.resetRequested ? (
           <div className="text-center space-y-4">
             <div className="flex items-center p-4 bg-green-50 border border-green-200 text-sm text-green-700 rounded-md">
               <svg
@@ -196,3 +192,20 @@ export default function Recover() {
     </div>
   );
 }
+
+// NOTE: https://shopify.dev/docs/api/storefront/latest/mutations/customerrecover
+const CUSTOMER_RECOVER_MUTATION = `#graphql
+  mutation customerRecover(
+    $email: String!,
+    $country: CountryCode,
+    $language: LanguageCode
+  ) @inContext(country: $country, language: $language) {
+    customerRecover(email: $email) {
+      customerUserErrors {
+        code
+        field
+        message
+      }
+    }
+  }
+` as const;

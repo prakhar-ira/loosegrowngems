@@ -70,7 +70,7 @@ export async function action({
     // Create customer
     const {customerCreate} = await storefront.mutate(CUSTOMER_CREATE_MUTATION, {
       variables: {
-        input: {email, password, firstName, lastName}, // Add names to input
+        input: {email, password, firstName, lastName, acceptsMarketing: true}, // Add names to input
       },
     });
 
@@ -281,9 +281,6 @@ const CUSTOMER_CREATE_MUTATION = `#graphql
     customerCreate(input: $input) {
       customer {
         id,
-        firstName
-        lastName
-        email
       }
       customerUserErrors {
         code
