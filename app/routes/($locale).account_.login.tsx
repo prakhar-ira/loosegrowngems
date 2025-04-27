@@ -1,50 +1,78 @@
-import {Form, Link, useActionData, useNavigation} from '@remix-run/react';
 import {
+  data,
+  redirect,
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
-  type MetaFunction,
 } from '@shopify/remix-oxygen';
-import {redirect} from '@remix-run/server-runtime';
+import {
+  Form,
+  Link,
+  useActionData,
+  useNavigation,
+  type MetaFunction,
+} from '@remix-run/react';
 import Logo from '~/assets/logo.png'; // Import the logo
 
-export const meta: MetaFunction = () => {
-  return [{title: 'Login | LGG'}];
+type ActionResponse = {
+  error: string | null;
 };
 
-export async function loader({request, context}: LoaderFunctionArgs) {
-  const isLoggedIn = await (context.customerAccount as any).isLoggedIn();
-  if (isLoggedIn) {
+export const meta: MetaFunction = () => {
+  return [{title: 'Login'}];
+};
+
+export async function loader({context}: LoaderFunctionArgs) {
+  if (await context.session.get('customerAccessToken')) {
     return redirect('/account');
   }
-  return null;
+  return {};
 }
 
 export async function action({request, context}: ActionFunctionArgs) {
-  const {customerAccount} = context;
-  const formData = await request.formData();
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
+  const {session, storefront} = context;
 
-  if (
-    !email ||
-    !password ||
-    typeof email !== 'string' ||
-    typeof password !== 'string'
-  ) {
-    return {error: 'Please provide both email and password.'};
+  if (request.method !== 'POST') {
+    return data({error: 'Method not allowed'}, {status: 405});
   }
 
   try {
-    await (customerAccount as any).login(email, password);
+    const form = await request.formData();
+    const email = String(form.has('email') ? form.get('email') : '');
+    const password = String(form.has('password') ? form.get('password') : '');
+    const validInputs = Boolean(email && password);
+
+    if (!validInputs) {
+      throw new Error('Please provide both an email and a password.');
+    }
+
+    const {customerAccessTokenCreate} = await storefront.mutate(
+      LOGIN_MUTATION,
+      {
+        variables: {
+          input: {email, password},
+        },
+      },
+    );
+
+    if (!customerAccessTokenCreate?.customerAccessToken?.accessToken) {
+      throw new Error(customerAccessTokenCreate?.customerUserErrors[0].message);
+    }
+
+    const {customerAccessToken} = customerAccessTokenCreate;
+    session.set('customerAccessToken', customerAccessToken);
+
     return redirect('/account');
-  } catch (error: any) {
-    // Handle different error types if needed
-    return {error: error.message ?? 'Invalid credentials.'};
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      return data({error: error.message}, {status: 400});
+    }
+    return data({error}, {status: 400});
   }
 }
 
 export default function Login() {
-  const action = useActionData<{error?: string}>();
+  const data = useActionData<ActionResponse>();
+  const error = data?.error || null;
   const {state} = useNavigation();
   const isLoading = state !== 'idle';
 
@@ -108,7 +136,7 @@ export default function Login() {
             </div>
           </fieldset>
 
-          {action?.error && (
+          {error && (
             <div className="flex items-center p-3 bg-red-50 border border-red-200 text-sm text-red-700 rounded-md">
               <svg
                 className="flex-shrink-0 h-5 w-5 mr-2"
@@ -123,7 +151,7 @@ export default function Login() {
                   clipRule="evenodd"
                 />
               </svg>
-              <span>{action.error}</span>
+              <span>{error}</span>
             </div>
           )}
 
@@ -178,3 +206,20 @@ export default function Login() {
     </div>
   );
 }
+
+// NOTE: https://shopify.dev/docs/api/storefront/latest/mutations/customeraccesstokencreate
+const LOGIN_MUTATION = `#graphql
+  mutation login($input: CustomerAccessTokenCreateInput!) {
+    customerAccessTokenCreate(input: $input) {
+      customerUserErrors {
+        code
+        field
+        message
+      }
+      customerAccessToken {
+        accessToken
+        expiresAt
+      }
+    }
+  }
+` as const;
