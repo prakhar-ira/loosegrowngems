@@ -7,7 +7,13 @@ import {
   type MetaFunction,
   json,
 } from '@shopify/remix-oxygen';
-import {Form, Link, useActionData, useFetcher} from '@remix-run/react';
+import {
+  Form,
+  Link,
+  useActionData,
+  useFetcher,
+  useNavigation,
+} from '@remix-run/react';
 import {type TypedResponse} from '@remix-run/server-runtime';
 import Logo from '~/assets/logo.png'; // Import the logo
 
@@ -44,9 +50,11 @@ export async function action({
 
   const {storefront, session} = context;
   const form = await request.formData();
-  const email = String(form.get('email') || '');
-  const password = String(form.get('password') || '');
-  const passwordConfirm = String(form.get('passwordConfirm') || ''); // Read passwordConfirm
+  const email = String(form.has('email') ? form.get('email') : '');
+  const password = form.has('password') ? String(form.get('password')) : '';
+  const passwordConfirm = form.has('passwordConfirm')
+    ? String(form.get('passwordConfirm'))
+    : null;
   const firstName = String(form.get('firstName') || ''); // Read firstName
   const lastName = String(form.get('lastName') || ''); // Read lastName
 
@@ -105,6 +113,8 @@ export async function action({
     // Using `throw redirect` is suitable here as it stops execution and sends the redirect response
     throw redirect('/account');
   } catch (error: unknown) {
+    console.log('errors', error);
+    console.log('errors 1', JSON.stringify(error));
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred';
     return json({error: errorMessage, newCustomer: null}, {status: 400});
@@ -114,7 +124,8 @@ export async function action({
 export default function Register() {
   const actionData = useActionData<ActionResponse>(); // Use direct useActionData
   const error = actionData?.error || null;
-  // We don't need isSubmitting state from fetcher if we use standard Form + useActionData
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === 'submitting';
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -156,6 +167,7 @@ export default function Register() {
                   type="text"
                   autoComplete="given-name"
                   required
+                  disabled={isSubmitting}
                   placeholder="First Name"
                   aria-label="First Name"
                   className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
@@ -171,6 +183,7 @@ export default function Register() {
                   type="text"
                   autoComplete="family-name"
                   required
+                  disabled={isSubmitting}
                   placeholder="Last Name"
                   aria-label="Last Name"
                   className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
@@ -189,6 +202,7 @@ export default function Register() {
                 type="email"
                 autoComplete="email"
                 required
+                disabled={isSubmitting}
                 placeholder="Email address"
                 aria-label="Email address"
                 className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
@@ -208,6 +222,7 @@ export default function Register() {
                 type="password"
                 autoComplete="new-password"
                 required
+                disabled={isSubmitting}
                 minLength={8}
                 placeholder="Password (min. 8 characters)"
                 aria-label="Password"
@@ -224,11 +239,12 @@ export default function Register() {
                 id="passwordConfirm"
                 name="passwordConfirm"
                 type="password"
-                autoComplete="new-password" // Use new-password to prevent autofill conflict
+                autoComplete="current-password" // Use new-password to prevent autofill conflict
                 placeholder="Re-enter password"
                 aria-label="Re-enter password"
                 minLength={8}
                 required
+                disabled={isSubmitting}
                 className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
               />
             </div>
@@ -258,11 +274,36 @@ export default function Register() {
           <div>
             <button
               type="submit"
-              // No need for isSubmitting state here as standard Form handles it
+              disabled={isSubmitting}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#212121] hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-60 transition duration-150 ease-in-out"
             >
-              {/* You can add loading state indication if desired, e.g., via useNavigation */}
-              Create account
+              {isSubmitting ? (
+                <span className="flex items-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Creating account...
+                </span>
+              ) : (
+                'Create account'
+              )}
             </button>
           </div>
         </Form>
