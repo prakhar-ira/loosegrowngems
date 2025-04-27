@@ -101,6 +101,7 @@ function FooterMenu({
               key={item.id}
               rel="noopener noreferrer"
               target="_blank"
+              className="relative block w-fit ml-auto hover:after:w-[100%] after:absolute after:bottom-0 after:left-0 after:h-[1px] after:w-0 after:bg-white after:transition-all after:duration-300 data-[active=true]:after:w-full"
             >
               {item.title}
             </a>
@@ -109,7 +110,11 @@ function FooterMenu({
               end
               key={item.id}
               prefetch="intent"
-              style={activeLinkStyle}
+              className={({isActive}) =>
+                `relative block w-fit ml-auto hover:after:w-[100%] after:absolute after:bottom-0 after:left-0 after:h-[1px] after:w-0 after:bg-white after:transition-all after:duration-300 ${
+                  isActive ? 'after:w-full' : ''
+                }`
+              }
               to={url}
             >
               {item.title}
@@ -171,7 +176,7 @@ export function activeLinkStyle({
   isPending: boolean;
 }) {
   return {
-    fontWeight: isActive ? 'bold' : undefined,
     color: isPending ? 'grey' : 'white',
+    textDecoration: 'none'
   };
 }

@@ -24,7 +24,7 @@ export const meta: MetaFunction = () => {
 };
 
 export async function loader({context}: LoaderFunctionArgs) {
-  await context.customerAccount.handleAuthStatus();
+  await (context.customerAccount as any).handleAuthStatus();
 
   return {};
 }
@@ -51,7 +51,7 @@ export async function action({request, context}: ActionFunctionArgs) {
     }
 
     // update customer and possibly password
-    const {data, errors} = await customerAccount.mutate(
+    const {data, errors} = await (customerAccount as any).mutate(
       CUSTOMER_UPDATE_MUTATION,
       {
         variables: {

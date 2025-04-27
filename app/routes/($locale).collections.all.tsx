@@ -1,12 +1,18 @@
 import {type LoaderFunctionArgs} from '@shopify/remix-oxygen';
 import {useLoaderData, Link, type MetaFunction} from '@remix-run/react';
 import {getPaginationVariables, Image, Money} from '@shopify/hydrogen';
-import type {ProductItemFragment} from 'storefrontapi.generated';
+import type {ProductItemAllFragment} from 'storefrontapi.generated';
 import {useVariantUrl} from '~/lib/variants';
 import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
+import { MarqueeBanner } from '~/components/MarqueeBanner';
+
+// Define the handle for this route
+export const handle = {
+  breadcrumb: 'Collections',
+};
 
 export const meta: MetaFunction<typeof loader> = () => {
-  return [{title: `Hydrogen | Products`}];
+  return [{title: `Hydrogen | Collections`}];
 };
 
 export async function loader(args: LoaderFunctionArgs) {
@@ -49,10 +55,11 @@ function loadDeferredData({context}: LoaderFunctionArgs) {
 }
 
 export default function Collection() {
-  const {products} = useLoaderData<typeof loader>();
+  const {products} = useLoaderData<{ products: { nodes: ProductItemAllFragment[]; pageInfo: { hasPreviousPage: boolean; hasNextPage: boolean; startCursor: string; endCursor: string; } } }>();
 
   return (
     <div className="collection">
+      <MarqueeBanner />
       <h1>Products</h1>
       <PaginatedResourceSection
         connection={products}
@@ -74,7 +81,7 @@ function ProductItem({
   product,
   loading,
 }: {
-  product: ProductItemFragment;
+  product: ProductItemAllFragment;
   loading?: 'eager' | 'lazy';
 }) {
   const variantUrl = useVariantUrl(product.handle);
@@ -107,7 +114,7 @@ const PRODUCT_ITEM_FRAGMENT = `#graphql
     amount
     currencyCode
   }
-  fragment ProductItem on Product {
+  fragment ProductItemAll on Product {
     id
     handle
     title
@@ -141,7 +148,7 @@ const CATALOG_QUERY = `#graphql
   ) @inContext(country: $country, language: $language) {
     products(first: $first, last: $last, before: $startCursor, after: $endCursor) {
       nodes {
-        ...ProductItem
+        ...ProductItemAll
       }
       pageInfo {
         hasPreviousPage

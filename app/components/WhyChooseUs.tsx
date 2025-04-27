@@ -110,7 +110,7 @@ const Promise = () => {
 
 export function WhyChooseUs() {
   return (
-    <div className="why-choose-us-section">
+    <div className="why-choose-us-section border-t border-white">
       <h3>WHY CHOOSE US</h3>
       <div className="homepage-grid-container">
         <div className="homepage-grid-item">

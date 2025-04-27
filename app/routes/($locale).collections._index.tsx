@@ -1,8 +1,26 @@
 import {useLoaderData, Link} from '@remix-run/react';
-import {type LoaderFunctionArgs} from '@shopify/remix-oxygen';
-import {getPaginationVariables, Image} from '@shopify/hydrogen';
+import {json, type LoaderFunctionArgs} from '@shopify/remix-oxygen';
+import {getPaginationVariables, Image, Money} from '@shopify/hydrogen';
 import type {CollectionFragment} from 'storefrontapi.generated';
 import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
+import { MarqueeBanner } from '~/components/MarqueeBanner';
+
+// Define the type for the loader data explicitly
+interface CollectionsLoaderData {
+  collections: {
+    nodes: CollectionFragment[];
+    pageInfo: { hasPreviousPage: boolean; hasNextPage: boolean; startCursor: string | null; endCursor: string | null };
+  };
+}
+
+// Define the handle for this route
+export const handle = {
+  breadcrumb: 'Collections',
+};
+
+export const meta = () => {
+  return [{title: 'Hydrogen | Collections'}];
+};
 
 export async function loader(args: LoaderFunctionArgs) {
   // Start fetching non-critical data without blocking time to first byte
@@ -11,7 +29,8 @@ export async function loader(args: LoaderFunctionArgs) {
   // Await the critical data required to render initial state of the page
   const criticalData = await loadCriticalData(args);
 
-  return {...deferredData, ...criticalData};
+  // Ensure the returned structure matches CollectionsLoaderData
+  return json({ ...deferredData, ...criticalData });
 }
 
 /**
@@ -43,19 +62,22 @@ function loadDeferredData({context}: LoaderFunctionArgs) {
 }
 
 export default function Collections() {
-  const {collections} = useLoaderData<typeof loader>();
+  // Use the explicit type with useLoaderData
+  const { collections } = useLoaderData<CollectionsLoaderData>();
 
   return (
     <div className="collections">
+      <MarqueeBanner />
       <h1>Collections</h1>
       <PaginatedResourceSection
+        // Now 'collections' should have the correct type
         connection={collections}
         resourcesClassName="collections-grid"
       >
         {({node: collection, index}) => (
           <CollectionItem
             key={collection.id}
-            collection={collection}
+            collection={collection} // Should no longer error
             index={index}
           />
         )}

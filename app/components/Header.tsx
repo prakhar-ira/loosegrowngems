@@ -8,6 +8,9 @@ import {
 import type {HeaderQuery, CartApiQueryFragment} from 'storefrontapi.generated';
 import {useAside} from '~/components/Aside';
 import Logo from '~/assets/logo.png';
+import SearchIcon from '~/assets/icons/search.svg';
+import CartIcon from '~/assets/icons/cart.svg';
+import PersonIcon from '~/assets/icons/person-1.svg';
 
 
 interface HeaderProps {
@@ -81,12 +84,15 @@ export function HeaderMenu({
             : item.url;
         return (
           <NavLink
-            className="header-menu-item"
+            className={({isActive}) =>
+              `header-menu-item relative text-base hover:after:w-[100%] after:absolute after:bottom-0 after:left-0 after:h-[1px] after:w-0 after:bg-black after:transition-all after:duration-300 ${
+                isActive ? 'after:w-full' : ''
+              }`
+            }
             end
             key={item.id}
             onClick={close}
             prefetch="intent"
-            style={activeLinkStyle}
             to={url}
           >
             {item.title}
@@ -104,14 +110,20 @@ function HeaderCtas({
   return (
     <nav className="header-ctas" role="navigation">
       <HeaderMenuMobileToggle />
-      <NavLink prefetch="intent" to="/account" style={activeLinkStyle}>
-        <Suspense fallback="Sign in">
-          <Await resolve={isLoggedIn} errorElement="Sign in">
-            {(isLoggedIn) => (isLoggedIn ? 'Account' : 'Sign in')}
+      <NavLink prefetch="intent" to="/account" style={activeLinkStyle} title="Account" className="header-icon-link">
+        <Suspense fallback={
+          <img src={PersonIcon} alt="Account" className="header-icon" />
+        }>
+          <Await resolve={isLoggedIn} errorElement={
+            <img src={PersonIcon} alt="Sign in" className="header-icon" />
+          }>
+            {(isLoggedInResolved) => (
+              <img src={PersonIcon} alt={isLoggedInResolved ? 'Account' : 'Sign in'} className="header-icon" />
+            )}
           </Await>
         </Suspense>
       </NavLink>
-      <SearchToggle />
+      {/* <SearchToggle /> */}
       <CartToggle cart={cart} />
     </nav>
   );
@@ -132,8 +144,8 @@ function HeaderMenuMobileToggle() {
 function SearchToggle() {
   const {open} = useAside();
   return (
-    <button className="reset" onClick={() => open('search')}>
-      Search
+    <button className="reset header-icon-button" onClick={() => open('search')} title="Search">
+      <img src={SearchIcon} alt="Search" className="header-icon"/>
     </button>
   );
 }
@@ -155,8 +167,15 @@ function CartBadge({count}: {count: number | null}) {
           url: window.location.href || '',
         } as CartViewPayload);
       }}
+      title="Cart"
+      className="header-icon-link relative"
     >
-      Cart {count === null ? <span>&nbsp;</span> : count}
+      <div className="header-icon-wrapper">
+        <img src={CartIcon} alt="Cart" className="header-icon"/>
+        {count !== null && count > 0 && (
+          <div className="cart-count">{count}</div>
+        )}
+      </div>
     </a>
   );
 }
@@ -181,39 +200,48 @@ const FALLBACK_HEADER_MENU = {
   id: 'gid://shopify/Menu/199655587896',
   items: [
     {
-      id: 'gid://shopify/MenuItem/461609500728',
+      id: 'gid://shopify/MenuItem/figma1',
       resourceId: null,
       tags: [],
-      title: 'Collections',
+      title: 'DIAMONDS',
       type: 'HTTP',
-      url: '/collections',
+      url: '/collections/diamonds',
       items: [],
     },
     {
-      id: 'gid://shopify/MenuItem/461609533496',
+      id: 'gid://shopify/MenuItem/figma2',
       resourceId: null,
       tags: [],
-      title: 'Blog',
+      title: 'RINGS',
       type: 'HTTP',
-      url: '/blogs/journal',
+      url: '/collections/rings',
       items: [],
     },
     {
-      id: 'gid://shopify/MenuItem/461609566264',
+      id: 'gid://shopify/MenuItem/figma3',
       resourceId: null,
       tags: [],
-      title: 'Policies',
+      title: 'EARRINGS',
       type: 'HTTP',
-      url: '/policies',
+      url: '/collections/earrings',
       items: [],
     },
     {
-      id: 'gid://shopify/MenuItem/461609599032',
-      resourceId: 'gid://shopify/Page/92591030328',
+      id: 'gid://shopify/MenuItem/figma4',
+      resourceId: null,
       tags: [],
-      title: 'About',
-      type: 'PAGE',
-      url: '/pages/about',
+      title: 'BRACELETS',
+      type: 'HTTP',
+      url: '/collections/bracelets',
+      items: [],
+    },
+    {
+      id: 'gid://shopify/MenuItem/figma5',
+      resourceId: null,
+      tags: [],
+      title: 'NECKLACES',
+      type: 'HTTP',
+      url: '/collections/necklaces',
       items: [],
     },
   ],
@@ -227,7 +255,6 @@ function activeLinkStyle({
   isPending: boolean;
 }) {
   return {
-    fontWeight: isActive ? 'bold' : undefined,
-    color: isPending ? 'grey' : 'black',
+    color: isPending ? 'grey' : 'black'
   };
 }

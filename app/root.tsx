@@ -159,6 +159,17 @@ export function Layout({children}: {children?: React.ReactNode}) {
           href="https://calendly.com/assets/external/widget.css"
           rel="stylesheet"
         ></link>
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            :root {
+              --font-primary: 'SF Pro', Arial, sans-serif;
+              --font-secondary: 'Cormorant Unicase', serif;
+            }
+            body {
+              font-family: var(--font-primary);
+            }
+          `
+        }} />
         <script
           type="text/javascript"
           src="https://assets.calendly.com/assets/external/widget.js"

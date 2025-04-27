@@ -1,0 +1,47 @@
+# TODO: Implement Ring Size and Color Selectors in PDP
+
+- [x] **Setup:** Import necessary components/hooks (`VariantSelector`, `useSearchParams`, `useLocation`, `useNavigate`, types) in `app/routes/($locale).products.$handle.tsx`. 
+- [x] **Data Access:** Confirmed `product.options` and `product.variants` are correctly accessed.
+- [x] **Variant State:** Replaced `useOptimisticVariant`. Now using `useSearchParams` and `useMemo` within the `Product` component to derive `selectedVariant` directly from URL parameters on each render. This handles initial state and subsequent updates correctly.
+- [x] **Integrate `VariantSelector`:** Added `<VariantSelector>` component.
+- [x] **Customize Option Rendering:** Implemented the `children` render prop for `VariantSelector`:
+    - [x] Accessed `option` object.
+    - [x] If `option.name` is "Ring Size" or "Length", render styled boxes (`<Link>`).
+    - [x] If `option.name` is "Color", render styled swatches (`<Link>`).
+    - [x] **Active State Handling:** Determined active state manually (`isManuallyActive`) by comparing option values against `selectedVariant` derived from URL, as Hydrogen's `isActive` was unreliable on initial load.
+    - [x] **Navigation:** 
+        - Color links use the `to` prop from `VariantSelector`.
+        - Ring Size/Length links use a manually constructed `correctTo` URL to work around `VariantSelector` generating incomplete URLs initially.
+- [x] **Update Price Display:** Modified `<Money>` to display `selectedVariant.price`.
+- [x] **Update Action Buttons:** 
+    - [ ] Use `selectedVariant.id` for adding to cart/buying actions (pending cart logic integration).
+    - [x] Use `selectedVariant.availableForSale` to dynamically enable/disable buttons.
+    - [ ] `AddToCartButton` abstraction TBD.
+- [x] **Update Analytics:** Modified `Analytics.ProductView` to use data from `selectedVariant`.
+- [x] **Testing:** Tested variant selection, URL updates, price changes, button states, and initial load active states.
+
+# TODO: Align PDP with Figma Design (Sandy Setting - Node 78:37)
+
+- [ ] **Image Gallery:** Implement main image + vertical thumbnail structure.
+- [ ] **Product Attributes:** Adjust displayed attributes (e.g., "Lab-Grown Diamonds", "D-E/VVS") below title.
+- [x] **Variant Selector - Color:** Styling updated to match Figma/User Requests.
+    - [x] **Add Label:** Implemented dynamic label "Color: [Selected Color Value]".
+    - [x] **Style Swatches Container:** Added border (`border border-gray-300 p-2`) and fit-content width (`w-fit`).
+    - [x] **Style Swatches:** Rectangular swatches (`h-8 px-4`) with dynamic background colors.
+    - [x] **Active State:** Uses `shadow-xl` and an inline SVG tick mark (driven by `isManuallyActive`).
+    - [x] **Add Text:** Display extracted carat value inside swatches.
+    - [x] **Style Text:** Bold (`font-semibold`) and dynamically colored for contrast.
+- [x] **Variant Selector - Ring Size / Length:** Changed from dropdown to styled boxes (Match Figma/User Request).
+    - [x] **Add Label:** Implemented dynamic label "[Option Name]: [Selected Value]".
+    - [x] **Rendering:** Use `.map()` creating individual clickable `<Link>` components.
+    - [x] **Style Boxes:** Rectangular boxes (`border`, `px-4`, `py-1.5`, `text-center`) with collapsed borders using negative margins and `overflow-hidden` on container. Display only the `value`.
+    - [x] **Active State:** Uses `shadow-xl` and an inline SVG tick mark (driven by `isManuallyActive`).
+- [ ] **Layout Adjustments:** Reorder Price, Quantity, Badges.
+    - [x] Grouped Title, Attributes, and Variant Selectors in a `div` with `gap-4`.
+    - [ ] Move Price display (`<Money>`) below variant selectors.
+    - [ ] Move Quantity selector next to Price.
+    - [ ] Move Badges/Tags ("Sourced With Care", etc.) near Price.
+    - [ ] Ensure correct layout flow and spacing.
+- [x] **Quantity Selector Styling:** Updated appearance to match Figma (distinct bordered boxes for -, count, +).
+- [ ] **Action Buttons:** Review placement (pending Layout Adjustments task).
+- [ ] **Overall Styling:** Review fonts, spacing, etc., across the component for closer Figma alignment. 

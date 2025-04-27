@@ -4,7 +4,6 @@ import {Suspense} from 'react';
 import {Image, Money} from '@shopify/hydrogen';
 import type {
   FeaturedCollectionFragment,
-  RecommendedProductsQuery,
 } from 'storefrontapi.generated';
 import {ExcellenceSection} from '~/components/ExcellenceSection';
 import { WhyChooseUs } from '~/components/WhyChooseUs';
@@ -14,13 +13,10 @@ export const meta: MetaFunction = () => {
 };
 
 export async function loader(args: LoaderFunctionArgs) {
-  // Start fetching non-critical data without blocking time to first byte
-  const deferredData = loadDeferredData(args);
-
   // Await the critical data required to render initial state of the page
   const criticalData = await loadCriticalData(args);
 
-  return {...deferredData, ...criticalData};
+  return {...criticalData};
 }
 
 /**
@@ -38,32 +34,14 @@ async function loadCriticalData({context}: LoaderFunctionArgs) {
   };
 }
 
-/**
- * Load data for rendering content below the fold. This data is deferred and will be
- * fetched after the initial page load. If it's unavailable, the page should still 200.
- * Make sure to not throw any errors here, as it will cause the page to 500.
- */
-function loadDeferredData({context}: LoaderFunctionArgs) {
-  const recommendedProducts = context.storefront
-    .query(RECOMMENDED_PRODUCTS_QUERY)
-    .catch((error) => {
-      // Log query errors, but don't throw them so the page can still render
-      console.error(error);
-      return null;
-    });
-
-  return {
-    recommendedProducts,
-  };
-}
-
 export default function Homepage() {
   const data = useLoaderData<typeof loader>();
   return (
     <div className="home">
       <ExcellenceSection />
       {/* <FeaturedCollection collection={data.featuredCollection} /> */}
-      <RecommendedProducts products={data.recommendedProducts} />
+      <DiamondTypes />
+      {/* <JewelleryTypes /> */}
       <WhyChooseUs />
     </div>
   );
@@ -91,42 +69,52 @@ function FeaturedCollection({
   );
 }
 
-function RecommendedProducts({
-  products,
-}: {
-  products: Promise<RecommendedProductsQuery | null>;
-}) {
+function DiamondTypes() {
+  const diamondTypes = [
+    {name: 'Round', img: '/figma/diamond-round.png', link: '/collections/diamonds?shape=Round'},
+    {name: 'Princess', img: '/figma/diamond-princess.png', link: '/collections/diamonds?shape=Princess'},
+    {name: 'Cushion', img: '/figma/diamond-cushion.png', link: '/collections/diamonds?shape=Cushion'},
+    {name: 'Oval', img: '/figma/diamond-oval.png', link: '/collections/diamonds?shape=Oval'},
+    {name: 'Pear', img: '/figma/diamond-pear.png', link: '/collections/diamonds?shape=Pear'},
+    {name: 'Emerald', img: '/figma/diamond-emerald.png', link: '/collections/diamonds?shape=Emerald'},
+  ];
+
   return (
-    <div className="recommended-products">
-      <h2>Recommended Products</h2>
-      <Suspense fallback={<div>Loading...</div>}>
-        <Await resolve={products}>
-          {(response) => (
-            <div className="recommended-products-grid">
-              {response
-                ? response.products.nodes.map((product) => (
-                    <Link
-                      key={product.id}
-                      className="recommended-product"
-                      to={`/products/${product.handle}`}
-                    >
-                      <Image
-                        data={product.images.nodes[0]}
-                        aspectRatio="1/1"
-                        sizes="(min-width: 45em) 20vw, 50vw"
-                      />
-                      <h4>{product.title}</h4>
-                      <small>
-                        <Money data={product.priceRange.minVariantPrice} />
-                      </small>
-                    </Link>
-                  ))
-                : null}
-            </div>
-          )}
-        </Await>
-      </Suspense>
-      <br />
+    <div className="homepage-section diamond-types font-light">
+      {diamondTypes.map((type) => (
+        <Link key={type.name} to={type.link} className="type-item">
+          <div className="type-image-container">
+            <img src={type.img} alt={type.name} loading="lazy" />
+          </div>
+          <div className="type-label">
+            <span>{type.name}</span>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function JewelleryTypes() {
+  const jewelleryTypes = [
+    {name: 'Shop Engagement Rings', img: '/figma/jewellery-engagement-ring.png', link: '/collections/engagement-rings'},
+    {name: 'Shop Earrings', img: '/figma/jewellery-earrings.png', link: '/collections/earrings'},
+    {name: 'Shop Pendants', img: '/figma/jewellery-pendants.png', link: '/collections/pendants'},
+    {name: 'Shop Nameplates', img: '/figma/jewellery-nameplates.png', link: '/collections/nameplates'},
+  ];
+
+  return (
+    <div className="homepage-section jewellery-types">
+      {jewelleryTypes.map((type) => (
+        <Link key={type.name} to={type.link} className="type-item">
+          <div className="type-image-container jewellery-image-container">
+            <img src={type.img} alt={type.name} loading="lazy" />
+          </div>
+          <div className="type-label">
+            <span>{type.name}</span>
+          </div>
+        </Link>
+      ))}
     </div>
   );
 }
@@ -149,37 +137,6 @@ const FEATURED_COLLECTION_QUERY = `#graphql
     collections(first: 1, sortKey: UPDATED_AT, reverse: true) {
       nodes {
         ...FeaturedCollection
-      }
-    }
-  }
-` as const;
-
-const RECOMMENDED_PRODUCTS_QUERY = `#graphql
-  fragment RecommendedProduct on Product {
-    id
-    title
-    handle
-    priceRange {
-      minVariantPrice {
-        amount
-        currencyCode
-      }
-    }
-    images(first: 1) {
-      nodes {
-        id
-        url
-        altText
-        width
-        height
-      }
-    }
-  }
-  query RecommendedProducts ($country: CountryCode, $language: LanguageCode)
-    @inContext(country: $country, language: $language) {
-    products(first: 4, sortKey: UPDATED_AT, reverse: true) {
-      nodes {
-        ...RecommendedProduct
       }
     }
   }

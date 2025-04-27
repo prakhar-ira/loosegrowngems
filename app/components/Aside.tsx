@@ -77,6 +77,23 @@ const AsideContext = createContext<AsideContextValue | null>(null);
 Aside.Provider = function AsideProvider({children}: {children: ReactNode}) {
   const [type, setType] = useState<AsideType>('closed');
 
+  // Effect to lock body scroll when aside is open
+  useEffect(() => {
+    const body = document.body;
+    if (type !== 'closed') {
+      // Prevent scrolling on mount
+      body.classList.add('body-aside-open');
+    } else {
+      // Re-enable scrolling when component unmounts
+      body.classList.remove('body-aside-open');
+    }
+
+    // Cleanup function to remove class if component unmounts while open
+    return () => {
+      body.classList.remove('body-aside-open');
+    };
+  }, [type]); // Dependency array includes type state
+
   return (
     <AsideContext.Provider
       value={{

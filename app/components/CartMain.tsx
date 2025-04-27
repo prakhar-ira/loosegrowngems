@@ -1,9 +1,9 @@
 import type {CartApiQueryFragment} from 'storefrontapi.generated';
 import {CartLineItem} from '~/components/CartLineItem';
 import {CartSummary} from './CartSummary';
-import {Link} from '@remix-run/react';
+import {Link, useFetchers} from '@remix-run/react';
 import {useAside} from '~/components/Aside';
-import {useOptimisticCart} from '@shopify/hydrogen';
+import {CartForm, useOptimisticCart} from '@shopify/hydrogen';
 
 export type CartLayout = 'page' | 'aside';
 
@@ -17,9 +17,22 @@ export type CartMainProps = {
  * It is used by both the /cart route and the cart aside dialog.
  */
 export function CartMain({layout, cart: originalCart}: CartMainProps) {
-  // The useOptimisticCart hook applies pending actions to the cart
-  // so the user immediately sees feedback when they modify the cart.
+  const fetchers = useFetchers();
   const cart = useOptimisticCart(originalCart);
+
+  // Determine if any fetcher is currently updating the cart lines
+  const isCartUpdating = fetchers.some((fetcher) => {
+    // Check if the fetcher is submitting to the cart route
+    // and the action is related to line updates or removals.
+    // We check the form action path and the state.
+    // A more specific check could involve inspecting fetcher.formData,
+    // but checking the action route and state is usually sufficient.
+    const isCartAction = fetcher.formAction?.startsWith('/cart');
+    const isSubmitting = fetcher.state === 'submitting' || fetcher.state === 'loading';
+    // Optionally, check for specific hidden inputs if needed, e.g.,
+    // const isLineUpdate = fetcher.formData?.get('cartAction') === CartForm.ACTIONS.LinesUpdate;
+    return isCartAction && isSubmitting;
+  });
 
   const linesCount = Boolean(cart?.lines?.nodes?.length || 0);
   const withDiscount =
@@ -39,7 +52,7 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
             ))}
           </ul>
         </div>
-        {cartHasItems && <CartSummary cart={cart} layout={layout} />}
+        {cartHasItems && <CartSummary cart={cart} layout={layout} isCartUpdating={isCartUpdating} />}
       </div>
     </div>
   );

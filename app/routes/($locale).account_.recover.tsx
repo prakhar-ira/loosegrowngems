@@ -6,7 +6,7 @@ import {
 import {redirect} from '@remix-run/server-runtime';
 
 export async function loader({request, context}: LoaderFunctionArgs) {
-  const isLoggedIn = await context.customerAccount.isLoggedIn();
+  const isLoggedIn = await (context.customerAccount as any).isLoggedIn();
   if (isLoggedIn) {
     return redirect('/account');
   }
@@ -19,7 +19,7 @@ export async function action({request, context}: ActionFunctionArgs) {
   const email = formData.get('email') as string;
 
   try {
-    await customerAccount.recoverPassword(email);
+    await (customerAccount as any).recoverPassword(email);
     return {success: true};
   } catch (error: any) {
     return {error: error.message};
@@ -37,7 +37,7 @@ export default function Recover() {
       <br />
       {action?.success ? (
         <>
-          <p>We've sent you an email with a link to reset your password.</p>
+          <p>We have sent you an email with a link to reset your password.</p>
           <br />
           <p>
             <Link to="/account/login">Return to sign in →</Link>
@@ -46,7 +46,7 @@ export default function Recover() {
       ) : (
         <>
           <p>
-            Enter your email address and we'll send you a link to reset your
+            Enter your email address and we will send you a link to reset your
             password.
           </p>
           <br />
