@@ -13,6 +13,7 @@ import {
   type MetaFunction,
 } from '@remix-run/react';
 import {AddressFragment, CustomerFragment} from 'customer-accountapi.generated';
+import {useState, useEffect} from 'react';
 
 export type ActionResponse = {
   addressId?: string | null;
@@ -217,10 +218,69 @@ export async function action({request, context}: ActionFunctionArgs) {
 export default function Addresses() {
   const {customer} = useOutletContext<{customer: CustomerFragment}>();
   const {defaultAddress, addresses} = customer;
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [addressToEdit, setAddressToEdit] = useState<any>(null);
+
+  const openModal = (address?: any) => {
+    console.log('openModal', address);
+    setIsModalOpen(true);
+    const addressObj = address || {
+      address1: '',
+      address2: '',
+      city: '',
+      company: '',
+      country: '',
+      firstName: '',
+      id: 'new',
+      lastName: '',
+      phone: '',
+      province: '',
+      zip: '',
+    };
+    setAddressToEdit(addressObj);
+    // Prevent body scrolling when modal is open
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setAddressToEdit(null);
+    // Restore body scrolling when modal is closed
+    document.body.style.overflow = 'auto';
+  };
+
+  // Cleanup effect to ensure body scroll is restored if component unmounts with modal open
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-medium text-gray-900">Your Addresses</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-medium text-gray-900">Your Addresses</h2>
+        <button
+          onClick={() => openModal()}
+          className="px-4 flex py-2 bg-[#212121] text-white text-sm font-medium rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
+        >
+          <svg
+            className="mr-2 h-5 w-5"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+            />
+          </svg>
+          Add new address
+        </button>
+      </div>
 
       {!addresses.nodes.length ? (
         <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
@@ -253,198 +313,135 @@ export default function Addresses() {
         </div>
       ) : (
         <div className="space-y-8">
-          <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Create a new address
-            </h3>
-            <NewAddressForm />
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Your saved addresses
-            </h3>
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
             <ExistingAddresses
               addresses={addresses}
               defaultAddress={defaultAddress}
+              onEdit={openModal}
             />
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
-function NewAddressForm() {
-  const newAddress = {
-    address1: '',
-    address2: '',
-    city: '',
-    company: '',
-    country: '',
-    firstName: '',
-    id: 'new',
-    lastName: '',
-    phone: '',
-    province: '',
-    zip: '',
-  } as any;
+      {/* Address Modal */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-50 overflow-hidden"
+          aria-labelledby="modal-title"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            {/* Background overlay with blur effect */}
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-60 backdrop-blur-sm transition-opacity"
+              aria-hidden="true"
+              onClick={closeModal}
+            ></div>
 
-  return (
-    <AddressForm address={newAddress} defaultAddress={null}>
-      {({stateForMethod}) => (
-        <div className="mt-4 flex justify-end">
-          <button
-            disabled={stateForMethod('POST') !== 'idle'}
-            formMethod="POST"
-            type="submit"
-            className="px-4 py-2 bg-[#212121] text-white text-sm font-medium rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 flex items-center"
-          >
-            {stateForMethod('POST') !== 'idle' ? (
-              <>
-                <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
+            <span
+              className="hidden sm:inline-block sm:align-middle sm:h-screen"
+              aria-hidden="true"
+            >
+              &#8203;
+            </span>
+
+            {/* Modal panel with increased width */}
+            <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl w-full border border-gray-100">
+              {/* Modal header with close button - upgraded styling */}
+              <div className="bg-gradient-to-r from-gray-50 to-white px-8 py-5 border-b border-gray-100 flex justify-between items-center">
+                <h3
+                  className="text-xl leading-6 font-medium text-gray-900"
+                  id="modal-title"
                 >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
+                  {addressToEdit?.id === 'new'
+                    ? 'Add New Address'
+                    : 'Edit Address'}
+                </h3>
+                <button
+                  type="button"
+                  className="bg-white rounded-full p-2 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                  onClick={closeModal}
+                >
+                  <span className="sr-only">Close</span>
+                  <svg
+                    className="h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
                     stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                Creating...
-              </>
-            ) : (
-              'Create address'
-            )}
-          </button>
-        </div>
-      )}
-    </AddressForm>
-  );
-}
-
-function ExistingAddresses({
-  addresses,
-  defaultAddress,
-}: Pick<CustomerFragment, 'addresses' | 'defaultAddress'>) {
-  return (
-    <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
-      {addresses.nodes.map((address) => (
-        <div key={address.id} className="border border-gray-200 rounded-lg p-4">
-          <AddressForm address={address} defaultAddress={defaultAddress}>
-            {({stateForMethod}) => (
-              <div className="mt-4 flex space-x-2">
-                <button
-                  disabled={stateForMethod('PUT') !== 'idle'}
-                  formMethod="PUT"
-                  type="submit"
-                  className="px-3 py-1 bg-[#212121] text-white text-sm font-medium rounded hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 flex items-center"
-                >
-                  {stateForMethod('PUT') !== 'idle' ? (
-                    <>
-                      <svg
-                        className="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      Saving...
-                    </>
-                  ) : (
-                    'Save'
-                  )}
-                </button>
-                <button
-                  disabled={stateForMethod('DELETE') !== 'idle'}
-                  formMethod="DELETE"
-                  type="submit"
-                  className="px-3 py-1 border border-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 flex items-center"
-                >
-                  {stateForMethod('DELETE') !== 'idle' ? (
-                    <>
-                      <svg
-                        className="animate-spin -ml-1 mr-1 h-3 w-3 text-gray-700"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      Deleting...
-                    </>
-                  ) : (
-                    'Delete'
-                  )}
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
                 </button>
               </div>
-            )}
-          </AddressForm>
+
+              {/* Modal body with increased padding */}
+              <div className="bg-white px-8 py-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                <div className="w-full">
+                  <AddressFormInModal
+                    address={addressToEdit}
+                    defaultAddress={defaultAddress}
+                    onClose={closeModal}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }
 
-export function AddressForm({
+function AddressFormInModal({
   address,
   defaultAddress,
-  children,
+  onClose,
 }: {
-  children: (props: {
-    stateForMethod: (
-      method: 'PUT' | 'POST' | 'DELETE',
-    ) => ReturnType<typeof useNavigation>['state'];
-  }) => React.ReactNode;
-  defaultAddress: CustomerFragment['defaultAddress'];
   address: any;
+  defaultAddress: CustomerFragment['defaultAddress'];
+  onClose: () => void;
 }) {
   const {state, formMethod} = useNavigation();
   const action = useActionData<ActionResponse>();
-  const error = action?.error?.[address.id];
-  const isDefaultAddress = defaultAddress?.id === address.id;
+  const error = action?.error?.[address?.id];
+  const isDefaultAddress = defaultAddress?.id === address?.id;
+  const isSubmitting =
+    (formMethod === 'POST' && address?.id === 'new') ||
+    (formMethod === 'PUT' && address.id !== 'new');
+
+  // Close modal on successful form submission
+  if (state === 'loading' && !isSubmitting) {
+    onClose();
+  }
+
+  // Also handle successful submission
+  useEffect(() => {
+    if (
+      (action?.createdAddress && address.id === 'new') ||
+      (action?.updatedAddress && address.id !== 'new')
+    ) {
+      onClose();
+    }
+  }, [action, address.id, onClose]);
 
   return (
-    <Form id={address.id} className="space-y-4">
+    <Form
+      id={address.id}
+      style={{maxWidth: 'none'}}
+      className="space-y-5"
+      method={address.id === 'new' ? 'POST' : 'PUT'}
+    >
       <input type="hidden" name="addressId" defaultValue={address.id} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="sm:col-span-1">
           <label
             htmlFor={`firstName_${address.id}`}
@@ -461,7 +458,7 @@ export function AddressForm({
             placeholder="First name"
             required
             type="text"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
           />
         </div>
 
@@ -481,11 +478,11 @@ export function AddressForm({
             placeholder="Last name"
             required
             type="text"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
           />
         </div>
 
-        <div className="sm:col-span-2">
+        <div className="sm:col-span-1">
           <label
             htmlFor={`company_${address.id}`}
             className="block text-sm font-medium text-gray-700"
@@ -500,11 +497,11 @@ export function AddressForm({
             name="company"
             placeholder="Company (optional)"
             type="text"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
           />
         </div>
 
-        <div className="sm:col-span-2">
+        <div className="sm:col-span-1">
           <label
             htmlFor={`address1_${address.id}`}
             className="block text-sm font-medium text-gray-700"
@@ -520,11 +517,11 @@ export function AddressForm({
             placeholder="Address line 1"
             required
             type="text"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
           />
         </div>
 
-        <div className="sm:col-span-2">
+        <div className="sm:col-span-1">
           <label
             htmlFor={`address2_${address.id}`}
             className="block text-sm font-medium text-gray-700"
@@ -539,7 +536,7 @@ export function AddressForm({
             name="address2"
             placeholder="Address line 2 (optional)"
             type="text"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
           />
         </div>
 
@@ -559,7 +556,7 @@ export function AddressForm({
             placeholder="City"
             required
             type="text"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
           />
         </div>
 
@@ -579,7 +576,7 @@ export function AddressForm({
             placeholder="State / Province"
             required
             type="text"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
           />
         </div>
 
@@ -599,7 +596,7 @@ export function AddressForm({
             placeholder="Zip / Postal Code"
             required
             type="text"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
           />
         </div>
 
@@ -617,13 +614,11 @@ export function AddressForm({
             id={`country_${address.id}`}
             name="country"
             placeholder="Country"
-            required
             type="text"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
           />
         </div>
-
-        <div className="sm:col-span-2">
+        <div className="sm:col-span-1">
           <label
             htmlFor={`phone_${address.id}`}
             className="block text-sm font-medium text-gray-700"
@@ -639,18 +634,18 @@ export function AddressForm({
             placeholder="+1 (555) 555-5555"
             pattern="^\+?[1-9]\d{3,14}$"
             type="tel"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
           />
         </div>
       </div>
 
-      <div className="flex items-center">
+      <div className="flex items-center mt-4">
         <input
           defaultChecked={isDefaultAddress}
           id={`defaultAddress_${address.id}`}
           name="defaultAddress"
           type="checkbox"
-          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-all"
         />
         <label
           htmlFor={`defaultAddress_${address.id}`}
@@ -679,10 +674,188 @@ export function AddressForm({
         </div>
       ) : null}
 
-      {children({
-        stateForMethod: (method) => (formMethod === method ? state : 'idle'),
-      })}
+      <div className="mt-6 sm:flex sm:flex-row-reverse sm:space-x-reverse sm:space-x-3">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full sm:w-auto flex justify-center items-center rounded-md border border-transparent shadow-sm px-6 py-2.5 bg-gradient-to-r from-gray-800 to-gray-900 text-base font-medium text-white hover:from-gray-900 hover:to-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 sm:text-sm disabled:opacity-50 transition-all duration-200"
+        >
+          {isSubmitting ? (
+            <span className="flex items-center">
+              <svg
+                className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+              {address.id === 'new' ? 'Creating...' : 'Saving...'}
+            </span>
+          ) : address.id === 'new' ? (
+            'Add Address'
+          ) : (
+            'Save Changes'
+          )}
+        </button>
+        <button
+          type="button"
+          className="mt-3 sm:mt-0 w-full sm:w-auto flex justify-center items-center rounded-md border border-gray-300 shadow-sm px-6 py-2.5 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:text-sm transition-all"
+          onClick={onClose}
+        >
+          Cancel
+        </button>
+      </div>
     </Form>
+  );
+}
+
+function ExistingAddresses({
+  addresses,
+  defaultAddress,
+  onEdit,
+}: Pick<CustomerFragment, 'addresses' | 'defaultAddress'> & {
+  onEdit: (address: any) => void;
+}) {
+  const navigation = useNavigation();
+  const [addressBeingDeleted, setAddressBeingDeleted] = useState<string | null>(
+    null,
+  );
+
+  const handleDelete = (addressId: string, event: React.FormEvent) => {
+    if (!confirm('Are you sure you want to delete this address?')) {
+      event.preventDefault();
+    } else {
+      setAddressBeingDeleted(addressId);
+    }
+  };
+
+  return (
+    <div className="divide-y divide-gray-200">
+      <div className="px-6 py-4 bg-gray-50">
+        <h3 className="text-lg font-medium text-gray-900">
+          Your saved addresses
+        </h3>
+      </div>
+      <div className="grid gap-6 p-6 sm:grid-cols-1 md:grid-cols-2">
+        {addresses.nodes.map((address) => {
+          const isDefault = defaultAddress?.id === address.id;
+          const isDeleting =
+            addressBeingDeleted === address.id && navigation.state !== 'idle';
+
+          return (
+            <div
+              key={address.id}
+              className="border border-gray-200 rounded-lg p-4"
+            >
+              <div className="relative pb-5 border-b border-gray-100">
+                {isDefault && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 absolute right-0 top-0">
+                    Default
+                  </span>
+                )}
+                <div className="mt-4">
+                  <p className="text-base font-medium text-gray-900">
+                    {address.firstName} {address.lastName}
+                  </p>
+                  {address.company && (
+                    <p className="text-sm text-gray-500">{address.company}</p>
+                  )}
+                  <p className="text-sm text-gray-500 mt-1">
+                    {address.address1}
+                  </p>
+                  {address.address2 && (
+                    <p className="text-sm text-gray-500">{address.address2}</p>
+                  )}
+                  <p className="text-sm text-gray-500">
+                    {address.city}, {address.zoneCode || address.territoryCode}{' '}
+                    {address.zip}
+                  </p>
+                  {address.formatted && (
+                    <div className="text-sm text-gray-500 mt-1">
+                      {address.formatted
+                        .slice(
+                          address.formatted.length - 1,
+                          address.formatted.length,
+                        )
+                        .map((line, i) => (
+                          <div key={i}>{line}</div>
+                        ))}
+                    </div>
+                  )}
+                  {address.phoneNumber && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      {address.phoneNumber}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => onEdit(address)}
+                  className="text-sm text-blue-600 hover:text-blue-500 font-medium"
+                >
+                  Edit
+                </button>
+                <Form
+                  method="DELETE"
+                  className="inline"
+                  onSubmit={(e) => handleDelete(address.id, e)}
+                >
+                  <input type="hidden" name="addressId" value={address.id} />
+                  <button
+                    type="submit"
+                    disabled={isDeleting}
+                    className="text-sm text-red-600 hover:text-red-500 font-medium disabled:opacity-50 flex items-center"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <svg
+                          className="animate-spin -ml-1 mr-1 h-3 w-3 text-red-600"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete'
+                    )}
+                  </button>
+                </Form>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

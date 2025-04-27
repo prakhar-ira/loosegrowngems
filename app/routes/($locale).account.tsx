@@ -106,9 +106,14 @@ function AccountLayout({
     <div className="bg-gray-50 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white shadow-md rounded-xl p-6 mb-8 border border-gray-200">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-            {heading}
-          </h1>
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+              {heading}
+            </h1>
+            <div className="ml-auto">
+              <Logout />
+            </div>
+          </div>
           <AccountMenu />
         </div>
         <div className="bg-white shadow-md rounded-xl p-6 border border-gray-200">
@@ -172,9 +177,6 @@ function AccountMenu() {
       >
         Addresses
       </NavLink>
-      <div className="ml-auto">
-        <Logout />
-      </div>
     </nav>
   );
 }
@@ -184,7 +186,7 @@ function Logout() {
     <Form className="inline" method="POST" action="/account/logout">
       <button
         type="submit"
-        className="text-sm text-red-600 hover:text-red-800 transition-colors font-medium"
+        className="text-sm px-4 cursor-pointer py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded-md shadow-sm transition-all font-medium"
       >
         Sign out
       </button>

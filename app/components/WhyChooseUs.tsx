@@ -1,5 +1,4 @@
 import React from 'react';
-import concierge from '~/assets/concierge.svg';
 
 const Conceierge = () => {
   return (

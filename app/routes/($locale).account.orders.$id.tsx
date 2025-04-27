@@ -1,6 +1,8 @@
 import {redirect, type LoaderFunctionArgs} from '@shopify/remix-oxygen';
 import {Link, useLoaderData, type MetaFunction} from '@remix-run/react';
 import {Money, Image, flattenConnection} from '@shopify/hydrogen';
+import jsPDF from 'jspdf';
+import {useRef} from 'react';
 
 export const meta: MetaFunction<typeof loader> = ({data}) => {
   return [{title: `Order ${data?.order?.name}`}];
@@ -58,13 +60,48 @@ export default function OrderRoute() {
     day: 'numeric',
   });
 
+  const reportTemplateRef = useRef(null);
+
   const statusColor = getStatusColor(order.fulfillmentStatus);
 
+  async function downloadInvoice(orderId: string) {
+    const reportElement = reportTemplateRef.current;
+
+    if (!reportElement) {
+      console.error('Report template element not found.');
+      alert('Could not generate invoice. Element not found.');
+      return;
+    }
+
+    const doc = new jsPDF({
+      orientation: 'p', // portrait
+      unit: 'px', // units
+      format: 'a4', // page format
+      // hotfixes: ['px_scaling'], // Optional: Sometimes needed for better scaling
+    });
+
+    try {
+      doc.html(reportElement, {
+        callback(doc) {
+          // Use the orderId for the filename
+          doc.save(`${orderId}_invoice.pdf`);
+        },
+        x: 15, // Margin left
+        y: 15, // Margin top
+        width: 416, // Target width in units (A4 width in px approx: 446, minus margins)
+        windowWidth: (reportElement as any).offsetWidth, // Width of the HTML element
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('An error occurred while generating the invoice PDF.');
+    }
+  }
+
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center border-b border-gray-200 pb-4 mb-2">
+    <div  className="space-y-8">
+      <div className="flex justify-between items-center border-b border-[#f9fafb] pb-4 mb-2">
         <div>
-          <h2 className="text-xl font-medium text-gray-900 flex items-center">
+          <h2 className="text-xl font-medium text-[#1a202c] flex items-center">
             Order {order.name}
             <span
               className={`ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}
@@ -72,7 +109,7 @@ export default function OrderRoute() {
               {formatStatus(order.fulfillmentStatus)}
             </span>
           </h2>
-          <p className="text-sm text-gray-500 mt-1">Placed on {date}</p>
+          <p className="text-sm text-[#6b7280] mt-1">Placed on {date}</p>
         </div>
         <Link
           to="/account/orders"
@@ -96,47 +133,89 @@ export default function OrderRoute() {
         </Link>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-lg font-medium text-gray-900">Order Summary</h3>
+      <div
+        ref={reportTemplateRef}
+        id="order-summary"
+        className="bg-[#ffffff] border border-[#f9fafb] rounded-lg shadow-sm overflow-hidden"
+      >
+        <div className="px-6 py-4 border-b border-[#f9fafb] bg-[#f9fafb]">
+          <h3 className="text-lg font-medium text-[#1a202c]">Order Summary</h3>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-[#f9fafb]">
+            <thead className="bg-[#f9fafb]">
               <tr>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-[#6b7280] uppercase tracking-wider"
                 >
                   Product
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-[#6b7280] uppercase tracking-wider"
                 >
                   Price
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-[#6b7280] uppercase tracking-wider"
                 >
                   Quantity
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-[#6b7280] uppercase tracking-wider"
                 >
                   Total
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-[#fffff] divide-y divide-[#f9fafb]">
               {lineItems.map((lineItem: any, lineItemIndex: any) => (
-                <OrderLineRow key={lineItemIndex} lineItem={lineItem} />
+                <tr key={lineItemIndex}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-16 w-16 bg-[#f7fafc] rounded-md overflow-hidden">
+                        <Link
+                          to={`/products/${lineItem.variant!.product!.handle}`}
+                        >
+                          {lineItem?.variant?.image && (
+                            <Image
+                              data={lineItem.variant.image}
+                              width={64}
+                              height={64}
+                              className="h-full w-full object-center object-cover"
+                            />
+                          )}
+                        </Link>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-[#1a202c]">
+                          {lineItem.title}
+                        </div>
+                        {lineItem.variant?.title !== 'Default Title' && (
+                          <div className="text-sm text-[#6b7280]">
+                            {lineItem.variant!.title}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[#6b7280]">
+                    <Money data={lineItem.variant!.price!} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[#6b7280]">
+                    {lineItem.quantity}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[#1a202c] font-medium">
+                    <Money data={lineItem.discountedTotalPrice!} />
+                  </td>
+                </tr>
               ))}
             </tbody>
-            <tfoot className="bg-gray-50">
+            <tfoot className="bg-[#f9fafb]">
               {((discountValue && discountValue.amount) ||
                 discountPercentage) && (
                 <tr>
@@ -147,20 +226,20 @@ export default function OrderRoute() {
                   ></th>
                   <th
                     scope="row"
-                    className="px-6 py-3 text-right text-sm font-medium text-gray-900"
+                    className="px-6 py-3 text-right text-sm font-medium text-[#1a202c]"
                   >
                     Discounts
                   </th>
-                  <td className="px-6 py-3 text-right text-sm text-gray-500">
+                  <td className="px-6 py-3 text-right text-sm text-[#6b7280]">
                     {discountPercentage ? (
-                      <span className="text-green-600">
+                      <span className="text-[#38a169]">
                         -{discountPercentage}% OFF
                       </span>
                     ) : (
                       discountValue && (
                         <Money
                           data={discountValue!}
-                          className="text-green-600"
+                          className="text-[#38a169]"
                         />
                       )
                     )}
@@ -175,11 +254,11 @@ export default function OrderRoute() {
                 ></th>
                 <th
                   scope="row"
-                  className="px-6 py-3 text-right text-sm font-medium text-gray-900"
+                  className="px-6 py-3 text-right text-sm font-medium text-[#1a202c]"
                 >
                   Subtotal
                 </th>
-                <td className="px-6 py-3 text-right text-sm text-gray-900">
+                <td className="px-6 py-3 text-right text-sm text-[#1a202c]">
                   <Money data={order.subtotalPriceV2!} />
                 </td>
               </tr>
@@ -191,11 +270,11 @@ export default function OrderRoute() {
                 ></th>
                 <th
                   scope="row"
-                  className="px-6 py-3 text-right text-sm font-medium text-gray-900"
+                  className="px-6 py-3 text-right text-sm font-medium text-[#1a202c]"
                 >
                   Tax
                 </th>
-                <td className="px-6 py-3 text-right text-sm text-gray-900">
+                <td className="px-6 py-3 text-right text-sm text-[#1a202c]">
                   <Money data={order.totalTaxV2!} />
                 </td>
               </tr>
@@ -207,11 +286,11 @@ export default function OrderRoute() {
                 ></th>
                 <th
                   scope="row"
-                  className="px-6 py-3 text-right text-sm font-medium text-gray-900"
+                  className="px-6 py-3 text-right text-sm font-medium text-[#1a202c]"
                 >
                   Total
                 </th>
-                <td className="px-6 py-3 text-right text-sm font-bold text-gray-900">
+                <td className="px-6 py-3 text-right text-sm font-bold text-[#1a202c]">
                   <Money data={order.totalPriceV2!} />
                 </td>
               </tr>
@@ -221,13 +300,13 @@ export default function OrderRoute() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+        <div className="bg-white border border-[#f9fafb] rounded-lg shadow-sm p-6">
+          <h3 className="text-lg font-medium text-[#1a202c] mb-4">
             Shipping Details
           </h3>
           {order?.shippingAddress ? (
-            <address className="not-italic text-sm text-gray-700">
-              <p className="font-medium text-gray-900">
+            <address className="not-italic text-sm text-[#4a5568]">
+              <p className="font-medium text-[#1a202c]">
                 {order.shippingAddress.firstName &&
                   order.shippingAddress.firstName + ' '}
                 {order.shippingAddress.lastName}
@@ -245,71 +324,41 @@ export default function OrderRoute() {
               )}
             </address>
           ) : (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[#6b7280]">
               No shipping address provided
             </p>
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+        <div className="bg-white border border-[#f9fafb] rounded-lg shadow-sm p-6">
+          <h3 className="text-lg font-medium text-[#1a202c] mb-4">
             Order Status
           </h3>
-          <a
-            target="_blank"
-            href={order.statusUrl}
-            rel="noreferrer"
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#212121] hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
-          >
-            Track Order Status
-          </a>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => window.open(order.statusUrl)}
+              className="w-full sm:w-auto flex justify-center items-center rounded-md border border-transparent shadow-sm px-6 py-2.5 bg-gradient-to-r from-[#1a202c] to-[#1a202c] text-base font-medium text-white hover:from-[#1a202c] hover:to-[#1a202c] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1a202c] sm:text-sm disabled:opacity-50 transition-all duration-200"
+            >
+              Track Order Status
+            </button>
+            <button
+              onClick={() => downloadInvoice(order.name)}
+              className="cursor-pointer w-full sm:w-auto flex justify-center items-center rounded-md border border-gray-300 shadow-sm px-6 py-2.5 bg-white text-base font-medium text-[#4a5568] hover:bg-[#f9fafb] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1a202c] sm:text-sm transition-all"
+            >
+              Download Invoice
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function OrderLineRow({lineItem}: {lineItem: any}) {
-  return (
-    <tr>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center">
-          <div className="flex-shrink-0 h-16 w-16 bg-gray-100 rounded-md overflow-hidden">
-            <Link to={`/products/${lineItem.variant!.product!.handle}`}>
-              {lineItem?.variant?.image && (
-                <Image
-                  data={lineItem.variant.image}
-                  width={64}
-                  height={64}
-                  className="h-full w-full object-center object-cover"
-                />
-              )}
-            </Link>
-          </div>
-          <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900">
-              {lineItem.title}
-            </div>
-            {lineItem.variant?.title !== 'Default Title' && (
-              <div className="text-sm text-gray-500">
-                {lineItem.variant!.title}
-              </div>
-            )}
-          </div>
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-        <Money data={lineItem.variant!.price!} />
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-        {lineItem.quantity}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-        <Money data={lineItem.discountedTotalPrice!} />
-      </td>
-    </tr>
-  );
-}
+// function OrderLineRow({lineItem}: {lineItem: any}) {
+//   return (
+
+//   );
+// }
 
 function formatStatus(status: string) {
   if (!status) return 'Processing';
@@ -321,15 +370,15 @@ function formatStatus(status: string) {
 function getStatusColor(status: string) {
   switch (status?.toLowerCase()) {
     case 'fulfilled':
-      return 'bg-green-100 text-green-800';
+      return 'bg-[#f0fff4] text-[#276749]';
     case 'in_progress':
-      return 'bg-blue-100 text-blue-800';
+      return 'bg-[#ebf8ff] text-[#2c5282]';
     case 'on_hold':
-      return 'bg-yellow-100 text-yellow-800';
+      return 'bg-[#fffff0] text-[#975a16]';
     case 'unfulfilled':
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-[#f7fafc] text-[#2d3748]';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-[#f7fafc] text-[#2d3748]';
   }
 }
 

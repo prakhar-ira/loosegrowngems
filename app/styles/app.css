@@ -318,8 +318,11 @@ button.reset:hover:not(:has(> *)) {
   display: flex;
   padding: 1rem;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.4rem;
   justify-content: space-between;
+  text-align: right;
+  text-transform: uppercase;
+  font-weight: 400;
 }
 
 .footer-logo-menu {
@@ -340,11 +343,6 @@ button.reset:hover:not(:has(> *)) {
   height: 32px;
 }
 
-.footer-link-menu {
-  text-align: right;
-  text-transform: uppercase;
-  font-weight: 400;
-}
 
 .footer-menu a {
   color: var(--color-light);

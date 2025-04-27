@@ -29,17 +29,17 @@ export function PolicyContainer() {
         </NavLink>
         <h1>RETURN POLICY</h1>
         <p>
-          At Complete Carat, we believe that your satisfaction goes beyond the
-          purchase. We're dedicated to making sure you feel confident and happy
-          with your jewellery every step of the way. If for any reason you're
-          not completely satisfied, we offer a 10-Day Money-Back Guarantee. You
-          can return or exchange any items within <b>10 days of delivery</b>,
-          with no hassle and at no cost to you.
+          At Loose Grown Gems, we believe that your satisfaction goes beyond the
+          purchase. We&apos;re dedicated to making sure you feel confident and
+          happy with your jewellery every step of the way. If for any reason
+          you&apos;re not completely satisfied, we offer a 10-Day Money-Back
+          Guarantee. You can return or exchange any items within{' '}
+          <b>10 days of delivery</b>, with no hassle and at no cost to you.
         </p>
         <p>
-          If you have any questions or concerns, we're here to assist you! To
-          ensure that your return is processed smoothly, please ensure the item
-          is in new, unworn condition and includes all original packaging,
+          If you have any questions or concerns, we&apos;re here to assist you!
+          To ensure that your return is processed smoothly, please ensure the
+          item is in new, unworn condition and includes all original packaging,
           certificates, and documentation. A receipt or proof of purchase will
           also be required.
         </p>
@@ -51,7 +51,7 @@ export function PolicyContainer() {
               <h5>Start Your Return</h5>
               <p>
                 Contact us at info@completecarat.com with your order number, and
-                we'll guide you through the return process
+                we&apos;ll guide you through the return process
               </p>
             </div>
           </div>
@@ -60,12 +60,12 @@ export function PolicyContainer() {
             <div className="right-box">
               <h5>Prepare the Item for Return</h5>
               <p>
-                Once your return is initiated, we'll send you a pre-paid,
+                Once your return is initiated, we&apos;ll send you a pre-paid,
                 insured shipping label along with simple instructions for how to
                 return the item. Please package the jewelry securely in its
                 original box, including all grading reports, appraisals, and
-                accessories. For your security, please avoid writing "Complete
-                Carat" on the exterior of the return box.
+                accessories. For your security, please avoid writing
+                &quot;Complete Carat&quot; on the exterior of the return box.
               </p>
             </div>
           </div>
@@ -97,7 +97,8 @@ export function PolicyContainer() {
                 great care to ensure that your order arrives in perfect
                 condition. However, if your item is damaged, defective, or
                 incorrect, please reach out to us immediately after receipt.
-                We'll work quickly to resolve the issue to your satisfaction.
+                We&apos;ll work quickly to resolve the issue to your
+                satisfaction.
               </p>
             </div>
           </div>
@@ -108,12 +109,13 @@ export function PolicyContainer() {
               <p>
                 We will issue a refund to your original payment method within 10
                 business days. Please note that your bank or credit card company
-                may take additional time to process the refund. If you haven't
-                received your refund after 10 business days, please reach out to
-                us at info@completecarat.com for assistance. For the quickest
-                way to get the item you truly want, we recommend returning the
-                original item and placing a new order for the replacement. If
-                you need assistance with the process, our team is here to help!
+                may take additional time to process the refund. If you
+                haven&apos;t received your refund after 10 business days, please
+                reach out to us at info@completecarat.com for assistance. For
+                the quickest way to get the item you truly want, we recommend
+                returning the original item and placing a new order for the
+                replacement. If you need assistance with the process, our team
+                is here to help!
               </p>
             </div>
           </div>
@@ -125,12 +127,12 @@ export function PolicyContainer() {
             <div className="right-box">
               <h5>Important Information</h5>
               <p>
-                Complete Carat reserves the right to modify this return policy
+                Loose Grown Gems reserves the right to modify this return policy
                 at any time without prior notice. We encourage you to review our
                 policy before completing your purchase. If you have any
                 questions or need assistance, our friendly Customer Service team
                 is always here to help—just reach out to us! Thank you for
-                choosing Complete Carat. We truly appreciate your trust in us
+                choosing Loose Grown Gems. We truly appreciate your trust in us
                 and are committed to delivering a shopping experience that
                 exceeds your expectations.
               </p>

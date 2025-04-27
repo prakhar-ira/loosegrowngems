@@ -61,18 +61,17 @@ export function AboutContainer() {
         <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
           <img src={Logo} alt={'Logo'} className="footer-logo" />
         </NavLink>
-        <h1>ABOUT COMPLETE CARAT</h1>
+        <h1>ABOUT LOOSE GROWN GEMS</h1>
         <div className="how-to-return-container">
           <div className="return-box">
             <Activism />
             <div className="right-box">
               <h5>Our Philosophy: Crafting Symbols of Love</h5>
               <p>
-                Welcome to Complete Carat, where our fervent commitment to
-                excellence shapes every diamond ring we create. These aren't
+                Welcome to Loose Grown Gems, where our fervent commitment to
+                excellence shapes every diamond ring we create. These aren&apos;t
                 mere pieces of jewelry; they are emblems of love and commitment,
-                crafted with unparalleled precision and quality. At Complete
-                Carat, we stand apart in the world of fine jewelry, with each
+                crafted with unparalleled precision and quality. At Loose Grown Gems, we stand apart in the world of fine jewelry, with each
                 ring reflecting our ethos: excellence without compromise.
               </p>
             </div>
@@ -91,8 +90,8 @@ export function AboutContainer() {
                     dream ring materializes with extraordinary craftsmanship
                   </li>
                   <li>
-                    <b>Founder Involvement:</b>&nbsp;The soul of Complete Carat
-                    lies in our founders' unwavering dedication. Their hands-on
+                    <b>Founder Involvement:</b>&nbsp;The soul of Loose Grown Gems
+                    lies in our founders&apos; unwavering dedication. Their hands-on
                     approach in every phase, from casting to setting, infuses
                     each ring with a level of quality and personal touch rarely
                     seen in the industry
@@ -103,7 +102,7 @@ export function AboutContainer() {
                     ring is meticulously crafted within our premises,
                     guaranteeing consistency and flawlessness. This approach not
                     only enhances quality but ensures each piece truly embodies
-                    the spirit of Complete Carat.
+                    the spirit of Loose Grown Gems.
                   </li>
                 </ol>
               </p>
@@ -115,9 +114,9 @@ export function AboutContainer() {
               <h5>Our Exquisite Selection</h5>
               <p>
                 Diamonds for evey preference, diverse diamond shapes and style
-                that speaks volumes. At Complete Carat, each ring is not just a
+                that speaks volumes. At Loose Grown Gems, each ring is not just a
                 product but a masterpiece, a testament to our passion and
-                precision. We're devoted to crafting exceptional jewelry that
+                precision. We&apos;re devoted to crafting exceptional jewelry that
                 celebrates your unique love story. Trust us to deliver not just
                 a ring, but a timeless symbol of your bond.
               </p>

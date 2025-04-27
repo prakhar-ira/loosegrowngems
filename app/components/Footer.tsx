@@ -46,7 +46,6 @@ function FooterMenu({
   primaryDomainUrl: FooterProps['header']['shop']['primaryDomain']['url'];
   publicStoreDomain: string;
 }) {
-  console.log(JSON.stringify(menu?.items), 'menu');
   return (
     <nav className="footer-menu" role="navigation">
       <section className="footer-logo-menu">
@@ -55,7 +54,7 @@ function FooterMenu({
             <img src={Logo} alt={'Logo'} className="footer-logo" />
           </NavLink>
           <p className="footer-logo-text">
-            At Complete Carat, we are redefining fine jewellery, ensuring that
+            At Loose Grown Gems, we are redefining fine jewellery, ensuring that
             every piece is a testament to beauty and devotion.
           </p>
         </div>

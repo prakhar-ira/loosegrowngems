@@ -1,4 +1,9 @@
-import {Link, useLoaderData, type MetaFunction} from '@remix-run/react';
+import {
+  Link,
+  useLoaderData,
+  useNavigate,
+  type MetaFunction,
+} from '@remix-run/react';
 import {Money, Pagination, getPaginationVariables} from '@shopify/hydrogen';
 import {data, redirect, type LoaderFunctionArgs} from '@shopify/remix-oxygen';
 import {
@@ -49,6 +54,8 @@ export async function loader({request, context}: LoaderFunctionArgs) {
 export default function Orders() {
   const {customer} = useLoaderData<{customer: any}>();
   const {orders, numberOfOrders} = customer;
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -58,6 +65,12 @@ export default function Orders() {
             ({numberOfOrders})
           </span>
         </h2>
+        <button
+          onClick={() => navigate('/collections/diamonds')}
+          className="inline-flex cursor-pointer justify-center items-center rounded-md border border-transparent shadow-sm px-6 py-2.5 bg-gradient-to-r from-gray-800 to-gray-900 text-base font-medium text-white hover:from-gray-900 hover:to-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 sm:text-sm disabled:opacity-50 transition-all duration-200"
+        >
+          Start Shopping
+        </button>
       </div>
       {orders.nodes.length ? <OrdersTable orders={orders} /> : <EmptyOrders />}
     </div>
@@ -118,15 +131,7 @@ function EmptyOrders() {
         />
       </svg>
       <p className="text-lg font-medium text-gray-900 mb-2">No orders yet</p>
-      <p className="text-gray-500 mb-6">
-        You haven&apos;t placed any orders yet.
-      </p>
-      <Link
-        to="/collections/diamonds"
-        className="px-4 py-2 bg-[#212121] border border-transparent rounded-md text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
-      >
-        Start Shopping
-      </Link>
+      <p className="text-gray-500">You haven&apos;t placed any orders yet.</p>
     </div>
   );
 }
@@ -142,8 +147,8 @@ function OrderItem({order}: {order: any}) {
   const financialStatusColor = getFinancialStatusColor(order.financialStatus);
 
   return (
-    <div className="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-      <div className="flex justify-between items-center bg-gray-50 px-6 py-4 border-b border-gray-200">
+    <div className="border border-[#e5e7eb] rounded-lg shadow-sm overflow-hidden">
+      <div className="flex justify-between items-center bg-gray-50 px-6 py-4 border-b border-[#e5e7eb]">
         <div>
           <p className="text-lg font-medium text-gray-900">
             Order #{order.orderNumber}
