@@ -13,7 +13,7 @@ import {
 } from '~/lib/search';
 
 export const meta: MetaFunction = () => {
-  return [{title: `Hydrogen | Search`}];
+  return [{title: `Loose Grown Gems | Search`}];
 };
 
 export async function loader({request, context}: LoaderFunctionArgs) {
@@ -39,37 +39,46 @@ export default function SearchPage() {
   if (type === 'predictive') return null;
 
   return (
-    <div className="search">
-      <h1>Search</h1>
+    <div className="search container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 className="text-2xl font-bold mb-6 text-gray-900">Search</h1>
       <SearchForm>
         {({inputRef}) => (
-          <>
+          <div className="flex items-center gap-2 mb-6">
             <input
               defaultValue={term}
               name="q"
               placeholder="Search…"
               ref={inputRef}
               type="search"
+              className="flex-grow block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
             />
-            &nbsp;
-            <button type="submit">Search</button>
-          </>
+            <button
+              type="submit"
+              className="inline-flex items-center rounded-md border border-transparent bg-gray-800 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 transition-all"
+            >
+              Search
+            </button>
+          </div>
         )}
       </SearchForm>
-      {error && <p style={{color: 'red'}}>{error}</p>}
-      {!term || !result?.total ? (
-        <SearchResults.Empty />
-      ) : (
-        <SearchResults result={result} term={term}>
-          {({articles, pages, products, term}) => (
-            <div>
-              <SearchResults.Products products={products} term={term} />
-              <SearchResults.Pages pages={pages} term={term} />
-              <SearchResults.Articles articles={articles} term={term} />
-            </div>
-          )}
-        </SearchResults>
-      )}
+      {error && <p className="text-red-600 mb-6 text-sm">{error}</p>}
+
+      <div className="search-results mt-8">
+        {!term || !result?.total ? (
+          <SearchResults.Empty />
+        ) : (
+          <SearchResults result={result} term={term}>
+            {({articles, pages, products, term}) => (
+              <div>
+                {' '}
+                {/* This container can be styled if needed */}
+                <SearchResults.Products products={products} term={term} />
+              </div>
+            )}
+          </SearchResults>
+        )}
+      </div>
+
       <Analytics.SearchView data={{searchTerm: term, searchResults: result}} />
     </div>
   );
@@ -223,22 +232,37 @@ async function regularSearch({
   const variables = getPaginationVariables(request, {pageBy: 8});
   const term = String(url.searchParams.get('q') || '');
 
+  // Define expected structure for items (adjust based on your actual fragments)
+  type SearchResultItem = {nodes: Array<any>};
+  type SearchItems = {
+    articles: SearchResultItem;
+    pages: SearchResultItem;
+    products: SearchResultItem & {pageInfo: any};
+  };
+
   // Search articles, pages, and products for the `q` term
-  const {errors, ...items} = await storefront.query(SEARCH_QUERY, {
+  const {errors, ...items} = (await storefront.query(SEARCH_QUERY, {
     variables: {...variables, term},
-  });
+  })) as {
+    errors?: any[];
+    articles: SearchResultItem;
+    pages: SearchResultItem;
+    products: SearchResultItem & {pageInfo: any};
+  }; // Type assertion
 
   if (!items) {
     throw new Error('No search data returned from Shopify API');
   }
 
-  const total = Object.values(items).reduce(
-    (acc, {nodes}) => acc + nodes.length,
+  // Specify the type for the reduce accumulator and item
+  const total = Object.values(items).reduce<number>(
+    (acc, item: SearchResultItem) => acc + (item?.nodes?.length || 0), // Safely access nodes.length
     0,
   );
 
+  // Explicitly type the error object in map
   const error = errors
-    ? errors.map(({message}) => message).join(', ')
+    ? errors.map((err: {message: string}) => err.message).join(', ')
     : undefined;
 
   return {type: 'regular', term, error, result: {total, items}};
@@ -385,24 +409,34 @@ async function predictiveSearch({
   const limit = Number(url.searchParams.get('limit') || 10);
   const type = 'predictive';
 
+  // Define expected structure for predictive items
+  type PredictiveResultItem = Array<any>;
+  type PredictiveItems = {
+    articles: PredictiveResultItem;
+    collections: PredictiveResultItem;
+    pages: PredictiveResultItem;
+    products: PredictiveResultItem;
+    queries: PredictiveResultItem;
+  };
+
   if (!term) return {type, term, result: getEmptyPredictiveSearchResult()};
 
-  // Predictively search articles, collections, pages, products, and queries (suggestions)
-  const {predictiveSearch: items, errors} = await storefront.query(
+  const {predictiveSearch: items, errors} = (await storefront.query(
     PREDICTIVE_SEARCH_QUERY,
     {
       variables: {
-        // customize search options as needed
         limit,
         limitScope: 'EACH',
         term,
       },
     },
-  );
+  )) as {predictiveSearch?: PredictiveItems; errors?: any[]}; // Type assertion
 
   if (errors) {
     throw new Error(
-      `Shopify API errors: ${errors.map(({message}) => message).join(', ')}`,
+      `Shopify API errors: ${errors
+        .map((err: {message: string}) => err.message)
+        .join(', ')}`,
     );
   }
 
@@ -410,8 +444,9 @@ async function predictiveSearch({
     throw new Error('No predictive search data returned from Shopify API');
   }
 
-  const total = Object.values(items).reduce(
-    (acc, item) => acc + item.length,
+  // Specify the type for the reduce accumulator and item
+  const total = Object.values(items).reduce<number>(
+    (acc, item: PredictiveResultItem) => acc + (item?.length || 0), // Safely access length
     0,
   );
 

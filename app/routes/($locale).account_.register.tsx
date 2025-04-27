@@ -19,7 +19,7 @@ import Logo from '~/assets/logo.png'; // Import the logo
 
 // Define MetaFunction for the page title
 export const meta: MetaFunction = () => {
-  return [{title: 'Register | LGG'}];
+  return [{title: 'Register | Loose Grown Gems'}];
 };
 
 type ActionResponse = {

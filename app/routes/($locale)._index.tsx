@@ -2,14 +2,12 @@ import {type LoaderFunctionArgs} from '@shopify/remix-oxygen';
 import {Await, useLoaderData, Link, type MetaFunction} from '@remix-run/react';
 import {Suspense} from 'react';
 import {Image, Money} from '@shopify/hydrogen';
-import type {
-  FeaturedCollectionFragment,
-} from 'storefrontapi.generated';
+import type {FeaturedCollectionFragment} from 'storefrontapi.generated';
 import {ExcellenceSection} from '~/components/ExcellenceSection';
-import { WhyChooseUs } from '~/components/WhyChooseUs';
+import {WhyChooseUs} from '~/components/WhyChooseUs';
 
 export const meta: MetaFunction = () => {
-  return [{title: 'Hydrogen | Home'}];
+  return [{title: 'Loose Grown Gems | Home'}];
 };
 
 export async function loader(args: LoaderFunctionArgs) {
@@ -71,12 +69,36 @@ function FeaturedCollection({
 
 function DiamondTypes() {
   const diamondTypes = [
-    {name: 'Round', img: '/figma/diamond-round.png', link: '/collections/diamonds?shape=Round'},
-    {name: 'Princess', img: '/figma/diamond-princess.png', link: '/collections/diamonds?shape=Princess'},
-    {name: 'Cushion', img: '/figma/diamond-cushion.png', link: '/collections/diamonds?shape=Cushion'},
-    {name: 'Oval', img: '/figma/diamond-oval.png', link: '/collections/diamonds?shape=Oval'},
-    {name: 'Pear', img: '/figma/diamond-pear.png', link: '/collections/diamonds?shape=Pear'},
-    {name: 'Emerald', img: '/figma/diamond-emerald.png', link: '/collections/diamonds?shape=Emerald'},
+    {
+      name: 'Round',
+      img: '/figma/diamond-round.png',
+      link: '/collections/diamonds?shape=Round',
+    },
+    {
+      name: 'Princess',
+      img: '/figma/diamond-princess.png',
+      link: '/collections/diamonds?shape=Princess',
+    },
+    {
+      name: 'Cushion',
+      img: '/figma/diamond-cushion.png',
+      link: '/collections/diamonds?shape=Cushion',
+    },
+    {
+      name: 'Oval',
+      img: '/figma/diamond-oval.png',
+      link: '/collections/diamonds?shape=Oval',
+    },
+    {
+      name: 'Pear',
+      img: '/figma/diamond-pear.png',
+      link: '/collections/diamonds?shape=Pear',
+    },
+    {
+      name: 'Emerald',
+      img: '/figma/diamond-emerald.png',
+      link: '/collections/diamonds?shape=Emerald',
+    },
   ];
 
   return (
@@ -97,10 +119,26 @@ function DiamondTypes() {
 
 function JewelleryTypes() {
   const jewelleryTypes = [
-    {name: 'Shop Engagement Rings', img: '/figma/jewellery-engagement-ring.png', link: '/collections/engagement-rings'},
-    {name: 'Shop Earrings', img: '/figma/jewellery-earrings.png', link: '/collections/earrings'},
-    {name: 'Shop Pendants', img: '/figma/jewellery-pendants.png', link: '/collections/pendants'},
-    {name: 'Shop Nameplates', img: '/figma/jewellery-nameplates.png', link: '/collections/nameplates'},
+    {
+      name: 'Shop Engagement Rings',
+      img: '/figma/jewellery-engagement-ring.png',
+      link: '/collections/engagement-rings',
+    },
+    {
+      name: 'Shop Earrings',
+      img: '/figma/jewellery-earrings.png',
+      link: '/collections/earrings',
+    },
+    {
+      name: 'Shop Pendants',
+      img: '/figma/jewellery-pendants.png',
+      link: '/collections/pendants',
+    },
+    {
+      name: 'Shop Nameplates',
+      img: '/figma/jewellery-nameplates.png',
+      link: '/collections/nameplates',
+    },
   ];
 
   return (

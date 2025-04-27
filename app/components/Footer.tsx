@@ -93,7 +93,6 @@ function FooterMenu({
               ? new URL(item.url).pathname
               : item.url;
           const isExternal = !url.startsWith('/');
-          console.log(url, 'url');
           return isExternal ? (
             <a
               href={url}

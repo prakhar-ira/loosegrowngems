@@ -1,12 +1,13 @@
 import {type ActionFunctionArgs, data, redirect} from '@shopify/remix-oxygen';
-import {Form, useActionData, type MetaFunction} from '@remix-run/react';
+import {Form, useActionData, type MetaFunction, Link} from '@remix-run/react';
 
 type ActionResponse = {
-  error: string | null;
+  error?: string | null;
+  formError?: boolean; // Added to indicate form-level error
 };
 
 export const meta: MetaFunction = () => {
-  return [{title: 'Reset Password'}];
+  return [{title: 'Reset Password | Loose Grown Gems'}];
 };
 
 export async function action({request, context, params}: ActionFunctionArgs) {
@@ -27,8 +28,22 @@ export async function action({request, context, params}: ActionFunctionArgs) {
       ? String(form.get('passwordConfirm'))
       : '';
     const validInputs = Boolean(password && passwordConfirm);
+
     if (validInputs && password !== passwordConfirm) {
-      throw new Error('Please provide matching passwords');
+      return data(
+        {error: 'Passwords do not match', formError: true},
+        {status: 400},
+      );
+    }
+
+    if (!validInputs) {
+      return data(
+        {
+          error: 'Password and password confirmation are required.',
+          formError: true,
+        },
+        {status: 400},
+      );
     }
 
     const {customerReset} = await storefront.mutate(CUSTOMER_RESET_MUTATION, {
@@ -50,9 +65,9 @@ export async function action({request, context, params}: ActionFunctionArgs) {
     return redirect('/account');
   } catch (error: unknown) {
     if (error instanceof Error) {
-      return data({error: error.message}, {status: 400});
+      return data({error: error.message, formError: true}, {status: 400});
     }
-    return data({error}, {status: 400});
+    return data({error, formError: true}, {status: 400});
   }
 }
 
@@ -103,7 +118,7 @@ export default function Reset() {
       </Form>
       <br />
       <p>
-        <a href="/account/login">Back to login →</a>
+        <Link to="/account/login">Back to login →</Link>
       </p>
     </div>
   );

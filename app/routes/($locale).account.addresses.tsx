@@ -25,7 +25,7 @@ export type ActionResponse = {
 };
 
 export const meta: MetaFunction = () => {
-  return [{title: 'Addresses'}];
+  return [{title: 'Addresses | Loose Grown Gems'}];
 };
 
 export async function loader({context}: LoaderFunctionArgs) {
@@ -259,7 +259,7 @@ export default function Addresses() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-medium text-gray-900">Your Addresses</h2>
+      <h2 className="text-xl font-medium text-gray-900">Your Addresses</h2>
         <button
           onClick={() => openModal()}
           className="px-4 flex py-2 bg-[#212121] text-white text-sm font-medium rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
@@ -366,19 +366,19 @@ export default function Addresses() {
                   <span className="sr-only">Close</span>
                   <svg
                     className="h-5 w-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                          stroke="currentColor"
                     aria-hidden="true"
                   >
-                    <path
+                        <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth="2"
                       d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
+                        />
+                      </svg>
                 </button>
               </div>
 
@@ -390,7 +390,7 @@ export default function Addresses() {
                     defaultAddress={defaultAddress}
                     onClose={closeModal}
                   />
-                </div>
+        </div>
               </div>
             </div>
           </div>

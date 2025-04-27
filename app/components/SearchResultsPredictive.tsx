@@ -169,30 +169,7 @@ function SearchResultsPredictivePages({
 }: PartialPredictiveSearchResult<'pages'>) {
   if (!pages.length) return null;
 
-  return (
-    <div className="predictive-search-result" key="pages">
-      <h5>Pages</h5>
-      <ul>
-        {pages.map((page) => {
-          const pageUrl = urlWithTrackingParams({
-            baseUrl: `/pages/${page.handle}`,
-            trackingParams: page.trackingParameters,
-            term: term.current,
-          });
-
-          return (
-            <li className="predictive-search-result-item" key={page.id}>
-              <Link onClick={closeSearch} to={pageUrl}>
-                <div>
-                  <span>{page.title}</span>
-                </div>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
+  return <div key="pages"></div>;
 }
 
 function SearchResultsPredictiveProducts({

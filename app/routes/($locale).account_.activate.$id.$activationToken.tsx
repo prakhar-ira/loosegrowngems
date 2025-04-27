@@ -11,7 +11,7 @@ import {
   };
   
   export const meta: MetaFunction = () => {
-    return [{title: 'Activate Account'}];
+  return [{title: 'Activate Account | Loose Grown Gems'}];
   };
   
   export async function loader({context}: LoaderFunctionArgs) {

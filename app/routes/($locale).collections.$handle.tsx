@@ -79,9 +79,8 @@ export const handle = {
 };
 
 export const meta: MetaFunction<typeof loader> = ({data}) => {
-  // Type assertion for safety if data might be undefined initially
-  const collectionTitle = (data as { collection?: ExtendedCollectionType })?.collection?.title ?? 'Collection';
-  return [{title: `Hydrogen | ${collectionTitle}`}];
+  const collectionTitle = data?.collection?.title ?? 'Collection';
+  return [{title: `Loose Grown Gems | ${collectionTitle}`}];
 };
 
 export async function loader({ params, request, context }: LoaderFunctionArgs) {

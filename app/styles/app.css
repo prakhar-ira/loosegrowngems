@@ -1321,7 +1321,7 @@ button.reset:hover:not(:has(> *)) {
 }
 
 .header img[alt='Logo'] {
-  max-height: 80px;
+  max-height: 57px;
   max-width: 270px;
   width: auto;
   height: auto;

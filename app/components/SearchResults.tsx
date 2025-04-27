@@ -103,7 +103,7 @@ function SearchResultsProducts({
 
   return (
     <div className="search-result">
-      <h2>Products</h2>
+      <h3 className="text-xl font-bold mb-6 text-gray-900">Products</h3>
       <Pagination connection={products}>
         {({nodes, isLoading, NextLink, PreviousLink}) => {
           const ItemsMarkup = nodes.map((product) => {

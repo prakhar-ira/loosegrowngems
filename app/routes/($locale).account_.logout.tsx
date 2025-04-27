@@ -2,7 +2,7 @@ import {data, redirect, type ActionFunctionArgs} from '@shopify/remix-oxygen';
 import {type MetaFunction} from '@remix-run/react';
 
 export const meta: MetaFunction = () => {
-  return [{title: 'Logout'}];
+  return [{title: 'Logout | Loose Grown Gems'}];
 };
 
 export async function loader() {

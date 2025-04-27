@@ -18,7 +18,7 @@ type ActionResponse = {
 };
 
 export const meta: MetaFunction = () => {
-  return [{title: 'Login'}];
+  return [{title: 'Login | Loose Grown Gems'}];
 };
 
 export async function loader({context}: LoaderFunctionArgs) {

@@ -12,7 +12,7 @@ import {
   type ShouldRevalidateFunction,
 } from '@remix-run/react';
 import {useEffect} from 'react';
-import favicon from '~/assets/favicon.svg';
+import favicon from '~/assets/logo.png';
 import resetStyles from '~/styles/reset.css?url';
 import appStyles from '~/styles/app.css?url';
 import tailwindCss from './styles/tailwind.css?url';
@@ -64,7 +64,7 @@ export function links() {
       rel: 'preconnect',
       href: 'https://shop.app',
     },
-    {rel: 'icon', type: 'image/svg+xml', href: favicon},
+    {rel: 'icon', type: 'image/png', href: favicon},
   ];
 }
 
@@ -147,12 +147,27 @@ function loadDeferredData({context}: LoaderFunctionArgs) {
 export function Layout({children}: {children?: React.ReactNode}) {
   const nonce = useNonce();
   const data = useRouteLoaderData<RootLoader>('root');
+  const ogImageUrl = data?.publicStoreDomain
+    ? `${data.publicStoreDomain}/assets/images/logo-1.png`
+    : '';
+  const siteName = 'Loose Grown Gems';
 
   return (
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
+        {/* Default Open Graph / Twitter Card Tags */}
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content={siteName} />
+        <meta property="og:image" content={ogImageUrl} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content={ogImageUrl} />
+        <meta name="twitter:site" content="@YourTwitterHandle" />{' '}
+        {/* Optional: Add your Twitter handle */}
+        <meta name="twitter:creator" content="@YourTwitterHandle" />{' '}
+        {/* Optional: Add your Twitter handle */}
+        {/* --- End Defaults --- */}
         <link rel="stylesheet" href={tailwindCss}></link>
         <link rel="stylesheet" href={resetStyles}></link>
         <link rel="stylesheet" href={appStyles}></link>
@@ -177,7 +192,6 @@ export function Layout({children}: {children?: React.ReactNode}) {
           type="text/javascript"
           src="https://assets.calendly.com/assets/external/widget.js"
         ></script>
-
         <Meta />
         <Links />
       </head>

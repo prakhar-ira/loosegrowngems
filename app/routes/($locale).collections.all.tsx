@@ -4,7 +4,7 @@ import {getPaginationVariables, Image, Money} from '@shopify/hydrogen';
 import type {ProductItemAllFragment} from 'storefrontapi.generated';
 import {useVariantUrl} from '~/lib/variants';
 import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
-import { MarqueeBanner } from '~/components/MarqueeBanner';
+import {MarqueeBanner} from '~/components/MarqueeBanner';
 
 // Define the handle for this route
 export const handle = {
@@ -12,7 +12,7 @@ export const handle = {
 };
 
 export const meta: MetaFunction<typeof loader> = () => {
-  return [{title: `Hydrogen | Collections`}];
+  return [{title: `Loose Grown Gems | Collections`}];
 };
 
 export async function loader(args: LoaderFunctionArgs) {
@@ -55,7 +55,17 @@ function loadDeferredData({context}: LoaderFunctionArgs) {
 }
 
 export default function Collection() {
-  const {products} = useLoaderData<{ products: { nodes: ProductItemAllFragment[]; pageInfo: { hasPreviousPage: boolean; hasNextPage: boolean; startCursor: string; endCursor: string; } } }>();
+  const {products} = useLoaderData<{
+    products: {
+      nodes: ProductItemAllFragment[];
+      pageInfo: {
+        hasPreviousPage: boolean;
+        hasNextPage: boolean;
+        startCursor: string;
+        endCursor: string;
+      };
+    };
+  }>();
 
   return (
     <div className="collection">

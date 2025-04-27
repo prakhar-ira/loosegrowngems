@@ -12,7 +12,7 @@ import {
 } from 'customer-accountapi.generated';
 
 export const meta: MetaFunction = () => {
-  return [{title: 'Orders'}];
+  return [{title: 'Orders | Loose Grown Gems'}];
 };
 
 export async function loader({request, context}: LoaderFunctionArgs) {
@@ -62,7 +62,7 @@ export default function Orders() {
         <h2 className="text-xl font-medium text-gray-900">
           Your Orders{' '}
           <span className="text-sm text-gray-500 font-normal ml-1">
-            ({numberOfOrders})
+            ({orders.nodes.length})
           </span>
         </h2>
         <button

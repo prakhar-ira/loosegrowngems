@@ -1,5 +1,5 @@
+import {CartLineItem} from './CartLineItem'; // Assuming CartLineItem is in the same directory
 import React from 'react';
-import { CartLineItem } from './CartLineItem'; // Assuming CartLineItem is in the same directory
 
 // TODO: Implement Cart Drawer component based on Figma design and todo list
 
@@ -10,12 +10,11 @@ interface CartDrawerProps {
   cart: any; // Replace 'any' with a proper type for your cart data
 }
 
-export function CartDrawer({ isOpen, onClose, cart }: CartDrawerProps) {
+export function CartDrawer({isOpen, onClose, cart}: CartDrawerProps) {
   // Placeholder implementation
   const linesCount = Boolean(cart?.lines?.nodes?.length || 0);
-  const summaryHeightClass = cart?.discountCodes?.length > 0
-    ? 'with-discount'
-    : '';
+  const summaryHeightClass =
+    cart?.discountCodes?.length > 0 ? 'with-discount' : '';
 
   if (!isOpen) {
     return null;
@@ -28,7 +27,9 @@ export function CartDrawer({ isOpen, onClose, cart }: CartDrawerProps) {
         onClick={onClose}
         aria-label="Close cart"
       />
-      <aside onClick={(e) => e.stopPropagation()}> {/* Prevent closing when clicking inside aside */}
+      <aside onClick={(e) => e.stopPropagation()}>
+        {' '}
+        {/* Prevent closing when clicking inside aside */}
         <header>
           <h3>YOUR CART</h3>
           <button className="close" onClick={onClose} aria-label="Close cart">
@@ -58,16 +59,21 @@ export function CartDrawer({ isOpen, onClose, cart }: CartDrawerProps) {
           <div className="cart-checkout-section">
             {/* Notice Text (87:6167 in Figma) */}
             {/* TODO: Style text according to Figma style VAFFWF (Helvetica Neue 400 16px, #808080 color) */}
-            <p className="cart-checkout-notice">Taxes and shipping calculated at checkout</p>
-            
+            <p className="cart-checkout-notice">
+              Taxes and shipping calculated at checkout
+            </p>
+
             {/* Checkout Button (87:6168 in Figma) */}
             {/* TODO: Style button according to Figma (black bg, white text), add Link/form for navigation */}
             <button className="cart-checkout-button">
-              Proceed to checkout - ${cart?.cost?.totalAmount?.amount ? `${cart.cost.totalAmount.currencyCode} ${cart.cost.totalAmount.amount}` : '0.00'}
+              Proceed to checkout - $
+              {cart?.cost?.totalAmount?.amount
+                ? `${cart.cost.totalAmount.currencyCode} ${cart.cost.totalAmount.amount}`
+                : '0.00'}
             </button>
           </div>
         </footer>
       </aside>
     </div>
   );
-} 
+}

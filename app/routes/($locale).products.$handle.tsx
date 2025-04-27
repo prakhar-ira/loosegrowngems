@@ -121,10 +121,6 @@ export default function Product() {
   const location = useLocation(); // Get location for manual URL construction
   const [searchParams] = useSearchParams();
 
-  // Log data immediately on render
-  console.log('PDP Render START ----------');
-  console.log('PDP URL image_id param:', searchParams.get('image_id'));
-  console.log('PDP All product images (images.nodes):', images?.nodes);
   // -----------------------------
 
   // --- Selected Variant State ---
@@ -201,12 +197,7 @@ export default function Product() {
       'PDP Image Update Effect Triggered. selectedVariantState:',
       selectedVariantState,
     );
-    console.log('PDP selectedVariantState Image:', selectedVariantState?.image);
     if (selectedVariantState?.image) {
-      console.log(
-        'PDP Setting current image to variant image:',
-        selectedVariantState.image,
-      );
       // Check if the variant image is different from the current image before setting
       // to prevent unnecessary re-renders if the variant image is already displayed
       // (e.g., user clicked a thumbnail then changed size to a variant using the same image)
@@ -1052,7 +1043,11 @@ export async function loader({params, context, request}: LoaderFunctionArgs) {
 // Meta function for SEO
 export const meta: MetaFunction<typeof loader> = ({data}) => {
   return [
-    {title: data?.product?.seo?.title ?? data?.product?.title ?? 'Product'},
+    {
+      title: `${
+        data?.product?.seo?.title ?? data?.product?.title ?? 'Product'
+      } | Loose Grown Gems`,
+    },
     {
       description:
         data?.product?.seo?.description ?? data?.product?.description ?? '',

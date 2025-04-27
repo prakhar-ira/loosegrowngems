@@ -62,7 +62,11 @@ export function CartLineItem({
               <ProductPrice price={line?.cost?.totalAmount} />
             </div>
           </div>
-          <CartLineRemoveButton lineIds={[id]} disabled={!!line.isOptimistic} className="cart-line-remove-button" />
+          <CartLineRemoveButton
+            lineIds={[id]}
+            disabled={!!line.isOptimistic}
+            className="cart-line-remove-button"
+          />
         </div>
 
         <CartLineQuantity line={line} />

@@ -1,15 +1,17 @@
-import {useState, useMemo, useEffect, useRef, useCallback} from 'react';
-import {Link} from '@remix-run/react';
-import {Image, Money, Pagination} from '@shopify/hydrogen';
-import type {ProductItemFragment} from 'storefrontapi.generated';
-import {useVariantUrl} from '~/lib/variants';
-import { Tag } from '~/components/Tag';
-// Import rc-slider
-import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css'; // Import default styles
+
+import {Image, Money, Pagination} from '@shopify/hydrogen';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+
+import {AddToCartButton} from '~/components/AddToCartButton';
 // Import Material UI Icon
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import { AddToCartButton } from '~/components/AddToCartButton';
+import {Link} from '@remix-run/react';
+import type {ProductItemFragment} from 'storefrontapi.generated';
+// Import rc-slider
+import Slider from 'rc-slider';
+import {Tag} from '~/components/Tag';
+import {useVariantUrl} from '~/lib/variants';
 
 // Add custom styles for scrollbar hiding
 const scrollbarHideStyle = `
@@ -35,7 +37,10 @@ type ParsedProductAttributes = {
 };
 
 // Helper function to parse attributes from HTML description
-function parseProductAttributesFromHtml(html: string | null | undefined, title: string | null | undefined): ParsedProductAttributes {
+function parseProductAttributesFromHtml(
+  html: string | null | undefined,
+  title: string | null | undefined,
+): ParsedProductAttributes {
   const attributes: ParsedProductAttributes = {};
   if (!html && !title) return attributes;
 
@@ -45,7 +50,7 @@ function parseProductAttributesFromHtml(html: string | null | undefined, title: 
   // Basic cleanup: remove HTML tags and decode entities for easier matching
   const textContent = combinedText
     .replace(/<[^>]*>/g, ' ') // Replace HTML tags with spaces
-    .replace(/&nbsp;/g, ' ')   // Replace non-breaking spaces
+    .replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
     .replace(/\\s{2,}/g, ' ') // Replace multiple spaces with single space
     .trim();
 
@@ -74,28 +79,38 @@ function parseProductAttributesFromHtml(html: string | null | undefined, title: 
   attributes.color = matchAttribute(/Color[:\s]*([D-J])\b/i);
 
   // Clarity (e.g., Clarity: VVS1, Clarity VVS1)
-  attributes.clarity = matchAttribute(/Clarity[:\s]*(FL|IF|VVS1|VVS2|VS1|VS2|SI1|SI2|I1|I2|I3)\b/i);
+  attributes.clarity = matchAttribute(
+    /Clarity[:\s]*(FL|IF|VVS1|VVS2|VS1|VS2|SI1|SI2|I1|I2|I3)\b/i,
+  );
 
   // Cut (e.g., Cut: Excellent, Cut Excellent)
   // Be more specific with expected values if possible
-  attributes.cut = matchAttribute(/Cut[:\s]*(Excellent|Very\s*Good|Good|Fair|Poor|Ideal)\b/i);
+  attributes.cut = matchAttribute(
+    /Cut[:\s]*(Excellent|Very\s*Good|Good|Fair|Poor|Ideal)\b/i,
+  );
 
   // Carat (e.g., Carat: 1.02, 1.02 ct, 1.02 Carat)
   attributes.carat = matchAttribute(/(\d+\.?\d*)\s*(?:ct|carat|carats)/i);
   // Fallback if unit is missing but looks like a carat weight
   if (!attributes.carat) {
-     attributes.carat = matchAttribute(/Carat[:\s]*(\d+\.?\d*)/i);
+    attributes.carat = matchAttribute(/Carat[:\s]*(\d+\.?\d*)/i);
   }
 
   // Shape (e.g., Shape: Round, Round Cut)
-  attributes.shape = matchAttribute(/Shape[:\s]*(Round|Princess|Cushion|Oval|Pear|Emerald|Marquise|Asscher|Radiant|Heart)\b/i);
-   // Fallback if "Shape:" prefix is missing
+  attributes.shape = matchAttribute(
+    /Shape[:\s]*(Round|Princess|Cushion|Oval|Pear|Emerald|Marquise|Asscher|Radiant|Heart)\b/i,
+  );
+  // Fallback if "Shape:" prefix is missing
   if (!attributes.shape) {
-     attributes.shape = matchAttribute(/\b(Round|Princess|Cushion|Oval|Pear|Emerald|Marquise|Asscher|Radiant|Heart)\s*(?:Cut|Shape|Diamond)/i);
+    attributes.shape = matchAttribute(
+      /\b(Round|Princess|Cushion|Oval|Pear|Emerald|Marquise|Asscher|Radiant|Heart)\s*(?:Cut|Shape|Diamond)/i,
+    );
   }
 
   // Certification (e.g., Certificate: GIA, IGI Certified)
-  attributes.certification = matchAttribute(/(GIA|IGI)\s*(?:Certified|Certificate|Report)?\b/i);
+  attributes.certification = matchAttribute(
+    /(GIA|IGI)\s*(?:Certified|Certificate|Report)?\b/i,
+  );
 
   // --- End Improved Parsing Logic ---
 
@@ -115,21 +130,21 @@ type ProductWithDetails = ProductItemFragment & {
   descriptionHtml?: string | null;
   certificateNumber?: string | null;
   title?: string;
-  nivodaId?: { value: string } | null;
+  nivodaId?: {value: string} | null;
   // Add nivodaDetails to match the type structure in the loader
   nivodaDetails?: NivodaDiamondDetails | null;
 };
 
 // --- Define Shape Data ---
 const diamondShapes = [
-  { name: 'Round', iconUrl: '/figma/diamond-round.png' },
-  { name: 'Princess', iconUrl: '/figma/diamond-princess.png' },
-  { name: 'Cushion', iconUrl: '/figma/diamond-cushion.png' },
-  { name: 'Oval', iconUrl: '/figma/diamond-oval.png' },
-  { name: 'Pear', iconUrl: '/figma/diamond-pear.png' },
-  { name: 'Emerald', iconUrl: '/figma/diamond-emerald.png' },
-  { name: 'Heart', iconUrl: '/figma/diamond-heart.png' }, // Assuming this path exists
-  { name: 'Radiant', iconUrl: '/figma/diamond-radiant.png' }, // Assuming this path exists
+  {name: 'Round', iconUrl: '/figma/diamond-round.png'},
+  {name: 'Princess', iconUrl: '/figma/diamond-princess.png'},
+  {name: 'Cushion', iconUrl: '/figma/diamond-cushion.png'},
+  {name: 'Oval', iconUrl: '/figma/diamond-oval.png'},
+  {name: 'Pear', iconUrl: '/figma/diamond-pear.png'},
+  {name: 'Emerald', iconUrl: '/figma/diamond-emerald.png'},
+  {name: 'Heart', iconUrl: '/figma/diamond-heart.png'}, // Assuming this path exists
+  {name: 'Radiant', iconUrl: '/figma/diamond-radiant.png'}, // Assuming this path exists
   // { name: 'Marquise', iconUrl: '/figma/diamond-marquise.png' }, // Add if needed
   // { name: 'Asscher', iconUrl: '/figma/diamond-asscher.png' }, // Add if needed
 ];
@@ -147,7 +162,7 @@ type DiamondsCollectionProps = {
         hasPreviousPage: boolean;
         startCursor?: string | null;
         endCursor?: string | null;
-      }; 
+      };
     };
   };
 };
@@ -165,11 +180,11 @@ interface FilterState {
 
 // --- Define Sort Options ---
 const sortOptions = [
-  { label: 'Featured', value: 'featured' }, // Default or Shopify's default
-  { label: 'Price: Low to High', value: 'price-asc' },
-  { label: 'Price: High to Low', value: 'price-desc' },
-  { label: 'Carat: Low to High', value: 'carat-asc' },
-  { label: 'Carat: High to Low', value: 'carat-desc' },
+  {label: 'Featured', value: 'featured'}, // Default or Shopify's default
+  {label: 'Price: Low to High', value: 'price-asc'},
+  {label: 'Price: High to Low', value: 'price-desc'},
+  {label: 'Carat: Low to High', value: 'carat-asc'},
+  {label: 'Carat: High to Low', value: 'carat-desc'},
   // Add more options if needed (e.g., Newest)
 ];
 // --- End Sort Options ---
@@ -201,7 +216,7 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
 
   // Handle toggle change
   const handleDiamondTypeChange = (type: 'Natural' | 'Lab-Grown') => {
-    setFilters(prevFilters => ({
+    setFilters((prevFilters) => ({
       ...prevFilters,
       diamondType: type,
     }));
@@ -209,84 +224,84 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
 
   // --- Handle Shape Selection ---
   const handleShapeChange = (selectedShape: string) => {
-    setFilters(prevFilters => {
+    setFilters((prevFilters) => {
       const currentShapes = prevFilters.shape;
       const isSelected = currentShapes.includes(selectedShape);
       let newShapes;
       if (isSelected) {
         // Remove shape if already selected
-        newShapes = currentShapes.filter(s => s !== selectedShape);
+        newShapes = currentShapes.filter((s) => s !== selectedShape);
       } else {
         // Add shape if not selected
         newShapes = [...currentShapes, selectedShape];
       }
-      return { ...prevFilters, shape: newShapes };
+      return {...prevFilters, shape: newShapes};
     });
   };
   // --- End Handle Shape Selection ---
 
   // --- Handle Certification Selection ---
   const handleCertificationChange = (selectedCert: string) => {
-    setFilters(prevFilters => {
+    setFilters((prevFilters) => {
       const currentCerts = prevFilters.certification;
       const isSelected = currentCerts.includes(selectedCert);
       let newCerts;
       if (isSelected) {
         // Remove cert if already selected
-        newCerts = currentCerts.filter(c => c !== selectedCert);
+        newCerts = currentCerts.filter((c) => c !== selectedCert);
       } else {
         // Add cert if not selected
         newCerts = [...currentCerts, selectedCert];
       }
-      return { ...prevFilters, certification: newCerts };
+      return {...prevFilters, certification: newCerts};
     });
   };
   // --- End Handle Certification Selection ---
 
   // --- Handle Color Selection ---
   const handleColorChange = (selectedColor: string) => {
-    setFilters(prevFilters => {
+    setFilters((prevFilters) => {
       const currentColors = prevFilters.color;
       const isSelected = currentColors.includes(selectedColor);
       let newColors;
       if (isSelected) {
-        newColors = currentColors.filter(c => c !== selectedColor);
+        newColors = currentColors.filter((c) => c !== selectedColor);
       } else {
         newColors = [...currentColors, selectedColor];
       }
-      return { ...prevFilters, color: newColors };
+      return {...prevFilters, color: newColors};
     });
   };
   // --- End Handle Color Selection ---
 
   // --- Handle Clarity Selection ---
   const handleClarityChange = (selectedClarity: string) => {
-    setFilters(prevFilters => {
+    setFilters((prevFilters) => {
       const currentClarities = prevFilters.clarity;
       const isSelected = currentClarities.includes(selectedClarity);
       let newClarities;
       if (isSelected) {
-        newClarities = currentClarities.filter(c => c !== selectedClarity);
+        newClarities = currentClarities.filter((c) => c !== selectedClarity);
       } else {
         newClarities = [...currentClarities, selectedClarity];
       }
-      return { ...prevFilters, clarity: newClarities };
+      return {...prevFilters, clarity: newClarities};
     });
   };
   // --- End Handle Clarity Selection ---
 
   // --- Handle Cut Selection ---
   const handleCutChange = (selectedCut: string) => {
-    setFilters(prevFilters => {
+    setFilters((prevFilters) => {
       const currentCuts = prevFilters.cut;
       const isSelected = currentCuts.includes(selectedCut);
       let newCuts;
       if (isSelected) {
-        newCuts = currentCuts.filter(c => c !== selectedCut);
+        newCuts = currentCuts.filter((c) => c !== selectedCut);
       } else {
         newCuts = [...currentCuts, selectedCut];
       }
-      return { ...prevFilters, cut: newCuts };
+      return {...prevFilters, cut: newCuts};
     });
   };
   // --- End Handle Cut Selection ---
@@ -295,9 +310,14 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
   const filteredAndSortedProducts = useMemo(() => {
     // Read products directly from collection prop
     const productsToFilter = collection.products.nodes;
-    console.log(`[Debug] Recalculating filtered/sorted products. Input count: ${productsToFilter.length}`); 
+    console.log(
+      `[Debug] Recalculating filtered/sorted products. Input count: ${productsToFilter.length}`,
+    );
     const filtered = productsToFilter.filter((product: ProductWithDetails) => {
-      const attributes = parseProductAttributesFromHtml(product.descriptionHtml, product.title);
+      const attributes = parseProductAttributesFromHtml(
+        product.descriptionHtml,
+        product.title,
+      );
       // ... (filtering logic remains the same, uses attributes) ...
       // Type filter
       if (filters.diamondType && attributes.type !== filters.diamondType) {
@@ -315,20 +335,27 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
         return false;
       }
       // --- Apply Carat Range Filter ---
-      const productCarat = attributes.carat ? parseFloat(attributes.carat) : null;
+      const productCarat = attributes.carat
+        ? parseFloat(attributes.carat)
+        : null;
       if (productCarat === null || isNaN(productCarat)) {
         return false;
       }
-      if (productCarat < filters.caratRange[0] || productCarat > filters.caratRange[1]) {
-         return false;
+      if (
+        productCarat < filters.caratRange[0] ||
+        productCarat > filters.caratRange[1]
+      ) {
+        return false;
       }
       // --- Apply Certification Filter ---
       if (filters.certification.length > 0) {
         if (!attributes.certification) {
           return false;
         }
-        const hasMatchingCert = filters.certification.some(selectedCert =>
-          attributes.certification?.toLowerCase().includes(selectedCert.toLowerCase())
+        const hasMatchingCert = filters.certification.some((selectedCert) =>
+          attributes.certification
+            ?.toLowerCase()
+            .includes(selectedCert.toLowerCase()),
         );
         if (!hasMatchingCert) {
           return false;
@@ -336,21 +363,31 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
       }
       // --- Apply Color Filter ---
       if (filters.color.length > 0) {
-        if (!attributes.color || !filters.color.includes(attributes.color.toUpperCase())) {
-           return false;
+        if (
+          !attributes.color ||
+          !filters.color.includes(attributes.color.toUpperCase())
+        ) {
+          return false;
         }
       }
       // --- Apply Clarity Filter ---
       if (filters.clarity.length > 0) {
-        if (!attributes.clarity || !filters.clarity.includes(attributes.clarity)) {
+        if (
+          !attributes.clarity ||
+          !filters.clarity.includes(attributes.clarity)
+        ) {
           return false;
         }
       }
       // --- Apply Cut Filter ---
       if (filters.cut.length > 0) {
         const productCut = attributes.cut?.trim().toLowerCase();
-        if (!productCut || 
-            !filters.cut.some(filterCut => filterCut.toLowerCase() === productCut)) { 
+        if (
+          !productCut ||
+          !filters.cut.some(
+            (filterCut) => filterCut.toLowerCase() === productCut,
+          )
+        ) {
           return false;
         }
       }
@@ -358,42 +395,66 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
     });
 
     // --- Apply Sorting ---
-    console.log(`[Debug] Sorting ${filtered.length} filtered products by ${sortOption}.`); 
-    const sorted = [...filtered]; 
+    console.log(
+      `[Debug] Sorting ${filtered.length} filtered products by ${sortOption}.`,
+    );
+    const sorted = [...filtered];
     // ... (sorting logic remains the same, uses attributes parsed above) ...
     switch (sortOption) {
       case 'price-asc':
-        sorted.sort((a, b) => parseFloat(a.priceRange.minVariantPrice.amount) - parseFloat(b.priceRange.minVariantPrice.amount));
+        sorted.sort(
+          (a, b) =>
+            parseFloat(a.priceRange.minVariantPrice.amount) -
+            parseFloat(b.priceRange.minVariantPrice.amount),
+        );
         break;
       case 'price-desc':
-        sorted.sort((a, b) => parseFloat(b.priceRange.minVariantPrice.amount) - parseFloat(a.priceRange.minVariantPrice.amount));
+        sorted.sort(
+          (a, b) =>
+            parseFloat(b.priceRange.minVariantPrice.amount) -
+            parseFloat(a.priceRange.minVariantPrice.amount),
+        );
         break;
       case 'carat-asc':
         sorted.sort((a, b) => {
-          const caratA = parseFloat(parseProductAttributesFromHtml(a.descriptionHtml, a.title).carat || '0');
-          const caratB = parseFloat(parseProductAttributesFromHtml(b.descriptionHtml, b.title).carat || '0');
+          const caratA = parseFloat(
+            parseProductAttributesFromHtml(a.descriptionHtml, a.title).carat ||
+              '0',
+          );
+          const caratB = parseFloat(
+            parseProductAttributesFromHtml(b.descriptionHtml, b.title).carat ||
+              '0',
+          );
           return caratA - caratB;
         });
         break;
       case 'carat-desc':
-         sorted.sort((a, b) => {
-          const caratA = parseFloat(parseProductAttributesFromHtml(a.descriptionHtml, a.title).carat || '0');
-          const caratB = parseFloat(parseProductAttributesFromHtml(b.descriptionHtml, b.title).carat || '0');
+        sorted.sort((a, b) => {
+          const caratA = parseFloat(
+            parseProductAttributesFromHtml(a.descriptionHtml, a.title).carat ||
+              '0',
+          );
+          const caratB = parseFloat(
+            parseProductAttributesFromHtml(b.descriptionHtml, b.title).carat ||
+              '0',
+          );
           return caratB - caratA;
         });
         break;
     }
     // --- End Apply Sorting ---
 
-    console.log(`[Debug] Filtered/Sorted product count: ${sorted.length}`); 
-    return sorted; 
+    return sorted;
 
-  // Dependency array now uses collection.products.nodes instead of displayedProducts
-  }, [collection.products.nodes, filters, sortOption]); 
+    // Dependency array now uses collection.products.nodes instead of displayedProducts
+  }, [collection.products.nodes, filters, sortOption]);
   // --- End Filter and Sort Products ---
 
   // Log the pageInfo being used for rendering the Pagination component
-  console.log("[Render Debug] Rendering DiamondsCollection. pageInfo:", collection?.products?.pageInfo);
+  console.log(
+    '[Render Debug] Rendering DiamondsCollection. pageInfo:',
+    collection?.products?.pageInfo,
+  );
 
   return (
     // Ensure the main container allows flex children to grow/shrink properly
@@ -406,37 +467,42 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
       <div className="filters-section w-full md:w-72 lg:w-80 flex-shrink-0 p-4 border rounded-lg shadow-sm md:p-6 md:border-r md:border-gray-200 md:rounded-none md:shadow-none flex flex-col gap-6 md:gap-8 overflow-y-auto hide-scrollbar">
         {/* --- Sort By Section --- */}
         <div className="flex justify-between items-center">
-           <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase mb-0">Sort By</h2>
-            {/* Wrap select and icon in a relative container */}
-            <div className="relative w-auto">
-              <select
-                id="sort-select"
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
-                // Keep appearance-none and padding, remove inline style
-                className="appearance-none block w-full bg-white border border-slate-300 hover:border-slate-600 px-3 py-2 pr-8 rounded hover:shadow-md text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-slate-600"
-                // Remove inline style attribute
-              >
-                {sortOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {/* Absolutely positioned icon container - Use Material UI Icon */}
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                {/* Add text color class directly to the icon */}
-                <KeyboardArrowDownIcon className="h-5 w-5 text-gray-700" /> {/* Use MUI icon */}
-              </div>
+          <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase mb-0">
+            Sort By
+          </h2>
+          {/* Wrap select and icon in a relative container */}
+          <div className="relative w-auto">
+            <select
+              id="sort-select"
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+              // Keep appearance-none and padding, remove inline style
+              className="appearance-none block w-full bg-white border border-slate-300 hover:border-slate-600 px-3 py-2 pr-8 rounded hover:shadow-md text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-slate-600"
+              // Remove inline style attribute
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {/* Absolutely positioned icon container - Use Material UI Icon */}
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+              {/* Add text color class directly to the icon */}
+              <KeyboardArrowDownIcon className="h-5 w-5 text-gray-700" />{' '}
+              {/* Use MUI icon */}
             </div>
+          </div>
         </div>
         {/* --- Divider --- */}
         <hr className="border border-slate-200" />
 
         {/* Header row for Filters title and Clear All button */}
         <div className="flex justify-between items-baseline">
-          <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase">Filters</h2>
-          {/* Conditionally display Clear All button */} 
+          <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase">
+            Filters
+          </h2>
+          {/* Conditionally display Clear All button */}
           {JSON.stringify(filters) !== JSON.stringify(initialFilters) && (
             <button
               type="button"
@@ -478,8 +544,12 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
 
         {/* Shape Filter */}
         <div className="filter-group">
-          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">Shape</h3>
-          <div className="grid grid-cols-4 gap-1"> {/* 4 columns with gap */}
+          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+            Shape
+          </h3>
+          <div className="grid grid-cols-4 gap-1">
+            {' '}
+            {/* 4 columns with gap */}
             {diamondShapes.map((shape) => {
               const isSelected = filters.shape.includes(shape.name);
               return (
@@ -508,8 +578,8 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
               );
             })}
           </div>
-           {/* TODO: Add "MORE SHAPES" link if needed */}
-           {/* <button className="text-sm text-black font-medium mt-3 flex items-center justify-center w-full">
+          {/* TODO: Add "MORE SHAPES" link if needed */}
+          {/* <button className="text-sm text-black font-medium mt-3 flex items-center justify-center w-full">
              MORE SHAPES
              <svg className="w-4 h-4 ml-1" /* chevron icon * />
            </button> */}
@@ -517,14 +587,19 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
 
         {/* Certification Filter */}
         <div className="filter-group">
-          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">Certification</h3>
+          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+            Certification
+          </h3>
           {/* Adjust flex direction and gap for horizontal layout if needed, or keep vertical based on Figma */}
-          <div className="flex flex-row gap-2"> {/* Changed to flex-row for horizontal layout like Figma image */} 
+          <div className="flex flex-row gap-2">
+            {' '}
+            {/* Changed to flex-row for horizontal layout like Figma image */}
             {['GIA', 'IGI'].map((cert) => (
               // Style the label as the container box
               <label
                 key={cert}
-                className={`flex-1 flex flex-col items-center justify-center p-3 border cursor-pointer transition-colors duration-150 ${ // Use flex-1 to distribute space
+                className={`flex-1 flex flex-col items-center justify-center p-3 border cursor-pointer transition-colors duration-150 ${
+                  // Use flex-1 to distribute space
                   filters.certification.includes(cert)
                     ? 'border-black bg-white' // Selected style: black border
                     : 'border-gray-300 bg-white hover:border-gray-500' // Unselected style
@@ -539,9 +614,14 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
                   className="opacity-0 absolute h-0 w-0"
                 />
                 {/* Custom checkbox indicator with SVG checkmark */}
-                <div className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${ // Added flex center
-                  filters.certification.includes(cert) ? 'bg-black' : 'bg-white' // Fill when checked
-                }`}>
+                <div
+                  className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${
+                    // Added flex center
+                    filters.certification.includes(cert)
+                      ? 'bg-black'
+                      : 'bg-white' // Fill when checked
+                  }`}
+                >
                   {/* Conditionally render white SVG checkmark */}
                   {filters.certification.includes(cert) && (
                     <svg
@@ -569,16 +649,23 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
           </div>
         </div>
 
-        {/* Color Filter */} 
+        {/* Color Filter */}
         <div className="filter-group">
-          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-2 uppercase">Color</h3>
+          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-2 uppercase">
+            Color
+          </h3>
           {/* Colorless Sub-section */}
-          <h4 className="text-sm font-['SF_Pro'] font-normal text-gray-500 mb-2">Colorless</h4>
-          <div className="grid grid-cols-3 gap-2 mb-3"> {/* 3 columns */} 
+          <h4 className="text-sm font-['SF_Pro'] font-normal text-gray-500 mb-2">
+            Colorless
+          </h4>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {' '}
+            {/* 3 columns */}
             {['D', 'E', 'F'].map((col) => (
               <label
                 key={col}
-                className={`flex flex-col items-center justify-center p-2 border cursor-pointer transition-colors duration-150 ${ // Adjusted padding
+                className={`flex flex-col items-center justify-center p-2 border cursor-pointer transition-colors duration-150 ${
+                  // Adjusted padding
                   filters.color.includes(col)
                     ? 'border-black bg-white'
                     : 'border-gray-300 bg-white hover:border-gray-500'
@@ -591,12 +678,25 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
                   onChange={() => handleColorChange(col)}
                   className="opacity-0 absolute h-0 w-0"
                 />
-                <div className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${ 
-                  filters.color.includes(col) ? 'bg-black' : 'bg-white'
-                }`}>
+                <div
+                  className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${
+                    filters.color.includes(col) ? 'bg-black' : 'bg-white'
+                  }`}
+                >
                   {filters.color.includes(col) && (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white" stroke="currentColor" strokeWidth="2">
-                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-3 h-3 text-white"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   )}
                 </div>
@@ -607,12 +707,17 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
             ))}
           </div>
           {/* Near Colorless Sub-section */}
-          <h4 className="text-sm font-['SF_Pro'] font-normal text-gray-500 mb-2">Near Colorless</h4>
-          <div className="grid grid-cols-3 gap-2"> {/* 3 columns */} 
+          <h4 className="text-sm font-['SF_Pro'] font-normal text-gray-500 mb-2">
+            Near Colorless
+          </h4>
+          <div className="grid grid-cols-3 gap-2">
+            {' '}
+            {/* 3 columns */}
             {['G', 'H', 'I'].map((col) => (
-               <label
+              <label
                 key={col}
-                className={`flex flex-col items-center justify-center p-2 border cursor-pointer transition-colors duration-150 ${ // Adjusted padding
+                className={`flex flex-col items-center justify-center p-2 border cursor-pointer transition-colors duration-150 ${
+                  // Adjusted padding
                   filters.color.includes(col)
                     ? 'border-black bg-white'
                     : 'border-gray-300 bg-white hover:border-gray-500'
@@ -625,12 +730,25 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
                   onChange={() => handleColorChange(col)}
                   className="opacity-0 absolute h-0 w-0"
                 />
-                <div className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${ 
-                  filters.color.includes(col) ? 'bg-black' : 'bg-white'
-                }`}>
+                <div
+                  className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${
+                    filters.color.includes(col) ? 'bg-black' : 'bg-white'
+                  }`}
+                >
                   {filters.color.includes(col) && (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white" stroke="currentColor" strokeWidth="2">
-                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-3 h-3 text-white"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   )}
                 </div>
@@ -644,14 +762,21 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
 
         {/* Clarity Filter */}
         <div className="filter-group">
-          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-2 uppercase">Clarity</h3>
+          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-2 uppercase">
+            Clarity
+          </h3>
           {/* Flawless/Internally Flawless Sub-section */}
-          <h4 className="text-sm font-['SF_Pro'] font-normal text-gray-500 mb-2">Flawless</h4>
-          <div className="grid grid-cols-3 gap-2 mb-3"> {/* 3 columns */} 
+          <h4 className="text-sm font-['SF_Pro'] font-normal text-gray-500 mb-2">
+            Flawless
+          </h4>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {' '}
+            {/* 3 columns */}
             {['FL', 'IF'].map((clar) => (
               <label
                 key={clar}
-                className={`flex flex-col items-center justify-center p-2 border cursor-pointer transition-colors duration-150 ${ // Adjusted padding
+                className={`flex flex-col items-center justify-center p-2 border cursor-pointer transition-colors duration-150 ${
+                  // Adjusted padding
                   filters.clarity.includes(clar)
                     ? 'border-black bg-white'
                     : 'border-gray-300 bg-white hover:border-gray-500'
@@ -664,12 +789,25 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
                   onChange={() => handleClarityChange(clar)}
                   className="opacity-0 absolute h-0 w-0"
                 />
-                <div className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${ 
-                  filters.clarity.includes(clar) ? 'bg-black' : 'bg-white'
-                }`}>
+                <div
+                  className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${
+                    filters.clarity.includes(clar) ? 'bg-black' : 'bg-white'
+                  }`}
+                >
                   {filters.clarity.includes(clar) && (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white" stroke="currentColor" strokeWidth="2">
-                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-3 h-3 text-white"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   )}
                 </div>
@@ -680,12 +818,17 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
             ))}
           </div>
           {/* VVS/VS Sub-section */}
-          <h4 className="text-sm font-['SF_Pro'] font-normal text-gray-500 mb-2">Eye-Clear</h4>
-          <div className="grid grid-cols-3 gap-2"> {/* 3 columns */} 
+          <h4 className="text-sm font-['SF_Pro'] font-normal text-gray-500 mb-2">
+            Eye-Clean
+          </h4>
+          <div className="grid grid-cols-3 gap-2">
+            {' '}
+            {/* 3 columns */}
             {['VVS1', 'VVS2', 'VS1', 'VS2'].map((clar) => (
-               <label
+              <label
                 key={clar}
-                className={`flex flex-col items-center justify-center p-2 border cursor-pointer transition-colors duration-150 ${ // Adjusted padding
+                className={`flex flex-col items-center justify-center p-2 border cursor-pointer transition-colors duration-150 ${
+                  // Adjusted padding
                   filters.clarity.includes(clar)
                     ? 'border-black bg-white'
                     : 'border-gray-300 bg-white hover:border-gray-500'
@@ -698,12 +841,25 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
                   onChange={() => handleClarityChange(clar)}
                   className="opacity-0 absolute h-0 w-0"
                 />
-                <div className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${ 
-                  filters.clarity.includes(clar) ? 'bg-black' : 'bg-white'
-                }`}>
+                <div
+                  className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${
+                    filters.clarity.includes(clar) ? 'bg-black' : 'bg-white'
+                  }`}
+                >
                   {filters.clarity.includes(clar) && (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white" stroke="currentColor" strokeWidth="2">
-                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-3 h-3 text-white"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   )}
                 </div>
@@ -717,12 +873,16 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
 
         {/* Cut Filter */}
         <div className="filter-group">
-          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">Cut</h3>
-          <div className="flex flex-row gap-2"> {/* Horizontal layout */} 
+          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+            Cut
+          </h3>
+          <div className="flex flex-row gap-2">
+            {' '}
+            {/* Horizontal layout */}
             {['Ideal', 'Excellent', 'Very Good'].map((cut) => (
               <label
                 key={cut}
-                className={`flex-1 flex flex-col items-center justify-center p-3 border cursor-pointer transition-colors duration-150 ${ 
+                className={`flex-1 flex flex-col items-center justify-center p-3 border cursor-pointer transition-colors duration-150 ${
                   filters.cut.includes(cut)
                     ? 'border-black bg-white'
                     : 'border-gray-300 bg-white hover:border-gray-500'
@@ -735,16 +895,31 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
                   onChange={() => handleCutChange(cut)}
                   className="opacity-0 absolute h-0 w-0"
                 />
-                <div className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${ 
-                  filters.cut.includes(cut) ? 'bg-black' : 'bg-white'
-                }`}>
+                <div
+                  className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${
+                    filters.cut.includes(cut) ? 'bg-black' : 'bg-white'
+                  }`}
+                >
                   {filters.cut.includes(cut) && (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white" stroke="currentColor" strokeWidth="2">
-                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-3 h-3 text-white"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   )}
                 </div>
-                <span className="text-xs font-['SF_Pro'] font-normal text-black text-center"> {/* Adjusted text size and centered */} 
+                <span className="text-xs font-['SF_Pro'] font-normal text-black text-center">
+                  {' '}
+                  {/* Adjusted text size and centered */}
                   {cut}
                 </span>
               </label>
@@ -755,7 +930,9 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
         {/* Price Filter */}
         <div className="filter-group">
           {/* Use uppercase to match Figma */}
-          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">Price</h3>
+          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+            Price
+          </h3>
           {/* Replace input with rc-slider */}
           <Slider
             range // Enable range mode (two handles)
@@ -775,7 +952,12 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
           {/* Min/Max Input Boxes */}
           <div className="flex justify-between items-center mt-4 gap-2 price-input-container">
             <div className="flex-1">
-              <label htmlFor="minPrice" className="block text-xs text-slate-700 mb-1">Min Price</label>
+              <label
+                htmlFor="minPrice"
+                className="block text-xs text-slate-700 mb-1"
+              >
+                Min Price
+              </label>
               <input
                 type="number"
                 id="minPrice"
@@ -786,8 +968,14 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
                   const newMin = parseInt(e.target.value, 10);
                   if (!isNaN(newMin)) {
                     // Ensure min doesn't exceed max
-                    const validatedMin = Math.min(newMin, filters.priceRange[1]);
-                    setFilters({...filters, priceRange: [validatedMin, filters.priceRange[1]]});
+                    const validatedMin = Math.min(
+                      newMin,
+                      filters.priceRange[1],
+                    );
+                    setFilters({
+                      ...filters,
+                      priceRange: [validatedMin, filters.priceRange[1]],
+                    });
                   }
                 }}
                 // Remove Tailwind border color, keep base border styles
@@ -796,7 +984,12 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
             </div>
             <span className="text-gray-400">-</span>
             <div className="flex-1">
-              <label htmlFor="maxPrice" className="block text-xs text-gray-500 mb-1">Max Price</label>
+              <label
+                htmlFor="maxPrice"
+                className="block text-xs text-gray-500 mb-1"
+              >
+                Max Price
+              </label>
               <input
                 type="number"
                 id="maxPrice"
@@ -807,8 +1000,14 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
                   const newMax = parseInt(e.target.value, 10);
                   if (!isNaN(newMax)) {
                     // Ensure max isn't less than min
-                    const validatedMax = Math.max(newMax, filters.priceRange[0]);
-                    setFilters({...filters, priceRange: [filters.priceRange[0], validatedMax]});
+                    const validatedMax = Math.max(
+                      newMax,
+                      filters.priceRange[0],
+                    );
+                    setFilters({
+                      ...filters,
+                      priceRange: [filters.priceRange[0], validatedMax],
+                    });
                   }
                 }}
                 // Remove Tailwind border color, keep base border styles
@@ -821,7 +1020,9 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
         {/* Carat Filter */}
         <div className="filter-group">
           {/* Use uppercase to match Figma */}
-          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">Carat</h3>
+          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+            Carat
+          </h3>
           {/* Replace input with rc-slider */}
           <Slider
             range // Enable range mode
@@ -835,15 +1036,28 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
                 // Ensure value is treated as [number, number]
                 const [newMin, newMax] = value as [number, number];
                 // Ensure values are floats for carat
-                setFilters({...filters, caratRange: [parseFloat(newMin.toFixed(2)), parseFloat(newMax.toFixed(2))]});
+                setFilters({
+                  ...filters,
+                  caratRange: [
+                    parseFloat(newMin.toFixed(2)),
+                    parseFloat(newMax.toFixed(2)),
+                  ],
+                });
               }
             }}
             // Styles will be inherited from the rules targeting .filter-group .rc-slider-*
           />
           {/* Min/Max Carat Input Boxes */}
-          <div className="flex justify-between items-center mt-4 gap-2 price-input-container"> {/* Reuse container class */} 
+          <div className="flex justify-between items-center mt-4 gap-2 price-input-container">
+            {' '}
+            {/* Reuse container class */}
             <div className="flex-1">
-              <label htmlFor="minCarat" className="block text-xs text-gray-500 mb-1">Min Carat</label>
+              <label
+                htmlFor="minCarat"
+                className="block text-xs text-gray-500 mb-1"
+              >
+                Min Carat
+              </label>
               <input
                 type="number"
                 id="minCarat"
@@ -854,8 +1068,17 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
                 onChange={(e) => {
                   const newMin = parseFloat(e.target.value);
                   if (!isNaN(newMin)) {
-                    const validatedMin = Math.min(newMin, filters.caratRange[1]);
-                    setFilters({...filters, caratRange: [parseFloat(validatedMin.toFixed(2)), filters.caratRange[1]]});
+                    const validatedMin = Math.min(
+                      newMin,
+                      filters.caratRange[1],
+                    );
+                    setFilters({
+                      ...filters,
+                      caratRange: [
+                        parseFloat(validatedMin.toFixed(2)),
+                        filters.caratRange[1],
+                      ],
+                    });
                   }
                 }}
                 className="w-full p-1 border rounded text-sm" // Inherit border color via CSS
@@ -863,7 +1086,12 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
             </div>
             <span className="text-gray-400">-</span>
             <div className="flex-1">
-              <label htmlFor="maxCarat" className="block text-xs text-gray-500 mb-1">Max Carat</label>
+              <label
+                htmlFor="maxCarat"
+                className="block text-xs text-gray-500 mb-1"
+              >
+                Max Carat
+              </label>
               <input
                 type="number"
                 id="maxCarat"
@@ -874,8 +1102,17 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
                 onChange={(e) => {
                   const newMax = parseFloat(e.target.value);
                   if (!isNaN(newMax)) {
-                    const validatedMax = Math.max(newMax, filters.caratRange[0]);
-                    setFilters({...filters, caratRange: [filters.caratRange[0], parseFloat(validatedMax.toFixed(2))]});
+                    const validatedMax = Math.max(
+                      newMax,
+                      filters.caratRange[0],
+                    );
+                    setFilters({
+                      ...filters,
+                      caratRange: [
+                        filters.caratRange[0],
+                        parseFloat(validatedMax.toFixed(2)),
+                      ],
+                    });
                   }
                 }}
                 className="w-full p-1 border rounded text-sm" // Inherit border color via CSS
@@ -892,12 +1129,17 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
         <div className="products-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1 md:gap-2">
           {filteredAndSortedProducts.length > 0 ? (
             filteredAndSortedProducts.map((product: ProductWithDetails) => (
-              <ProductItem key={`${product.id}-${sortOption}`} product={product} /> 
+              <ProductItem
+                key={`${product.id}-${sortOption}`}
+                product={product}
+              />
             ))
           ) : (
             // Display message when no products are found
             <div className="col-span-full text-center py-10 text-gray-500">
-              <p className="text-lg">No products found matching your criteria.</p>
+              <p className="text-lg">
+                No products found matching your criteria.
+              </p>
               <p className="text-sm">Try adjusting your filters.</p>
             </div>
           )}
@@ -912,25 +1154,25 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
             return (
               <div className="flex justify-center items-center gap-4 mt-6 py-4 border-t border-gray-200">
                 {/* Render PreviousLink based on pageInfo flag - USE REMIX LINK */}
-                {collection.products.pageInfo.hasPreviousPage && collection.products.pageInfo.startCursor && (
-                  <Link to={`/collections/${collection.handle}?before=${collection.products.pageInfo.startCursor}`} prefetch="intent">
-                    <button 
-                      className="w-24 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                {collection.products.pageInfo.hasPreviousPage &&
+                  collection.products.pageInfo.startCursor && (
+                    <Link
+                      to={`/collections/${collection.handle}?before=${collection.products.pageInfo.startCursor}`}
+                      prefetch="intent"
                     >
-                      Previous
-                    </button>
-                  </Link>
-                )}
-                
+                      <button className="w-24 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
+                      </button>
+                    </Link>
+                  )}
+
                 {/* Optional: Add page number display here if needed later */}
-                {/* <span className="text-sm text-gray-500">Page X of Y</span> */} 
+                {/* <span className="text-sm text-gray-500">Page X of Y</span> */}
 
                 {/* Render NextLink based on pageInfo flag - USE HYDROGEN LINK FOR NOW */}
                 {collection.products.pageInfo.hasNextPage && (
                   <NextLink>
-                    <button 
-                      className="w-24 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
+                    <button className="w-24 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
                       Next
                     </button>
                   </NextLink>
@@ -939,7 +1181,6 @@ export function DiamondsCollection({collection}: DiamondsCollectionProps) {
             );
           }}
         </Pagination>
-
       </div>
     </div>
   );
@@ -956,12 +1197,19 @@ function ProductItem({product}: {product: ProductWithDetails}) {
   // Parse attributes using the helper function, memoize the result
   const attributes = useMemo(() => {
     // Pass both descriptionHtml and title to the parser
-    return parseProductAttributesFromHtml(product.descriptionHtml, product.title);
+    return parseProductAttributesFromHtml(
+      product.descriptionHtml,
+      product.title,
+    );
   }, [product.descriptionHtml, product.title]);
 
   // Use the IGI Certified icon from the public assets
   const CertificationIcon = () => (
-    <img src="/icons/igi-certified-icon.svg" alt="Certified" className="h-3 w-3" />
+    <img
+      src="/icons/igi-certified-icon.svg"
+      alt="Certified"
+      className="h-3 w-3"
+    />
   );
 
   // Log the received product object to check for certificateNumber
@@ -970,7 +1218,14 @@ function ProductItem({product}: {product: ProductWithDetails}) {
   return (
     <div className="product-item-container border border-slate-200 rounded-md overflow-hidden flex flex-col transition-shadow duration-200 hover:shadow-md no-underline">
       {/* Add `group` class here for hover effect */}
-      <Link key={product.id} prefetch="intent" to={variantUrl} className="group flex flex-col flex-grow hover:!no-underline relative"> {/* Added relative for positioning context */}
+      <Link
+        key={product.id}
+        prefetch="intent"
+        to={variantUrl}
+        className="group flex flex-col flex-grow hover:!no-underline relative"
+      >
+        {' '}
+        {/* Added relative for positioning context */}
         {/* Wrap image in a relative container */}
         <div className="relative w-full">
           {product.featuredImage && (
@@ -985,13 +1240,17 @@ function ProductItem({product}: {product: ProductWithDetails}) {
           {/* Hover Overlay - Use inline style for background */}
           <div
             className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-            style={{ backgroundColor: 'rgba(43, 43, 43, 0.5)' }} // Set semi-transparent black background directly
+            style={{backgroundColor: 'rgba(43, 43, 43, 0.5)'}} // Set semi-transparent black background directly
           >
-            <span className="text-white text-sm font-light uppercase tracking-wider">Click to view</span>
+            <span className="text-white text-sm font-light uppercase tracking-wider">
+              Click to view
+            </span>
           </div>
         </div>
         <div className="p-4 flex flex-col flex-grow">
-          <h4 className="text-md font-medium mb-1 flex-grow">{product.title}</h4>
+          <h4 className="text-md font-medium mb-1 flex-grow">
+            {product.title}
+          </h4>
           <small className="block text-lg font-semibold mb-2">
             <Money data={product.priceRange.minVariantPrice} />
           </small>
@@ -1001,31 +1260,39 @@ function ProductItem({product}: {product: ProductWithDetails}) {
             {attributes.shape && <Tag label="Shape" value={attributes.shape} />}
             {attributes.carat && <Tag label="Carat" value={attributes.carat} />}
             {attributes.color && <Tag label="Color" value={attributes.color} />}
-            {attributes.clarity && <Tag label="Clarity" value={attributes.clarity} />}
+            {attributes.clarity && (
+              <Tag label="Clarity" value={attributes.clarity} />
+            )}
             {attributes.cut && <Tag label="Cut" value={attributes.cut} />}
             {/* Conditionally display Certificate Number if available */}
-            {product.certificateNumber && <Tag label="Cert #" value={product.certificateNumber} />}
+            {product.certificateNumber && (
+              <Tag label="Cert #" value={product.certificateNumber} />
+            )}
             {/* Conditionally render default cert tag if needed, or remove if replaced by certification tag */}
             {/* {attributes.certification && !attributes.certification.match(/IGI/i) && <Tag label="Cert" value={attributes.certification} />} */}
           </div>
 
           {/* Display Certification Tag for GIA or IGI */}
-          {attributes.certification && (attributes.certification.match(/IGI/i) || attributes.certification.match(/GIA/i)) && (
-            <div className="mt-auto pt-2">
-               <Tag
-                 isCertification={true}
-                 value={`${attributes.certification} Certified`}
-                 icon={<CertificationIcon />}
-               />
-            </div>
-          )}
+          {attributes.certification &&
+            (attributes.certification.match(/IGI/i) ||
+              attributes.certification.match(/GIA/i)) && (
+              <div className="mt-auto pt-2">
+                <Tag
+                  isCertification={true}
+                  value={`${attributes.certification} Certified`}
+                  icon={<CertificationIcon />}
+                />
+              </div>
+            )}
         </div>
       </Link>
       {/* Add to Cart Button - Use AddToCartButton component */}
-      <div className="p-4 pt-0"> {/* Adjust padding as needed */}
+      <div className="p-4 pt-0">
+        {' '}
+        {/* Adjust padding as needed */}
         {merchandiseId ? (
           <AddToCartButton
-            lines={[{ merchandiseId: merchandiseId, quantity: 1 }]}
+            lines={[{merchandiseId, quantity: 1}]}
             // Apply styling similar to the placeholder, adjust as needed
             className="w-full bg-black text-white px-4 py-2 text-sm font-light hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50"
             // analytics={{ products: [product], totalValue: parseFloat(product.priceRange.minVariantPrice.amount) }} // Optional analytics
@@ -1044,4 +1311,4 @@ function ProductItem({product}: {product: ProductWithDetails}) {
       </div>
     </div>
   );
-} 
+}

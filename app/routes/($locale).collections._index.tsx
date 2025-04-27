@@ -3,13 +3,19 @@ import {json, type LoaderFunctionArgs} from '@shopify/remix-oxygen';
 import {getPaginationVariables, Image, Money} from '@shopify/hydrogen';
 import type {CollectionFragment} from 'storefrontapi.generated';
 import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
-import { MarqueeBanner } from '~/components/MarqueeBanner';
+import {MarqueeBanner} from '~/components/MarqueeBanner';
+import {MetaFunction} from '@remix-run/node';
 
 // Define the type for the loader data explicitly
 interface CollectionsLoaderData {
   collections: {
     nodes: CollectionFragment[];
-    pageInfo: { hasPreviousPage: boolean; hasNextPage: boolean; startCursor: string | null; endCursor: string | null };
+    pageInfo: {
+      hasPreviousPage: boolean;
+      hasNextPage: boolean;
+      startCursor: string | null;
+      endCursor: string | null;
+    };
   };
 }
 
@@ -18,8 +24,8 @@ export const handle = {
   breadcrumb: 'Collections',
 };
 
-export const meta = () => {
-  return [{title: 'Hydrogen | Collections'}];
+export const meta: MetaFunction<typeof loader> = () => {
+  return [{title: 'Loose Grown Gems | Collections'}];
 };
 
 export async function loader(args: LoaderFunctionArgs) {
@@ -30,7 +36,7 @@ export async function loader(args: LoaderFunctionArgs) {
   const criticalData = await loadCriticalData(args);
 
   // Ensure the returned structure matches CollectionsLoaderData
-  return json({ ...deferredData, ...criticalData });
+  return json({...deferredData, ...criticalData});
 }
 
 /**
@@ -63,7 +69,7 @@ function loadDeferredData({context}: LoaderFunctionArgs) {
 
 export default function Collections() {
   // Use the explicit type with useLoaderData
-  const { collections } = useLoaderData<CollectionsLoaderData>();
+  const {collections} = useLoaderData<CollectionsLoaderData>();
 
   return (
     <div className="collections">
