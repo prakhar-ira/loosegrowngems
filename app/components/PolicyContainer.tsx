@@ -50,7 +50,7 @@ export function PolicyContainer() {
             <div className="right-box">
               <h5>Start Your Return</h5>
               <p>
-                Contact us at info@completecarat.com with your order number, and
+                Contact us at info@loosegrowngems.com with your order number, and
                 we&apos;ll guide you through the return process
               </p>
             </div>

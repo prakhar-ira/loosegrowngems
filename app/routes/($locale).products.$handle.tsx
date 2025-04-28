@@ -662,14 +662,14 @@ export default function Product() {
                 <div className="w-16 h-16 flex items-center justify-center">
                   <img
                     src="/assets/images/in_home_mode.svg"
-                    alt="Completely In-House"
+                    alt="Made In-House"
                     className="w-12 h-12 object-contain"
                   />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-xl font-medium">Completely In-House</h3>
+                  <h3 className="text-xl font-medium">Made In-House</h3>
                   <p className="text-sm text-gray-600">
-                    All our products are made completely in-house by expert
+                    All gold and silver jewelry products are made completely in-house by expert
                     craftsmen to ensure the highest degree of beauty and
                     precision.
                   </p>
