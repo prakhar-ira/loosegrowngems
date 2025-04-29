@@ -661,7 +661,7 @@ export default function Product() {
               <div className="flex flex-col items-center text-center gap-6">
                 <div className="w-16 h-16 flex items-center justify-center">
                   <img
-                    src="/assets/images/in_home_mode.svg"
+                    src="/assets/in_home_mode.svg"
                     alt="Made In-House"
                     className="w-12 h-12 object-contain"
                   />
@@ -669,9 +669,9 @@ export default function Product() {
                 <div className="space-y-2">
                   <h3 className="text-xl font-medium">Made In-House</h3>
                   <p className="text-sm text-gray-600">
-                    All gold and silver jewelry products are made completely in-house by expert
-                    craftsmen to ensure the highest degree of beauty and
-                    precision.
+                    All gold and silver jewelry products are made completely
+                    in-house by expert craftsmen to ensure the highest degree of
+                    beauty and precision.
                   </p>
                 </div>
               </div>
@@ -679,7 +679,7 @@ export default function Product() {
               <div className="flex flex-col items-center text-center gap-6">
                 <div className="w-16 h-16 flex items-center justify-center">
                   <img
-                    src="/assets/images/card_membership.svg"
+                    src="/assets/card_membership.svg"
                     alt="Lifetime Warranty"
                     className="w-12 h-12 object-contain"
                   />
@@ -696,7 +696,7 @@ export default function Product() {
               <div className="flex flex-col items-center text-center gap-6">
                 <div className="w-16 h-16 flex items-center justify-center">
                   <img
-                    src="/assets/images/priority_shipping.png"
+                    src="/assets/priority_shipping.png"
                     alt="Priority Shipping"
                     className="w-12 h-12 object-contain"
                   />
@@ -714,7 +714,7 @@ export default function Product() {
               <div className="flex flex-col items-center text-center gap-6">
                 <div className="w-16 h-16 flex items-center justify-center">
                   <img
-                    src="/assets/images/partner_exchange.svg"
+                    src="/assets/partner_exchange.svg"
                     alt="Conflict-Free Diamonds"
                     className="w-12 h-12 object-contain"
                   />

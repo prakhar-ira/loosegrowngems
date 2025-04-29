@@ -1,4 +1,4 @@
-import { json, redirect, type LoaderFunctionArgs } from '@shopify/remix-oxygen';
+import {json, redirect, type LoaderFunctionArgs} from '@shopify/remix-oxygen';
 import {useLoaderData, Link, type MetaFunction} from '@remix-run/react';
 import {
   getPaginationVariables,
@@ -6,12 +6,15 @@ import {
   Money,
   Analytics,
 } from '@shopify/hydrogen';
-import type { CollectionQuery, ProductItemFragment } from 'storefrontapi.generated';
+import type {
+  CollectionQuery,
+  ProductItemFragment,
+} from 'storefrontapi.generated';
 import {useVariantUrl} from '~/lib/variants';
 import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
 import {DiamondsCollection} from '~/components/collections/DiamondsCollection';
-import {JewelleryCollection} from '~/components/collections/JewelleryCollection';
-import { MarqueeBanner } from '~/components/MarqueeBanner'; // Import MarqueeBanner
+import {jewelryCollection} from '~/components/collections/jewelryCollection';
+import {MarqueeBanner} from '~/components/MarqueeBanner'; // Import MarqueeBanner
 
 // Define the type for the Nivoda data we expect
 type NivodaDiamondDetails = {
@@ -23,16 +26,21 @@ type NivodaDiamondDetails = {
 
 // Extend the ProductItemFragment to include the Nivoda details
 type ProductWithNivodaDetails = ProductItemFragment & {
-  nivodaId?: { value: string } | null; // Keep this to perform the lookup
+  nivodaId?: {value: string} | null; // Keep this to perform the lookup
   nivodaDetails?: NivodaDiamondDetails | null; // Store fetched details here
   certificateNumber?: string | null; // Added certificateNumber to the final merged product type
 };
 
 // Update the ExtendedCollectionType to use the new product type
-type ExtendedCollectionType = Omit<NonNullable<CollectionQuery['collection']>, 'products'> & {
+type ExtendedCollectionType = Omit<
+  NonNullable<CollectionQuery['collection']>,
+  'products'
+> & {
   products: {
     nodes: ProductWithNivodaDetails[];
-    pageInfo: NonNullable<CollectionQuery['collection']>['products']['pageInfo'];
+    pageInfo: NonNullable<
+      CollectionQuery['collection']
+    >['products']['pageInfo'];
   };
 };
 
@@ -65,7 +73,7 @@ type NivodaAuthResponse = {
   errors?: any[];
 };
 
-// Define the base Collection type from the query, ensuring it includes fields used in BOTH Diamonds and Jewellery
+// Define the base Collection type from the query, ensuring it includes fields used in BOTH Diamonds and jewelry
 type BaseCollectionType = CollectionQuery['collection'] & {
   products: {
     nodes: ProductWithNivodaDetails[];
@@ -75,7 +83,8 @@ type BaseCollectionType = CollectionQuery['collection'] & {
 
 // Define the handle for this route
 export const handle = {
-  breadcrumb: (data: { collection?: { title: string } }) => data?.collection?.title || 'Collection',
+  breadcrumb: (data: {collection?: {title: string}}) =>
+    data?.collection?.title || 'Collection',
 };
 
 export const meta: MetaFunction<typeof loader> = ({data}) => {
@@ -83,44 +92,58 @@ export const meta: MetaFunction<typeof loader> = ({data}) => {
   return [{title: `Loose Grown Gems | ${collectionTitle}`}];
 };
 
-export async function loader({ params, request, context }: LoaderFunctionArgs) {
-  const { storefront, env } = context;
-  const { handle } = params;
+export async function loader({params, request, context}: LoaderFunctionArgs) {
+  const {storefront, env} = context;
+  const {handle} = params;
   // Get pagination variables (reads 'first', 'last', 'before', 'after' from URL)
-  const paginationVariables = getPaginationVariables(request, { pageBy: 24 });
+  const paginationVariables = getPaginationVariables(request, {pageBy: 24});
 
-  console.log("DEBUG: Received env object in loader:", JSON.stringify(env, null, 2));
+  console.log(
+    'DEBUG: Received env object in loader:',
+    JSON.stringify(env, null, 2),
+  );
 
   if (!handle) {
     throw redirect('/collections');
   }
 
-  console.log(`[Loader Debug] Handle: ${handle}, Variables:`, paginationVariables);
+  console.log(
+    `[Loader Debug] Handle: ${handle}, Variables:`,
+    paginationVariables,
+  );
 
   // --- Fetch Shopify Data ---
-  const { collection: rawCollection } = await storefront.query(COLLECTION_QUERY, {
-    variables: { handle, ...paginationVariables },
+  const {collection: rawCollection} = await storefront.query(COLLECTION_QUERY, {
+    variables: {handle, ...paginationVariables},
   });
 
   if (!rawCollection) {
-    throw new Response(`Collection ${handle} not found`, { status: 404 });
+    throw new Response(`Collection ${handle} not found`, {status: 404});
   }
 
   // Log the received pageInfo before returning or processing further
-  console.log("[Loader Debug] Received pageInfo from Storefront Query:", rawCollection?.products?.pageInfo);
+  console.log(
+    '[Loader Debug] Received pageInfo from Storefront Query:',
+    rawCollection?.products?.pageInfo,
+  );
 
   // Cast to our extended type for potential modification
-  let collection: BaseCollectionType | null = rawCollection as BaseCollectionType;
+  let collection: BaseCollectionType | null =
+    rawCollection as BaseCollectionType;
 
   // --- Conditionally Fetch Nivoda Data (Only for initial page load) ---
   // Check if it's the first page load (no 'before' or 'after' cursor provided in URL)
-  const isInitialLoad = !('startCursor' in paginationVariables || 'endCursor' in paginationVariables);
+  const isInitialLoad = !(
+    'startCursor' in paginationVariables || 'endCursor' in paginationVariables
+  );
 
   if (isInitialLoad) {
-    console.log("[Loader Debug] Initial load detected (no cursors found), proceeding with Nivoda fetch..."); 
+    console.log(
+      '[Loader Debug] Initial load detected (no cursors found), proceeding with Nivoda fetch...',
+    );
     const nivodaIds = collection.products.nodes
-      .map(product => product.nivodaId?.value)
-      .filter((id): id is string => !!id); 
+      .map((product) => product.nivodaId?.value)
+      .filter((id): id is string => !!id);
     console.log('DEBUG: Sending Nivoda IDs to API:', nivodaIds);
     let nivodaDataMap = new Map<string, NivodaDiamondDetails | null>();
     if (nivodaIds.length > 0) {
@@ -128,56 +151,178 @@ export async function loader({ params, request, context }: LoaderFunctionArgs) {
       const nivodaPassword = env.NIVODA_PASSWORD;
       const nivodaApiUrl = 'https://integrations.nivoda.net/api/diamonds';
       if (!nivodaEmail || !nivodaPassword) {
-        console.warn("NIVODA_USERNAME or NIVODA_PASSWORD are not set. Skipping Nivoda fetch.");
+        console.warn(
+          'NIVODA_USERNAME or NIVODA_PASSWORD are not set. Skipping Nivoda fetch.',
+        );
       } else {
         let authToken: string | null = null;
         try {
-          console.log("Authenticating with Nivoda API using username/password...");
+          console.log(
+            'Authenticating with Nivoda API using username/password...',
+          );
           const authQuery = ` mutation Login($username: String!, $password: String!) { username_and_password(username: $username, password: $password) { token } } `;
-          const authResponse = await fetch(nivodaApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: authQuery, variables: { username: nivodaEmail, password: nivodaPassword } }) });
-          if (!authResponse.ok) { const errorBody = await authResponse.text(); console.error(`Nivoda Auth API Error: ${authResponse.status} ${authResponse.statusText}`, errorBody); throw new Error(`Nivoda authentication failed: ${authResponse.status}`); }
+          const authResponse = await fetch(nivodaApiUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              query: authQuery,
+              variables: {username: nivodaEmail, password: nivodaPassword},
+            }),
+          });
+          if (!authResponse.ok) {
+            const errorBody = await authResponse.text();
+            console.error(
+              `Nivoda Auth API Error: ${authResponse.status} ${authResponse.statusText}`,
+              errorBody,
+            );
+            throw new Error(
+              `Nivoda authentication failed: ${authResponse.status}`,
+            );
+          }
           const authResult = (await authResponse.json()) as NivodaAuthResponse;
-          if (authResult.errors) { console.error("Nivoda Authentication GraphQL Errors:", JSON.stringify(authResult.errors, null, 2)); throw new Error("Nivoda authentication returned GraphQL errors."); }
+          if (authResult.errors) {
+            console.error(
+              'Nivoda Authentication GraphQL Errors:',
+              JSON.stringify(authResult.errors, null, 2),
+            );
+            throw new Error('Nivoda authentication returned GraphQL errors.');
+          }
           authToken = authResult.data?.username_and_password?.token ?? null;
-          if (!authToken) { console.error("Nivoda authentication successful but no token received.", authResult); throw new Error("Nivoda authentication did not return a token."); } 
-          else { console.log("Nivoda authentication successful. Token received (first 10 chars):", authToken.substring(0, 10) + "..."); }
-        } catch (error) { console.error("Failed during Nivoda authentication step:", error); authToken = null; }
+          if (!authToken) {
+            console.error(
+              'Nivoda authentication successful but no token received.',
+              authResult,
+            );
+            throw new Error('Nivoda authentication did not return a token.');
+          } else {
+            console.log(
+              'Nivoda authentication successful. Token received (first 10 chars):',
+              authToken.substring(0, 10) + '...',
+            );
+          }
+        } catch (error) {
+          console.error('Failed during Nivoda authentication step:', error);
+          authToken = null;
+        }
         if (authToken) {
           const graphqlQuery = ` query GetDiamondDetails($nivodaIds: [ID!]) { diamonds_by_query(query: {filter_ids: $nivodaIds}) { items { id diamond { certificate { color clarity cut certNumber } } } } } `;
           try {
-            console.log(`Fetching details for ${nivodaIds.length} diamonds from Nivoda using token...`);
-            const nivodaApiResponse = await fetch(nivodaApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` }, body: JSON.stringify({ query: graphqlQuery, variables: { nivodaIds: nivodaIds } }) });
-            console.log('DEBUG: Nivoda API Response Status:', nivodaApiResponse.status, nivodaApiResponse.statusText);
-            if (!nivodaApiResponse.ok) { const errorBody = await nivodaApiResponse.text(); console.error(`Nivoda Data Fetch API Error: ${nivodaApiResponse.status} ${nivodaApiResponse.statusText}`, errorBody); throw new Error(`Nivoda data fetch request failed: ${nivodaApiResponse.status}`); }
-            const nivodaResult = (await nivodaApiResponse.json()) as NivodaResponse;
-            console.log('DEBUG: Full Nivoda API Result:', JSON.stringify(nivodaResult, null, 2));
+            console.log(
+              `Fetching details for ${nivodaIds.length} diamonds from Nivoda using token...`,
+            );
+            const nivodaApiResponse = await fetch(nivodaApiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify({
+                query: graphqlQuery,
+                variables: {nivodaIds: nivodaIds},
+              }),
+            });
+            console.log(
+              'DEBUG: Nivoda API Response Status:',
+              nivodaApiResponse.status,
+              nivodaApiResponse.statusText,
+            );
+            if (!nivodaApiResponse.ok) {
+              const errorBody = await nivodaApiResponse.text();
+              console.error(
+                `Nivoda Data Fetch API Error: ${nivodaApiResponse.status} ${nivodaApiResponse.statusText}`,
+                errorBody,
+              );
+              throw new Error(
+                `Nivoda data fetch request failed: ${nivodaApiResponse.status}`,
+              );
+            }
+            const nivodaResult =
+              (await nivodaApiResponse.json()) as NivodaResponse;
+            console.log(
+              'DEBUG: Full Nivoda API Result:',
+              JSON.stringify(nivodaResult, null, 2),
+            );
             if (nivodaResult.data?.diamonds_by_query?.items) {
-              console.log("Received Nivoda response:", nivodaResult.data.diamonds_by_query.items.length, "items");
+              console.log(
+                'Received Nivoda response:',
+                nivodaResult.data.diamonds_by_query.items.length,
+                'items',
+              );
               for (const item of nivodaResult.data.diamonds_by_query.items) {
-                console.log('DEBUG: Processing Nivoda Item:', JSON.stringify(item, null, 2));
-                const id = item.id; const details = item.diamond?.certificate;
-                if (id && details) { nivodaDataMap.set(id, { color: details.color, clarity: details.clarity, cut: details.cut, certNumber: details.certNumber }); }
-                else if (id) { console.warn(`Nivoda diamond ID ${id} found but missing certificate details.`); nivodaDataMap.set(id, null); }
-                else { console.warn("Missing id in Nivoda item data:", item); }
+                console.log(
+                  'DEBUG: Processing Nivoda Item:',
+                  JSON.stringify(item, null, 2),
+                );
+                const id = item.id;
+                const details = item.diamond?.certificate;
+                if (id && details) {
+                  nivodaDataMap.set(id, {
+                    color: details.color,
+                    clarity: details.clarity,
+                    cut: details.cut,
+                    certNumber: details.certNumber,
+                  });
+                } else if (id) {
+                  console.warn(
+                    `Nivoda diamond ID ${id} found but missing certificate details.`,
+                  );
+                  nivodaDataMap.set(id, null);
+                } else {
+                  console.warn('Missing id in Nivoda item data:', item);
+                }
               }
-              console.log("Nivoda Data Map (color/clarity/cut - first 5):", new Map(Array.from(nivodaDataMap.entries()).slice(0, 5)));
+              console.log(
+                'Nivoda Data Map (color/clarity/cut - first 5):',
+                new Map(Array.from(nivodaDataMap.entries()).slice(0, 5)),
+              );
             } else {
-              console.warn("Unexpected Nivoda GraphQL response format, no items, or errors present.");
-              if (nivodaResult.errors) { console.error("Nivoda Data Fetch GraphQL Errors:", JSON.stringify(nivodaResult.errors, null, 2)); }
-              else { console.warn("Nivoda data fetch response details:", JSON.stringify(nivodaResult, null, 2)); }
+              console.warn(
+                'Unexpected Nivoda GraphQL response format, no items, or errors present.',
+              );
+              if (nivodaResult.errors) {
+                console.error(
+                  'Nivoda Data Fetch GraphQL Errors:',
+                  JSON.stringify(nivodaResult.errors, null, 2),
+                );
+              } else {
+                console.warn(
+                  'Nivoda data fetch response details:',
+                  JSON.stringify(nivodaResult, null, 2),
+                );
+              }
             }
           } catch (error) {
-             if (error instanceof Error) { console.error("Failed to fetch or process data from Nivoda API (after auth):", error.message); if (error.stack) { console.error("Stack trace:", error.stack); } }
-             else { console.error("An unexpected error occurred while fetching/processing Nivoda data (after auth):", JSON.stringify(error, null, 2)); }
+            if (error instanceof Error) {
+              console.error(
+                'Failed to fetch or process data from Nivoda API (after auth):',
+                error.message,
+              );
+              if (error.stack) {
+                console.error('Stack trace:', error.stack);
+              }
+            } else {
+              console.error(
+                'An unexpected error occurred while fetching/processing Nivoda data (after auth):',
+                JSON.stringify(error, null, 2),
+              );
+            }
           }
-        } else { console.log("Skipping Nivoda data fetch because authentication failed or token was not received."); }
+        } else {
+          console.log(
+            'Skipping Nivoda data fetch because authentication failed or token was not received.',
+          );
+        }
       }
-    } else { console.log("No Nivoda IDs found for products in this collection."); }
+    } else {
+      console.log('No Nivoda IDs found for products in this collection.');
+    }
 
     // --- Merge Data (Only for initial page load) ---
-    collection.products.nodes = collection.products.nodes.map(product => {
+    collection.products.nodes = collection.products.nodes.map((product) => {
       const nivodaId = product.nivodaId?.value;
-      const nivodaDetails = nivodaId ? (nivodaDataMap.get(nivodaId) ?? null) : null;
+      const nivodaDetails = nivodaId
+        ? nivodaDataMap.get(nivodaId) ?? null
+        : null;
       const productWithCert = product as ProductWithNivodaDetails;
       return {
         ...product,
@@ -185,13 +330,31 @@ export async function loader({ params, request, context }: LoaderFunctionArgs) {
         certificateNumber: nivodaDetails?.certNumber ?? null,
       };
     });
-    console.log("Final Product Nodes with Nivoda Details (first 2):", JSON.stringify(collection.products.nodes.slice(0, 2).map(p => { const productWithDetails = p as ProductWithNivodaDetails; return { id: productWithDetails.id, handle: productWithDetails.handle, nivodaId: productWithDetails.nivodaId?.value, nivodaDetails: productWithDetails.nivodaDetails, certificateNumber: productWithDetails.certificateNumber }; }), null, 2));
-
-  } else { // if not initial load
-    console.log("[Loader Debug] Subsequent page load, skipping Nivoda fetch and merge.");
+    console.log(
+      'Final Product Nodes with Nivoda Details (first 2):',
+      JSON.stringify(
+        collection.products.nodes.slice(0, 2).map((p) => {
+          const productWithDetails = p as ProductWithNivodaDetails;
+          return {
+            id: productWithDetails.id,
+            handle: productWithDetails.handle,
+            nivodaId: productWithDetails.nivodaId?.value,
+            nivodaDetails: productWithDetails.nivodaDetails,
+            certificateNumber: productWithDetails.certificateNumber,
+          };
+        }),
+        null,
+        2,
+      ),
+    );
+  } else {
+    // if not initial load
+    console.log(
+      '[Loader Debug] Subsequent page load, skipping Nivoda fetch and merge.',
+    );
   }
 
-  // --- Return Data --- 
+  // --- Return Data ---
   // Return collection (potentially modified with Nivoda data for initial load)
   // No totalCount is returned as it's unavailable
   return json({
@@ -205,12 +368,13 @@ export async function loader({ params, request, context }: LoaderFunctionArgs) {
   });
 }
 
-export default function CollectionComponent() { // Renamed to avoid conflict with imported Collection type
+export default function CollectionComponent() {
+  // Renamed to avoid conflict with imported Collection type
   // Use the extended type here
-  const { collection } = useLoaderData<{ collection: ExtendedCollectionType }>();
+  const {collection} = useLoaderData<{collection: ExtendedCollectionType}>();
 
   const renderCollection = () => {
-    switch(collection.handle) {
+    switch (collection.handle) {
       case 'diamonds':
         // Pass the collection with Nivoda details to DiamondsCollection
         return <DiamondsCollection collection={collection} />;
@@ -218,11 +382,11 @@ export default function CollectionComponent() { // Renamed to avoid conflict wit
       case 'bracelets':
       case 'necklaces':
       case 'earrings':
-        return <JewelleryCollection collection={collection} />;
+        return <jewelryCollection collection={collection} />;
       default:
-        // Ensure JewelleryCollection can also handle the extended type if necessary,
+        // Ensure jewelryCollection can also handle the extended type if necessary,
         // or only pass needed props.
-        return <JewelleryCollection collection={collection} />;
+        return <jewelryCollection collection={collection} />;
     }
   };
 

@@ -54,7 +54,7 @@ function FooterMenu({
             <img src={Logo} alt={'Logo'} className="footer-logo" />
           </NavLink>
           <p className="footer-logo-text">
-            At Loose Grown Gems, we are redefining fine jewellery, ensuring that
+            At Loose Grown Gems, we are redefining fine jewelry, ensuring that
             every piece is a testament to beauty and devotion.
           </p>
         </div>

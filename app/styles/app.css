@@ -343,7 +343,6 @@ button.reset:hover:not(:has(> *)) {
   height: 32px;
 }
 
-
 .footer-menu a {
   color: var(--color-light);
   text-decoration: none;
@@ -1021,7 +1020,7 @@ button.reset:hover:not(:has(> *)) {
   margin-top: 2rem;
 }
 
-.jewellery-types {
+.jewelry-types {
   /* 4 items per row */
 }
 
@@ -1046,8 +1045,8 @@ button.reset:hover:not(:has(> *)) {
   box-sizing: border-box;
 }
 
-.jewellery-image-container {
-  aspect-ratio: 3 / 2; /* Adjust aspect ratio for jewellery images */
+.jewelry-image-container {
+  aspect-ratio: 3 / 2; /* Adjust aspect ratio for jewelry images */
   padding: 20px; /* Reduced padding to allow for larger images */
 }
 
@@ -1063,9 +1062,9 @@ button.reset:hover:not(:has(> *)) {
   max-height: 100px; /* Smaller max-height for diamond images */
 }
 
-/* Specific max-height for jewellery images */
-.jewellery-image-container img {
-  max-height: 160px; /* Larger max-height for jewellery images */
+/* Specific max-height for jewelry images */
+.jewelry-image-container img {
+  max-height: 160px; /* Larger max-height for jewelry images */
 }
 
 .type-label {
@@ -1085,22 +1084,22 @@ button.reset:hover:not(:has(> *)) {
   color: #000; /* Black text on hover */
 }
 
-/* Default Desktop: 6 diamonds, 4 jewellery */
+/* Default Desktop: 6 diamonds, 4 jewelry */
 .diamond-types .type-item {
   flex-basis: calc(100% / 6 - 1px);
 }
 .diamond-types .type-item:last-child {
   border-right: none;
 }
-.jewellery-types .type-item {
+.jewelry-types .type-item {
   flex-basis: calc(100% / 4 - 1px); /* 4 items */
 }
-.jewellery-types .type-item:last-child {
+.jewelry-types .type-item:last-child {
   border-right: none;
 }
 
 /* Border between rows */
-.jewellery-types {
+.jewelry-types {
   border-top: 1px solid #000;
   border-bottom: 1px solid #fff;
 }
@@ -1111,7 +1110,7 @@ button.reset:hover:not(:has(> *)) {
   .diamond-types .type-item {
     flex-basis: calc(100% / 3 - 1px); /* 3 items per row */
   }
-  .jewellery-types .type-item {
+  .jewelry-types .type-item {
     flex-basis: calc(100% / 2 - 1px); /* 2 items per row */
   }
 }
@@ -1121,7 +1120,7 @@ button.reset:hover:not(:has(> *)) {
   .diamond-types .type-item {
     flex-basis: calc(100% / 2 - 1px); /* 2 items per row */
   }
-  .jewellery-types .type-item {
+  .jewelry-types .type-item {
     flex-basis: calc(100% / 2 - 1px); /* 2 items per row */
     border-bottom: 1px solid #fff;
   }
@@ -1231,14 +1230,14 @@ button.reset:hover:not(:has(> *)) {
 
 /*
 * --------------------------------------------------
-* components/collections/JewelleryCollection
+* components/collections/jewelryCollection
 * --------------------------------------------------
 */
-.jewellery-collection {
+.jewelry-collection {
   padding: 2rem;
 }
 
-.jewellery-collection h1 {
+.jewelry-collection h1 {
   margin-bottom: 1rem;
 }
 

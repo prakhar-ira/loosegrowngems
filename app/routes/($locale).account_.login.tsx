@@ -74,16 +74,12 @@ export default function Login() {
   const data = useActionData<ActionResponse>();
   const error = data?.error || null;
   const navigation = useNavigation();
-  const isLoading = navigation.state !== 'idle';
+  const isLoading = navigation.state === 'submitting';
   const isSubmitting = navigation.state === 'submitting';
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div
-        className={`max-w-md w-full space-y-8 bg-white p-8 md:p-10 rounded-xl shadow-md border border-gray-200 transition-opacity duration-300 ${
-          isSubmitting ? 'opacity-95' : 'opacity-100'
-        }`}
-      >
+      <div className="max-w-md w-full space-y-8 bg-white p-8 md:p-10 rounded-xl shadow-md border border-gray-200">
         <div className="text-center">
           <Link to="/">
             <img
@@ -106,7 +102,12 @@ export default function Login() {
           </p>
         </div>
 
-        <Form method="POST" className="mt-8 space-y-6">
+        <Form
+          method="POST"
+          className={`mt-8 space-y-6 transition-opacity duration-300 ${
+            isSubmitting ? 'opacity-95' : 'opacity-100'
+          }`}
+        >
           <fieldset className="-space-y-px" disabled={isLoading}>
             <div>
               <label htmlFor="email-address" className="sr-only">

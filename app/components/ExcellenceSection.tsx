@@ -1,5 +1,6 @@
+import {Link, NavLink} from '@remix-run/react';
+
 import HeaderImage from '~/assets/header-image.png';
-import {NavLink, Link} from '@remix-run/react';
 
 export function ExcellenceSection() {
   return (
@@ -12,11 +13,8 @@ export function ExcellenceSection() {
           - where luxury meets sustainability.
         </p>
         <div className="excellence-buttons-container">
-          <Link to="/collections/diamonds?diamondType=Lab-Grown">
-            <button>Shop Lab-Grown</button>
-          </Link>
-          <Link to="/collections/diamonds?diamondType=Natural">
-            <button>Shop Natural</button>
+          <Link to="/collections/diamonds">
+            <button>Shop Diamonds</button>
           </Link>
           <NavLink 
             prefetch="intent" 

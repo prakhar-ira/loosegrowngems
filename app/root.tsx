@@ -148,7 +148,7 @@ export function Layout({children}: {children?: React.ReactNode}) {
   const nonce = useNonce();
   const data = useRouteLoaderData<RootLoader>('root');
   const ogImageUrl = data?.publicStoreDomain
-    ? `${data.publicStoreDomain}/assets/images/logo-1.png`
+    ? `${data.publicStoreDomain}/assets/logo-1.png`
     : '';
   const siteName = 'Loose Grown Gems';
 

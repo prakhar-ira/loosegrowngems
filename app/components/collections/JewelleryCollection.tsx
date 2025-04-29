@@ -1,35 +1,36 @@
-import {Link} from '@remix-run/react';
-import {Image, Money} from '@shopify/hydrogen';
-import {useState, useMemo} from 'react';
-import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-// Import Image type
-import type { Image as ImageType } from '@shopify/hydrogen/storefront-api-types';
-import type {ProductItemFragment} from 'storefrontapi.generated';
-import {useVariantUrl} from '~/lib/variants';
+
+import {Image, Money} from '@shopify/hydrogen';
+import {useMemo, useState} from 'react';
+
 import {AddToCartButton} from '~/components/AddToCartButton';
+// Import Image type
+import type {Image as ImageType} from '@shopify/hydrogen/storefront-api-types';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import {Link} from '@remix-run/react';
+import type {ProductItemFragment} from 'storefrontapi.generated';
+import Slider from 'rc-slider';
+import {useVariantUrl} from '~/lib/variants';
 
 // --- Define Sort Options ---
 const sortOptions = [
-  { label: 'Featured', value: 'featured' }, // Default or Shopify's default
-  { label: 'Price: Low to High', value: 'price-asc' },
-  { label: 'Price: High to Low', value: 'price-desc' },
+  {label: 'Featured', value: 'featured'}, // Default or Shopify's default
+  {label: 'Price: Low to High', value: 'price-asc'},
+  {label: 'Price: High to Low', value: 'price-desc'},
 ];
 // --- End Sort Options ---
 
-// Define initial filter state for Jewellery
-interface JewelleryFilterState {
-    priceRange: [number, number];
+// Define initial filter state for jewelry
+interface jewelryFilterState {
+  priceRange: [number, number];
 }
 
-const initialFilters: JewelleryFilterState = {
-    priceRange: [0, 5000], // Default price range for jewellery, adjust as needed
+const initialFilters: jewelryFilterState = {
+  priceRange: [0, 5000], // Default price range for jewelry, adjust as needed
 };
 
-
 // Define collection type more specifically if possible, using ProductItemFragment
-type JewelleryCollectionProps = {
+type jewelryCollectionProps = {
   collection: {
     handle: string;
     id: string;
@@ -49,8 +50,9 @@ type ProductWithVariants = ProductItemFragment & {
   };
 };
 
-export function JewelleryCollection({collection}: JewelleryCollectionProps) { // Use specific props type
-  const [filters, setFilters] = useState<JewelleryFilterState>(initialFilters);
+export function jewelryCollection({collection}: jewelryCollectionProps) {
+  // Use specific props type
+  const [filters, setFilters] = useState<jewelryFilterState>(initialFilters);
   const [sortOption, setSortOption] = useState<string>(sortOptions[0].value);
 
   // Filter and sort products based on state
@@ -58,7 +60,7 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
     let products = [...collection.products.nodes]; // Start with all products
 
     // Apply Price Filter
-    products = products.filter(product => {
+    products = products.filter((product) => {
       const price = parseFloat(product.priceRange.minVariantPrice.amount);
       return price >= filters.priceRange[0] && price <= filters.priceRange[1];
     });
@@ -66,10 +68,18 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
     // Apply Sorting
     switch (sortOption) {
       case 'price-asc':
-        products.sort((a, b) => parseFloat(a.priceRange.minVariantPrice.amount) - parseFloat(b.priceRange.minVariantPrice.amount));
+        products.sort(
+          (a, b) =>
+            parseFloat(a.priceRange.minVariantPrice.amount) -
+            parseFloat(b.priceRange.minVariantPrice.amount),
+        );
         break;
       case 'price-desc':
-        products.sort((a, b) => parseFloat(b.priceRange.minVariantPrice.amount) - parseFloat(a.priceRange.minVariantPrice.amount));
+        products.sort(
+          (a, b) =>
+            parseFloat(b.priceRange.minVariantPrice.amount) -
+            parseFloat(a.priceRange.minVariantPrice.amount),
+        );
         break;
       // 'featured' or default uses the original order after filtering
     }
@@ -84,42 +94,44 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
   };
   // --- End Clear Filters Function ---
 
-
   return (
     // Use flex layout similar to DiamondsCollection
-    <div className="jewellery-collection flex flex-col md:flex-row md:items-start gap-6 p-4 md:p-6">
+    <div className="jewelry-collection flex flex-col md:flex-row md:items-start gap-6 p-4 md:p-6">
       {/* Filter Section */}
       <div className="filters-section w-full md:w-72 lg:w-80 flex-shrink-0 p-4 border rounded-lg shadow-sm md:p-6 md:border-r md:border-gray-200 md:rounded-none md:shadow-none flex flex-col gap-6 md:gap-8">
-
         {/* Sort By Section */}
         <div className="flex justify-between items-center">
-           <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase mb-0">Sort By</h2>
-            <div className="relative w-auto">
-              <select
-                id="sort-select"
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
-                className="appearance-none block w-full bg-white border border-slate-300 hover:border-slate-600 px-3 py-2 pr-8 rounded hover:shadow-md text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-slate-600"
-              >
-                {sortOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                <KeyboardArrowDownIcon className="h-5 w-5 text-gray-700" />
-              </div>
+          <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase mb-0">
+            Sort By
+          </h2>
+          <div className="relative w-auto">
+            <select
+              id="sort-select"
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+              className="appearance-none block w-full bg-white border border-slate-300 hover:border-slate-600 px-3 py-2 pr-8 rounded hover:shadow-md text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-slate-600"
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+              <KeyboardArrowDownIcon className="h-5 w-5 text-gray-700" />
             </div>
+          </div>
         </div>
         {/* Divider */}
         <hr className="border border-slate-200" />
 
         {/* Filters Header */}
         <div className="flex justify-between items-baseline">
-          <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase">Filters</h2>
-           {/* Conditionally display Clear All button */}
-           {JSON.stringify(filters) !== JSON.stringify(initialFilters) && (
+          <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase">
+            Filters
+          </h2>
+          {/* Conditionally display Clear All button */}
+          {JSON.stringify(filters) !== JSON.stringify(initialFilters) && (
             <button
               type="button"
               onClick={handleClearFilters}
@@ -132,11 +144,13 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
 
         {/* Price Filter */}
         <div className="filter-group">
-          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">Price</h3>
+          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+            Price
+          </h3>
           <Slider
             range
             min={0}
-            max={5000} // Adjust max price for jewellery if needed
+            max={5000} // Adjust max price for jewelry if needed
             value={filters.priceRange}
             onChange={(value) => {
               if (Array.isArray(value) && value.length === 2) {
@@ -145,11 +159,16 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
               }
             }}
             // Add relevant slider styles if needed via className or global CSS
-             className="rc-slider-custom" // Example class for potential custom styling
+            className="rc-slider-custom" // Example class for potential custom styling
           />
           <div className="flex justify-between items-center mt-4 gap-2 price-input-container">
             <div className="flex-1">
-              <label htmlFor="minPrice" className="block text-xs text-slate-700 mb-1">Min Price</label>
+              <label
+                htmlFor="minPrice"
+                className="block text-xs text-slate-700 mb-1"
+              >
+                Min Price
+              </label>
               <input
                 type="number"
                 id="minPrice"
@@ -159,8 +178,14 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
                 onChange={(e) => {
                   const newMin = parseInt(e.target.value, 10);
                   if (!isNaN(newMin)) {
-                    const validatedMin = Math.min(newMin, filters.priceRange[1]);
-                    setFilters({...filters, priceRange: [validatedMin, filters.priceRange[1]]});
+                    const validatedMin = Math.min(
+                      newMin,
+                      filters.priceRange[1],
+                    );
+                    setFilters({
+                      ...filters,
+                      priceRange: [validatedMin, filters.priceRange[1]],
+                    });
                   }
                 }}
                 className="w-full p-1 border rounded text-sm"
@@ -168,7 +193,12 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
             </div>
             <span className="text-gray-400">-</span>
             <div className="flex-1">
-              <label htmlFor="maxPrice" className="block text-xs text-gray-500 mb-1">Max Price</label>
+              <label
+                htmlFor="maxPrice"
+                className="block text-xs text-gray-500 mb-1"
+              >
+                Max Price
+              </label>
               <input
                 type="number"
                 id="maxPrice"
@@ -178,8 +208,14 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
                 onChange={(e) => {
                   const newMax = parseInt(e.target.value, 10);
                   if (!isNaN(newMax)) {
-                    const validatedMax = Math.max(newMax, filters.priceRange[0]);
-                    setFilters({...filters, priceRange: [filters.priceRange[0], validatedMax]});
+                    const validatedMax = Math.max(
+                      newMax,
+                      filters.priceRange[0],
+                    );
+                    setFilters({
+                      ...filters,
+                      priceRange: [filters.priceRange[0], validatedMax],
+                    });
                   }
                 }}
                 className="w-full p-1 border rounded text-sm"
@@ -187,66 +223,80 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
             </div>
           </div>
         </div>
-
       </div>
 
       {/* Product Grid Area */}
       {/* Make this flex-1 to take remaining space */}
       <div className="flex-1 min-w-0">
-         
         {/* Grid for products */}
         {/* Use the filtered and sorted list */}
         <div className="products-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {filteredAndSortedProducts.length > 0 ? (
-              filteredAndSortedProducts.map((product: ProductWithVariants) => (
-                <ProductItem key={product.id} product={product} />
-              ))
+            filteredAndSortedProducts.map((product: ProductWithVariants) => (
+              <ProductItem key={product.id} product={product} />
+            ))
           ) : (
             // Message when no products match filters
-             <div className="col-span-full text-center py-10 text-gray-500">
-              <p className="text-lg">No products found matching your criteria.</p>
+            <div className="col-span-full text-center py-10 text-gray-500">
+              <p className="text-lg">
+                No products found matching your criteria.
+              </p>
               <p className="text-sm">Try adjusting your filters.</p>
             </div>
           )}
         </div>
       </div>
-
     </div>
   );
 }
 
 // Updated ProductItem function based on DiamondsCollection structure
-function ProductItem({product}: {product: ProductWithVariants}) { // Use ProductItemFragment type
+function ProductItem({product}: {product: ProductWithVariants}) {
+  // Use ProductItemFragment type
   const variantUrl = useVariantUrl(product.handle);
   // Define a type for the image objects we expect, aligning with Hydrogen Image type
   type ProductImageType = Pick<
-    ImageType, 
+    ImageType,
     'id' | 'url' | 'altText' | 'width' | 'height'
   >;
 
   // State to manage the currently displayed image. Initialize with featuredImage or the first image.
-  const initialImage: ProductImageType | null = product.featuredImage || (product.images?.nodes && product.images.nodes[0]) || null;
-  const [currentImage, setCurrentImage] = useState<ProductImageType | null>(initialImage);
+  const initialImage: ProductImageType | null =
+    product.featuredImage ||
+    (product.images?.nodes && product.images.nodes[0]) ||
+    null;
+  const [currentImage, setCurrentImage] = useState<ProductImageType | null>(
+    initialImage,
+  );
 
   // Handle case where product or images might be missing
   const availableImages: ProductImageType[] = useMemo(() => {
-      const nodes = product.images?.nodes;
-      // Filter out any nodes that might not conform to our stricter type (though unlikely)
-      const validNodes = nodes?.filter((img): img is ProductImageType => !!img.id && !!img.url) || [];
-      return validNodes.length ? validNodes : (initialImage ? [initialImage] : []);
+    const nodes = product.images?.nodes;
+    // Filter out any nodes that might not conform to our stricter type (though unlikely)
+    const validNodes =
+      nodes?.filter((img): img is ProductImageType => !!img.id && !!img.url) ||
+      [];
+    return validNodes.length ? validNodes : initialImage ? [initialImage] : [];
   }, [product.images?.nodes, initialImage]);
 
   // Update currentImage if the product prop changes (e.g., due to filtering/sorting)
   // This ensures the image resets correctly when the component re-renders with a new product
   useMemo(() => {
-    const newInitialImage = product.featuredImage || (product.images?.nodes && product.images.nodes[0]);
+    const newInitialImage =
+      product.featuredImage ||
+      (product.images?.nodes && product.images.nodes[0]);
     setCurrentImage(newInitialImage);
   }, [product.featuredImage, product.images?.nodes]);
 
   return (
     <div className="product-item-container border border-slate-200 rounded-md overflow-hidden flex flex-col transition-shadow duration-200 hover:shadow-md no-underline">
       {/* Link now only wraps the product info and image */}
-      <Link key={product.id} prefetch="intent" to={variantUrl} className="group flex flex-col hover:!no-underline">
+      <Link
+        key={product.id}
+        prefetch="intent"
+        to={variantUrl}
+        className="group flex flex-col hover:!no-underline"
+      >
         {/* Image section with thumbnails */}
         <div className="flex p-2 gap-2 h-60 md:h-72">
           {/* Thumbnails Column */}
@@ -259,8 +309,12 @@ function ProductItem({product}: {product: ProductWithVariants}) { // Use Product
                   prefetch="intent"
                   preventScrollReset
                   onMouseEnter={() => setCurrentImage(image)}
-                  className={`block p-0.5 border-1 border-transparent ${currentImage?.id === image.id ? 'border-black' : ''} hover:border-slate-400 focus:outline-none focus:border-slate-400`}
-                  aria-label={`View ${product.title} with image ${image.altText || image.id} selected`}
+                  className={`block p-0.5 border-1 border-transparent ${
+                    currentImage?.id === image.id ? 'border-black' : ''
+                  } hover:border-slate-400 focus:outline-none focus:border-slate-400`}
+                  aria-label={`View ${product.title} with image ${
+                    image.altText || image.id
+                  } selected`}
                 >
                   <Image
                     alt={image.altText || `Thumbnail of ${product.title}`}
@@ -284,14 +338,18 @@ function ProductItem({product}: {product: ProductWithVariants}) { // Use Product
                 className="object-contain max-h-full max-w-full transition-opacity duration-300"
               />
             ) : (
-              <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">No Image</div>
+              <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
+                No Image
+              </div>
             )}
             {/* Hover Overlay */}
             <div
               className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-              style={{ backgroundColor: 'rgba(43, 43, 43, 0.5)' }}
+              style={{backgroundColor: 'rgba(43, 43, 43, 0.5)'}}
             >
-              <span className="text-white text-sm font-light uppercase tracking-wider">Click to view</span>
+              <span className="text-white text-sm font-light uppercase tracking-wider">
+                Click to view
+              </span>
             </div>
           </div>
         </div>
@@ -299,7 +357,9 @@ function ProductItem({product}: {product: ProductWithVariants}) { // Use Product
         {/* Info section - remains below the image area */}
         <div className="p-4 flex flex-col flex-grow pt-2">
           {/* Title */}
-          <h4 className="text-md font-medium mb-1 flex-grow line-clamp-2">{product.title}</h4>
+          <h4 className="text-md font-medium mb-1 flex-grow line-clamp-2">
+            {product.title}
+          </h4>
           {/* Price */}
           <small className="block text-lg font-semibold mb-2">
             <Money data={product.priceRange.minVariantPrice} />
@@ -326,4 +386,4 @@ function ProductItem({product}: {product: ProductWithVariants}) { // Use Product
       </div>
     </div>
   );
-} 
+}

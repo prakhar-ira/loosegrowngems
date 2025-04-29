@@ -39,7 +39,7 @@ export default function Homepage() {
       <ExcellenceSection />
       {/* <FeaturedCollection collection={data.featuredCollection} /> */}
       <DiamondTypes />
-      {/* <JewelleryTypes /> */}
+      {/* <jewelryTypes /> */}
       <WhyChooseUs />
     </div>
   );
@@ -117,35 +117,35 @@ function DiamondTypes() {
   );
 }
 
-function JewelleryTypes() {
-  const jewelleryTypes = [
+function jewelryTypes() {
+  const jewelryTypes = [
     {
       name: 'Shop Engagement Rings',
-      img: '/figma/jewellery-engagement-ring.png',
+      img: '/figma/jewelry-engagement-ring.png',
       link: '/collections/engagement-rings',
     },
     {
       name: 'Shop Earrings',
-      img: '/figma/jewellery-earrings.png',
+      img: '/figma/jewelry-earrings.png',
       link: '/collections/earrings',
     },
     {
       name: 'Shop Pendants',
-      img: '/figma/jewellery-pendants.png',
+      img: '/figma/jewelry-pendants.png',
       link: '/collections/pendants',
     },
     {
       name: 'Shop Nameplates',
-      img: '/figma/jewellery-nameplates.png',
+      img: '/figma/jewelry-nameplates.png',
       link: '/collections/nameplates',
     },
   ];
 
   return (
-    <div className="homepage-section jewellery-types">
-      {jewelleryTypes.map((type) => (
+    <div className="homepage-section jewelry-types">
+      {jewelryTypes.map((type) => (
         <Link key={type.name} to={type.link} className="type-item">
-          <div className="type-image-container jewellery-image-container">
+          <div className="type-image-container jewelry-image-container">
             <img src={type.img} alt={type.name} loading="lazy" />
           </div>
           <div className="type-label">
