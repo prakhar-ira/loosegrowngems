@@ -13,7 +13,7 @@ import type {
 import {useVariantUrl} from '~/lib/variants';
 import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
 import {DiamondsCollection} from '~/components/collections/DiamondsCollection';
-import {jewelryCollection} from '~/components/collections/jewelryCollection';
+import {JewelleryCollection} from '~/components/collections/JewelleryCollection';
 import {MarqueeBanner} from '~/components/MarqueeBanner'; // Import MarqueeBanner
 
 // Define the type for the Nivoda data we expect
@@ -128,7 +128,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
   );
 
   // Cast to our extended type for potential modification
-  let collection: BaseCollectionType | null =
+  const collection: BaseCollectionType | null =
     rawCollection as BaseCollectionType;
 
   // --- Conditionally Fetch Nivoda Data (Only for initial page load) ---
@@ -145,7 +145,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
       .map((product) => product.nivodaId?.value)
       .filter((id): id is string => !!id);
     console.log('DEBUG: Sending Nivoda IDs to API:', nivodaIds);
-    let nivodaDataMap = new Map<string, NivodaDiamondDetails | null>();
+    const nivodaDataMap = new Map<string, NivodaDiamondDetails | null>();
     if (nivodaIds.length > 0) {
       const nivodaEmail = env.NIVODA_USERNAME;
       const nivodaPassword = env.NIVODA_PASSWORD;
@@ -218,7 +218,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
               },
               body: JSON.stringify({
                 query: graphqlQuery,
-                variables: {nivodaIds: nivodaIds},
+                variables: {nivodaIds},
               }),
             });
             console.log(
@@ -326,7 +326,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
       const productWithCert = product as ProductWithNivodaDetails;
       return {
         ...product,
-        nivodaDetails: nivodaDetails,
+        nivodaDetails,
         certificateNumber: nivodaDetails?.certNumber ?? null,
       };
     });
@@ -382,11 +382,11 @@ export default function CollectionComponent() {
       case 'bracelets':
       case 'necklaces':
       case 'earrings':
-        return <jewelryCollection collection={collection} />;
+        return <JewelleryCollection collection={collection} />;
       default:
         // Ensure jewelryCollection can also handle the extended type if necessary,
         // or only pass needed props.
-        return <jewelryCollection collection={collection} />;
+        return <JewelleryCollection collection={collection} />;
     }
   };
 
