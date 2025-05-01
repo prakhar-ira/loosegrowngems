@@ -103,7 +103,7 @@ function AccountLayout({
     : 'Account Details';
 
   return (
-    <div className="bg-gray-50 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+    <div className="policies-container-parent min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white shadow-md rounded-xl p-6 mb-8 border border-gray-200">
           <div className="flex justify-between items-center">

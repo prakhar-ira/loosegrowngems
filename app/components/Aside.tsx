@@ -4,6 +4,8 @@ import {
   useContext,
   useEffect,
   useState,
+  useCallback,
+  useRef,
 } from 'react';
 
 type AsideType = 'search' | 'cart' | 'mobile' | 'closed';
@@ -35,6 +37,12 @@ export function Aside({
   const {type: activeType, close} = useAside();
   const expanded = type === activeType;
 
+  // Memoize the close handler and add logging
+  const handleClose = useCallback(() => {
+    console.log(`Aside (${type}): Closing via button click.`);
+    close(); // This will now use the debounced close function
+  }, [close, type]);
+
   useEffect(() => {
     const abortController = new AbortController();
 
@@ -43,14 +51,14 @@ export function Aside({
         'keydown',
         function handler(event: KeyboardEvent) {
           if (event.key === 'Escape') {
-            close();
+            handleClose();
           }
         },
         {signal: abortController.signal},
       );
     }
     return () => abortController.abort();
-  }, [close, expanded]);
+  }, [expanded, handleClose]);
 
   return (
     <div
@@ -58,15 +66,19 @@ export function Aside({
       className={`overlay ${expanded ? 'expanded' : ''}`}
       role="dialog"
     >
-      <button className="close-outside" onClick={close} />
-      <aside>
+      <button className="close-outside" onClick={handleClose} />
+      <aside className="flex flex-col">
         <header>
           <h3>{heading}</h3>
-          <button className="close reset" onClick={close} aria-label="Close">
+          <button
+            className="close reset"
+            onClick={handleClose}
+            aria-label="Close"
+          >
             &times;
           </button>
         </header>
-        <main>{children}</main>
+        <main className="flex-1">{children}</main>
       </aside>
     </div>
   );
@@ -76,6 +88,7 @@ const AsideContext = createContext<AsideContextValue | null>(null);
 
 Aside.Provider = function AsideProvider({children}: {children: ReactNode}) {
   const [type, setType] = useState<AsideType>('closed');
+  const lastCartCloseTime = useRef<number>(0);
 
   // Effect to lock body scroll when aside is open
   useEffect(() => {
@@ -94,12 +107,36 @@ Aside.Provider = function AsideProvider({children}: {children: ReactNode}) {
     };
   }, [type]); // Dependency array includes type state
 
+  // Modified open function to prevent reopening cart immediately after manual close
+  const openWithDebounce = useCallback((asideType: AsideType) => {
+    // If trying to open cart and it was manually closed recently (within 1 second),
+    // ignore the open request
+    if (asideType === 'cart') {
+      const now = Date.now();
+      const timeSinceClose = now - lastCartCloseTime.current;
+      if (timeSinceClose < 1000) {
+        console.log(`Prevented cart reopening: closed ${timeSinceClose}ms ago`);
+        return;
+      }
+    }
+    setType(asideType);
+  }, []);
+
+  // Modified close function to track cart close timestamp
+  const closeWithTimestamp = useCallback(() => {
+    if (type === 'cart') {
+      lastCartCloseTime.current = Date.now();
+      console.log(`Recorded cart close at ${new Date().toISOString()}`);
+    }
+    setType('closed');
+  }, [type]);
+
   return (
     <AsideContext.Provider
       value={{
         type,
-        open: setType,
-        close: () => setType('closed'),
+        open: openWithDebounce,
+        close: closeWithTimestamp,
       }}
     >
       {children}

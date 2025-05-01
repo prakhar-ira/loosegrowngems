@@ -85,7 +85,7 @@ function CartCheckoutActions({
   const totalAmount = cart?.cost?.totalAmount;
 
   return (
-    <div className="mt-4">
+    <div className="mt-4 px-4 md:px-0">
       <p className="text-center !text-[10px] sm:!text-[12px] text-gray-500 mb-2">
         Taxes and shipping calculated at checkout
       </p>
@@ -129,35 +129,37 @@ function CartNote({cart}: {cart: CartSummaryProps['cart']}) {
   const noteHasChanged = currentNote !== defaultNote;
 
   return (
-    <div className="cart-note">
-      <CartForm
-        route="/cart"
-        action={CartForm.ACTIONS.NoteUpdate}
-        inputs={{note: currentNote}}
-      >
-        <fieldset disabled={fetcher.state !== 'idle'}>
-          <textarea
-            name="note"
-            aria-label="Cart note"
-            value={currentNote}
-            onChange={(e) => setCurrentNote(e.target.value)}
-            placeholder="Write something nice"
-            className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-black focus:border-black min-h-[60px]"
-            rows={3}
-          />
-          {noteHasChanged && (
-            <div className="flex justify-center mt-2">
-              <button
-                type="submit"
-                className="px-4 py-1 bg-black text-white rounded text-sm hover:bg-gray-800 disabled:opacity-50"
-                disabled={fetcher.state !== 'idle'}
-              >
-                {fetcher.state !== 'idle' ? 'Saving...' : 'Save Note'}
-              </button>
-            </div>
-          )}
-        </fieldset>
-      </CartForm>
+    <div className="cart-note w-full px-0">
+      <div className="w-full block">
+        <CartForm
+          route="/cart"
+          action={CartForm.ACTIONS.NoteUpdate}
+          inputs={{note: currentNote}}
+        >
+          <fieldset disabled={fetcher.state !== 'idle'} className="w-full p-0">
+            <textarea
+              name="note"
+              aria-label="Cart note"
+              value={currentNote}
+              onChange={(e) => setCurrentNote(e.target.value)}
+              placeholder="Write something nice"
+              className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-black focus:border-black min-h-[60px]"
+              rows={3}
+            />
+            {noteHasChanged && (
+              <div className="flex justify-center mt-2">
+                <button
+                  type="submit"
+                  className="px-4 py-1 bg-black text-white rounded text-sm hover:bg-gray-800 disabled:opacity-50"
+                  disabled={fetcher.state !== 'idle'}
+                >
+                  {fetcher.state !== 'idle' ? 'Saving...' : 'Save Note'}
+                </button>
+              </div>
+            )}
+          </fieldset>
+        </CartForm>
+      </div>
     </div>
   );
 }

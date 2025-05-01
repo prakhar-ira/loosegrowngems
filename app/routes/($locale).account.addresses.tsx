@@ -222,7 +222,6 @@ export default function Addresses() {
   const [addressToEdit, setAddressToEdit] = useState<any>(null);
 
   const openModal = (address?: any) => {
-    console.log('openModal', address);
     setIsModalOpen(true);
     const addressObj = address || {
       address1: '',

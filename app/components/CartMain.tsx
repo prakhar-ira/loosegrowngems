@@ -1,5 +1,6 @@
 import {CartForm, useOptimisticCart} from '@shopify/hydrogen';
 import {Link, useFetchers} from '@remix-run/react';
+import {useEffect, useRef} from 'react';
 
 import type {CartApiQueryFragment} from 'storefrontapi.generated';
 import {CartLineItem} from '~/components/CartLineItem';
@@ -20,6 +21,8 @@ export type CartMainProps = {
 export function CartMain({layout, cart: originalCart}: CartMainProps) {
   const fetchers = useFetchers();
   const cart = useOptimisticCart(originalCart);
+  const cartItemsRef = useRef<HTMLDivElement>(null);
+  const prevQuantityRef = useRef<number>(0);
 
   // Determine if any fetcher is currently updating the cart lines
   const isCartUpdating = fetchers.some((fetcher) => {
@@ -29,7 +32,8 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
     // A more specific check could involve inspecting fetcher.formData,
     // but checking the action route and state is usually sufficient.
     const isCartAction = fetcher.formAction?.startsWith('/cart');
-    const isSubmitting = fetcher.state === 'submitting' || fetcher.state === 'loading';
+    const isSubmitting =
+      fetcher.state === 'submitting' || fetcher.state === 'loading';
     // Optionally, check for specific hidden inputs if needed, e.g.,
     // const isLineUpdate = fetcher.formData?.get('cartAction') === CartForm.ACTIONS.LinesUpdate;
     return isCartAction && isSubmitting;
@@ -42,18 +46,50 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
   const className = `cart-main ${withDiscount ? 'with-discount' : ''}`;
   const cartHasItems = cart?.totalQuantity && cart?.totalQuantity > 0;
 
+  // Scroll to bottom when cart items change or when cart updates finish
+  useEffect(() => {
+    // Check if quantity increased (new item added)
+    const currentQuantity = cart?.totalQuantity || 0;
+
+    if (
+      cartItemsRef.current &&
+      (currentQuantity > prevQuantityRef.current || !isCartUpdating)
+    ) {
+      // Scroll to the bottom with a small delay to ensure DOM is updated
+      setTimeout(() => {
+        if (cartItemsRef.current) {
+          cartItemsRef.current.scrollTop = cartItemsRef.current.scrollHeight;
+        }
+      }, 100);
+    }
+
+    // Update the previous quantity reference
+    prevQuantityRef.current = currentQuantity;
+  }, [cart?.totalQuantity, isCartUpdating]);
+
   return (
     <div className={className}>
       <CartEmpty hidden={linesCount} layout={layout} />
-      <div className="cart-details">
-        <div aria-labelledby="cart-lines">
-          <ul>
+      <div className="cart-details flex flex-col h-full">
+        <div
+          ref={cartItemsRef}
+          aria-labelledby="cart-lines"
+          className="flex-grow overflow-y-auto pb-4 pr-1"
+          style={{maxHeight: 'calc(70vh - 120px)'}} // Set a maximum height based on viewport
+        >
+          <ul className="w-full box-border">
             {(cart?.lines?.nodes ?? []).map((line) => (
               <CartLineItem key={line.id} line={line} layout={layout} />
             ))}
           </ul>
         </div>
-        {cartHasItems && <CartSummary cart={cart} layout={layout} isCartUpdating={isCartUpdating} />}
+        {cartHasItems && (
+          <CartSummary
+            cart={cart}
+            layout={layout}
+            isCartUpdating={isCartUpdating}
+          />
+        )}
       </div>
     </div>
   );

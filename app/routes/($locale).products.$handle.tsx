@@ -12,11 +12,13 @@ import {
 } from '@remix-run/react';
 import {
   Money,
+  ShopPayButton,
   Image,
   flattenConnection,
   Analytics,
   VariantSelector,
 } from '@shopify/hydrogen';
+import {AddToCartButton} from '~/components/AddToCartButton';
 import type {
   // ProductFragment, // Removed unused import
   ProductOption,
@@ -114,7 +116,7 @@ const DownloadIcon = () => (
 
 // Component to display product info, matching Figma layout
 export default function Product() {
-  const {product, diamondAttributes, initialVariant} =
+  const {product, diamondAttributes, initialVariant, storeDomain} =
     useLoaderData<typeof loader>();
   const {title, vendor, featuredImage, images, options, variants} = product;
   const [quantity, setQuantity] = useState(1);
@@ -129,36 +131,24 @@ export default function Product() {
 
   // Effect to update selectedVariantState based on URL search params
   useEffect(() => {
-    console.log(
-      'PDP Calculating selectedVariant (inside useEffect watching searchParams)...',
-    );
     const currentVariant = variants.nodes.find((variant: ProductVariant) =>
       variant.selectedOptions.every((option: SelectedOption) => {
         return searchParams.get(option.name) === option.value;
       }),
     );
     const newSelectedVariant = currentVariant || initialVariant;
-    console.log(
-      'PDP useEffect (watching searchParams) - Found variant:',
-      newSelectedVariant,
-    );
     setSelectedVariantState(newSelectedVariant);
   }, [searchParams, variants.nodes, initialVariant]);
 
   // --- Image State ---
   // Calculate initial image based on URL param, variant, featured, or first image
   const initialImage = useMemo(() => {
-    console.log('PDP Calculating initialImage (inside useMemo)...'); // Log entry
     const urlImageId = searchParams.get('image_id');
-    console.log('PDP useMemo - urlImageId:', urlImageId);
-    console.log('PDP useMemo - images.nodes available here:', images?.nodes);
     if (urlImageId) {
       const foundImage = images?.nodes?.find((img: ImageType) => {
-        console.log(`PDP useMemo - Comparing ${img.id} === ${urlImageId}`); // Log comparison
         return img.id === urlImageId;
       });
       if (foundImage) {
-        console.log('PDP useMemo - Found image by URL param:', foundImage);
         return foundImage;
       } else {
         console.warn(
@@ -171,7 +161,6 @@ export default function Product() {
       selectedVariantState?.image ||
       featuredImage ||
       (images?.nodes && images.nodes[0]);
-    console.log('PDP useMemo - Using fallback logic. Image:', fallbackImage);
     return fallbackImage || null; // Ensure null if nothing found
   }, [searchParams, images?.nodes, selectedVariantState?.image, featuredImage]); // Add dependencies
 
@@ -179,9 +168,7 @@ export default function Product() {
   const [currentImage, setCurrentImage] = useState<ImageType | null>(
     initialImage,
   );
-  // console.log("PDP Initializing currentImage state with:", initialImage);
 
-  // Memoize the list of all available images for thumbnails
   const availableImages = useMemo(() => {
     // Base the list on all product images, not just the initial one
     return (
@@ -193,10 +180,6 @@ export default function Product() {
 
   // Effect to update the current image when the selected variant state changes (Keep this)
   useEffect(() => {
-    console.log(
-      'PDP Image Update Effect Triggered. selectedVariantState:',
-      selectedVariantState,
-    );
     if (selectedVariantState?.image) {
       // Check if the variant image is different from the current image before setting
       // to prevent unnecessary re-renders if the variant image is already displayed
@@ -204,10 +187,6 @@ export default function Product() {
       if (currentImage?.id !== selectedVariantState.image.id) {
         setCurrentImage(selectedVariantState.image);
       }
-    } else {
-      console.log(
-        'PDP Selected variant state has no specific image. Current image unchanged by effect.',
-      );
     }
   }, [selectedVariantState?.id]); // REMOVE currentImage.id dependency
   // ------------------
@@ -602,7 +581,7 @@ export default function Product() {
 
                 {/* Actions using selectedVariantState */}
                 <div className="flex flex-col gap-3 md:gap-4 w-full">
-                  <div className="flex gap-4 w-full">
+                  <div className="flex gap-4 w-full items-center">
                     {/* Quantity Selector - Styled per Figma */}
                     <div className="flex items-center border-0">
                       {' '}
@@ -631,47 +610,69 @@ export default function Product() {
                       </button>
                     </div>
                     {/* Add to Cart using selectedVariantState */}
-                    <button
-                      disabled={!selectedVariantState?.availableForSale}
-                      className="flex-1 px-6 py-3 border border-black text-black font-light hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {selectedVariantState?.availableForSale
-                        ? 'ADD TO CART'
-                        : 'SOLD OUT'}
-                    </button>
+                    {selectedVariantState?.id ? (
+                      <AddToCartButton
+                        lines={[
+                          {merchandiseId: selectedVariantState.id, quantity},
+                        ]}
+                        className="w-full flex-1 px-6 py-3 border border-black text-black font-light hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!selectedVariantState?.availableForSale}
+                      >
+                        {selectedVariantState?.availableForSale
+                          ? 'ADD TO CART'
+                          : 'SOLD OUT'}
+                      </AddToCartButton>
+                    ) : (
+                      <button
+                        type="button"
+                        className="w-full flex-1 px-6 py-3 border border-black text-black font-light hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled
+                      >
+                        Unavailable
+                      </button>
+                    )}
                   </div>
                   {/* Buy Now using selectedVariantState */}
-                  <button
+                  {selectedVariantState?.availableForSale && (
+                    <ShopPayButton
+                      width="100%"
+                      variantIds={[selectedVariantState?.id]}
+                      storeDomain={storeDomain}
+                    />
+                  )}
+
+                  {/* <button
                     disabled={!selectedVariantState?.availableForSale}
                     className="w-full px-6 py-3 bg-black text-white font-light hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     BUY NOW
-                  </button>
+                  </button> */}
                 </div>
               </div>
             </div>
           </section>
 
+          {/* Why Complete Carat Section */}
           <section className="flex flex-col items-center gap-12 mt-24">
             <h2 className="why-complete-carat text-2xl font-normal leading-7 mb-4 text-center">
-              WHY LOOSE GROWN GEMS
+              WHY COMPLETE CARAT
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full px-4 sm:px-6 lg:px-8 mb-16">
               {/* In-House */}
               <div className="flex flex-col items-center text-center gap-6">
                 <div className="w-16 h-16 flex items-center justify-center">
                   <img
-                    src="/assets/in_home_mode.svg"
-                    alt="Made In-House"
+                    src="/assets/icons/in_home_mode.svg"
+                    alt="Completely In-House"
                     className="w-12 h-12 object-contain"
                   />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-xl font-medium">Made In-House</h3>
+                  <h3 className="text-xl font-medium">Completely In-House</h3>
                   <p className="text-sm text-gray-600">
-                    All gold and silver jewelry products are made completely
-                    in-house by expert craftsmen to ensure the highest degree of
-                    beauty and precision.
+                    All our products are made completely in-house by expert
+                    craftsmen to ensure the highest degree of beauty and
+                    precision.
                   </p>
                 </div>
               </div>
@@ -679,7 +680,7 @@ export default function Product() {
               <div className="flex flex-col items-center text-center gap-6">
                 <div className="w-16 h-16 flex items-center justify-center">
                   <img
-                    src="/assets/card_membership.svg"
+                    src="/assets/icons/card_membership.svg"
                     alt="Lifetime Warranty"
                     className="w-12 h-12 object-contain"
                   />
@@ -688,7 +689,7 @@ export default function Product() {
                   <h3 className="text-xl font-medium">Lifetime Warranty</h3>
                   <p className="text-sm text-gray-600">
                     Loose Grown Gems Lifetime Warranty is limited to the repair
-                    and/or replacement at Loose Grown Gems&apos;s discretion.
+                    and/or replacement at Loose Grown Gems discretion.
                   </p>
                 </div>
               </div>
@@ -696,7 +697,7 @@ export default function Product() {
               <div className="flex flex-col items-center text-center gap-6">
                 <div className="w-16 h-16 flex items-center justify-center">
                   <img
-                    src="/assets/priority_shipping.png"
+                    src="/assets/icons/priority_shipping.png"
                     alt="Priority Shipping"
                     className="w-12 h-12 object-contain"
                   />
@@ -714,7 +715,7 @@ export default function Product() {
               <div className="flex flex-col items-center text-center gap-6">
                 <div className="w-16 h-16 flex items-center justify-center">
                   <img
-                    src="/assets/partner_exchange.svg"
+                    src="/assets/icons/partner_exchange.svg"
                     alt="Conflict-Free Diamonds"
                     className="w-12 h-12 object-contain"
                   />
@@ -974,6 +975,12 @@ const PRODUCT_QUERY = `#graphql
       #   value
       # }
     }
+       shop {
+        name
+        primaryDomain {
+          url
+        }
+       }
   }
 ` as const;
 
@@ -989,7 +996,7 @@ export async function loader({params, context, request}: LoaderFunctionArgs) {
   }
 
   // Fetch product data from Shopify (using updated query)
-  const {product} = await storefront.query(PRODUCT_QUERY, {
+  const {product, shop} = await storefront.query(PRODUCT_QUERY, {
     variables: {
       handle,
       country: storefront.i18n.country,
@@ -1036,6 +1043,7 @@ export async function loader({params, context, request}: LoaderFunctionArgs) {
     product,
     diamondAttributes,
     initialVariant,
+    storeDomain: shop.primaryDomain.url,
     primaryCollection: product.collections?.nodes?.[0] || null,
   });
 }
@@ -1043,11 +1051,7 @@ export async function loader({params, context, request}: LoaderFunctionArgs) {
 // Meta function for SEO
 export const meta: MetaFunction<typeof loader> = ({data}) => {
   return [
-    {
-      title: `${
-        data?.product?.seo?.title ?? data?.product?.title ?? 'Product'
-      } | Loose Grown Gems`,
-    },
+    {title: data?.product?.seo?.title ?? data?.product?.title ?? 'Product'},
     {
       description:
         data?.product?.seo?.description ?? data?.product?.description ?? '',

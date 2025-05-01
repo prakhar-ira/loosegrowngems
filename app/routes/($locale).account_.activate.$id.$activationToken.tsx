@@ -5,6 +5,8 @@ import {
   type LoaderFunctionArgs,
 } from '@shopify/remix-oxygen';
 import {Form, useActionData, type MetaFunction} from '@remix-run/react';
+import GemIcon from '~/assets/gem-icon.svg';
+import { StyledInput } from '~/components/StyledInput';
 
 type ActionResponse = {
   error: string | null;
@@ -84,57 +86,47 @@ export default function Activate() {
   const error = action?.error ?? null;
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 md:p-10 rounded-xl shadow-md border border-gray-200">
-        <div className="text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+    <div className="policies-container-parent flex justify-center items-center min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+      <div
+        className="bg-white rounded-xl figma-login-card-shadow flex flex-col justify-start items-center gap-8"
+        style={{width: '560px', height: 'auto', padding: '48px 0 16px'}}
+      >
+        <div className="flex flex-col items-center w-full px-4" style={{gap: '24px'}}>
+          <img src={GemIcon} alt="Gem Icon" style={{width: '40px', height: '40px'}} />
+          <h2 className="!text-3xl text-center text-black !font-light uppercase">
             Activate Account
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Create your password to activate your account
-          </p>
         </div>
 
-        <Form method="POST" className="mt-8 space-y-6">
-          <fieldset className="space-y-4">
+        <Form
+          method="POST"
+          className="mt-6 space-y-4 w-full px-4"
+          style={{ maxWidth: 'none' }}
+        >
+          <fieldset className="space-y-3 w-full !p-0">
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Password
-              </label>
-              <input
+              <StyledInput
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
-                placeholder="Enter your password"
+                autoComplete="new-password"
+                placeholder="Password"
                 aria-label="Password"
                 minLength={8}
                 required
-                className="appearance-none rounded-md relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
               />
             </div>
             <div>
-              <label
-                htmlFor="passwordConfirm"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Confirm Password
-              </label>
-              <input
+              <StyledInput
                 id="passwordConfirm"
                 name="passwordConfirm"
                 type="password"
-                autoComplete="current-password"
-                placeholder="Re-enter your password"
-                aria-label="Re-enter password"
+                autoComplete="new-password"
+                placeholder="Confirm Password"
+                aria-label="Confirm Password"
                 minLength={8}
                 required
-                className="appearance-none rounded-md relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
               />
             </div>
           </fieldset>
@@ -158,12 +150,12 @@ export default function Activate() {
             </div>
           )}
 
-          <div>
+          <div className="flex flex-col items-center w-full gap-4 pt-2">
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#212121] hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 transition-all duration-300 ease-in-out"
+              className="w-full p-4 bg-[#212121] text-white text-2xl font-light rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#212121] disabled:opacity-70 transition-opacity"
             >
-              Activate Account
+              ACTIVATE ACCOUNT
             </button>
           </div>
         </Form>

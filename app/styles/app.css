@@ -15,6 +15,8 @@
 
 body {
   font-family: var(--font-primary);
+  /* Prevent horizontal overflow from creating white space */
+  overflow-x: hidden; 
 }
 
 /* Add rule to prevent body scroll when an aside is open */
@@ -99,8 +101,9 @@ aside header h2 {
   margin-top: 0;
 }
 
+/* Add padding: 1rem; to override global main style */
 aside main {
-  margin: 1rem;
+  padding: 1rem;
 }
 
 aside p {
@@ -159,6 +162,40 @@ aside li {
 /* reveal aside */
 .overlay.expanded aside {
   transform: translateX(calc(var(--aside-width) * -1));
+}
+
+/* Responsive Drawer Styles */
+@media screen and (max-width: 768px) {
+  aside {
+    /* Override fixed width */
+    min-width: 100%;
+    max-width: 100%;
+    /* Adjust off-screen position */
+    right: -100%; 
+  }
+
+  .overlay.expanded aside {
+    /* Adjust slide-in transform */
+    transform: translateX(-100%);
+  }
+
+  .overlay .close-outside {
+    /* Hide the outside close button */
+    display: none;
+  }
+
+  .cart-summary-aside {
+    /* Keep width and relative positioning */
+    width: 100%; 
+    position: relative;
+    bottom: auto;
+    flex-shrink: 0;
+  }
+
+  .cart-main {
+     /* Remove flex-grow and max-height as height is controlled by parent flex */
+     overflow-y: auto; /* Keep this if CartMain needs internal scroll */
+  }
 }
 
 button.reset {
@@ -311,12 +348,13 @@ button.reset:hover:not(:has(> *)) {
   color: #fff;
   font-size: 16px;
   margin-top: 24px;
+  margin-bottom: 1rem;
   width: 40%;
 }
 
 .footer-link-menu {
   display: flex;
-  padding: 1rem;
+  padding: 1rem 0 1rem 1rem;
   flex-direction: column;
   gap: 1.4rem;
   justify-content: space-between;
@@ -386,11 +424,45 @@ button.reset:hover:not(:has(> *)) {
 
 .cart-summary-aside {
   background: white;
-  border-top: 1px solid var(--color-dark);
+  border-top: 1px solid #94A3B8;
   bottom: 0;
   padding-top: 0.75rem;
   position: absolute;
-  width: calc(var(--aside-width) - 40px);
+  width: calc(var(--aside-width) - 2rem);
+}
+
+/* Responsive Drawer Styles - MOVED HERE */
+@media screen and (max-width: 768px) {
+  aside {
+    /* Override fixed width */
+    min-width: 100%;
+    max-width: 100%;
+    /* Adjust off-screen position */
+    right: -100%; 
+  }
+
+  .overlay.expanded aside {
+    /* Adjust slide-in transform */
+    transform: translateX(-100%);
+  }
+
+  .overlay .close-outside {
+    /* Hide the outside close button */
+    display: none;
+  }
+
+  .cart-summary-aside {
+    /* Keep width and relative positioning */
+    width: 100%; 
+    position: relative;
+    bottom: auto;
+    flex-shrink: 0;
+  }
+
+  .cart-main {
+     /* Remove flex-grow and max-height as height is controlled by parent flex */
+     overflow-y: auto; /* Keep this if CartMain needs internal scroll */
+  }
 }
 
 .cart-line-quantity {
@@ -776,31 +848,72 @@ button.reset:hover:not(:has(> *)) {
 
   .excellence-section {
     flex-direction: column-reverse;
+    align-items: center;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0 1rem;
+    box-sizing: border-box;
+  }
+
+  .excellence-container-2 {
+    display: none;
+  }
+
+  .excellence-container-1 {
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    margin-top: 15px;
+    width: 100%;
+  }
+
+  .excellence-container-1 > h1 {
+    font-size: 48px;
+    line-height: 64px;
+    text-align: center;
+  }
+
+  .excellence-container-1 > p {
+    font-size: 16px;
+    line-height: 24px;
   }
 
   .excellence-buttons-container {
     flex-direction: column;
-    align-items: start;
+    align-items: center;
+    width: 100%;
+    margin-top: 20px;
+    gap: 15px;
   }
 
-  .excellence-container-1 > h1 {
-    font-size: 60px;
-    line-height: 80px;
+  .excellence-buttons-container button {
+    padding: 10px 20px;
+    font-size: 14px;
+    width: auto;
+  }
+
+  .excellence-buttons-container a {
+    font-size: 14px;
+    text-align: center;
+    width: 100%;
   }
 }
 
 .why-choose-us-section {
   margin-top: 0;
   background-color: #000000;
+  /* Add bottom border */
+  border-bottom: 1px solid #fff; 
 }
 
 .why-choose-us-section > h3 {
   @apply italic;
   text-transform: uppercase;
-  padding: 8px 24px;
+  padding: 8px 12px;
   font-family: 500;
   color: #fff;
   font-size: 26px;
+  border-bottom: 1px solid #fff; 
 }
 
 .homepage-grid-container {
@@ -1113,6 +1226,104 @@ button.reset:hover:not(:has(> *)) {
   .jewelry-types .type-item {
     flex-basis: calc(100% / 2 - 1px); /* 2 items per row */
   }
+
+  /* Reduce footer text sizes */
+  .footer-logo-text {
+    font-size: 12px; /* Further reduced size */
+  }
+
+  .footer-menu a {
+    font-size: 12px; /* Further reduced size */
+  }
+
+  /* Reduce "Why Choose Us" heading size */
+  .why-choose-us-section > h3 {
+    font-size: 20px;
+    padding-top: 12px; /* Adjust padding if needed */
+    padding-bottom: 12px;
+  }
+
+  /* Mobile Filter Adjustments */
+  .filters-section {
+    display: none; /* Hide by default on mobile */
+  }
+
+  .filters-section.mobile-open {
+    display: block; /* Show when open */
+    position: fixed; /* Cover the screen */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh; /* Full viewport height */
+    background: var(--color-light); /* White background */
+    z-index: 100; /* Above other content */
+    overflow-y: auto; /* Allow scrolling */
+    padding: var(--header-height) 1.5rem 1.5rem; /* Add padding, account for header */
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1); /* Optional shadow */
+    border: none; /* Remove existing border */
+    border-radius: 0; /* Remove existing border radius */
+    box-sizing: border-box; /* Ensure padding is included */
+  }
+
+  /* Mobile filter toggle button */
+  .mobile-filter-toggle {
+    display: flex; /* Use flex for alignment */
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    background-color: var(--color-dark); /* Black background */
+    color: var(--color-light); /* White icon/text */
+    border: none;
+    border-radius: 50%; /* Circular button */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    z-index: 99; /* Below open filter panel but above content */
+    transition: transform 0.2s ease;
+  }
+
+  .mobile-filter-toggle:hover {
+    transform: scale(1.1);
+  }
+
+  /* Style the icon inside the toggle button */
+  .mobile-filter-toggle svg {
+    fill: var(--color-light); /* Use the light color variable (white) */
+    width: 24px; /* Set an explicit size */
+    height: 24px;
+  }
+
+  /* Hide toggle button on larger screens */
+  @media (min-width: 769px) {
+    .mobile-filter-toggle {
+      display: none;
+    }
+  }
+
+  /* Add a close button inside the mobile filter panel */
+  .mobile-filter-close-button {
+    position: absolute;
+    top: calc(var(--header-height) / 2 - 12px); /* Center vertically in header space */
+    right: 20px;
+    background: none;
+    border: none;
+    font-size: 24px; /* Adjust size as needed */
+    font-weight: bold;
+    color: var(--color-dark);
+    cursor: pointer;
+    padding: 0;
+    z-index: 101; /* Above filter content */
+  }
+
+  /* Style the icon inside the close button */
+  .mobile-filter-close-button svg {
+    fill: var(--color-dark); /* Use the dark color variable (black) */
+    width: 24px; /* Match the font-size or set explicitly */
+    height: 24px;
+  }
 }
 
 @media screen and (max-width: 480px) {
@@ -1336,4 +1547,107 @@ button.reset:hover:not(:has(> *)) {
   background-color: white;
   padding: 5px;
   border-radius: 4px;
+}
+
+/* Add styles for the main homepage container */
+.home {
+  width: 100%;
+  box-sizing: border-box;
+  /* Optional: Add overflow-x: hidden; if spilling persists and you can't find the cause */
+  /* overflow-x: hidden; */ 
+}
+
+/* Ensure main content area spans full width */
+main {
+  max-width: none; 
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%; /* Ensure it tries to fill width */
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+/* Responsive adjustments for WhyChooseUs grid AND Footer */
+@media screen and (max-width: 768px) {
+  .homepage-grid-container {
+    grid-template-columns: 1fr; /* Switch to single column */
+  }
+
+  .homepage-grid-item {
+    /* Ensure consistent top border for all items in single column */
+    border-top: 1px solid #fff;
+  }
+  
+  .homepage-grid-item:nth-of-type(2n) {
+    border-left: none; /* Remove left border in single column */
+  }
+
+  /* Ensure first item doesn't have double top border (if parent already has one) */
+  .why-choose-us-section > .homepage-grid-container > .homepage-grid-item:first-child {
+     border-top: none; /* Or match parent border style if needed */
+  }
+
+  .homepage-grid-body {
+    padding: 20px 16px; /* Reduce padding */
+    align-items: center; /* Center content horizontally */
+    text-align: center; /* Center text */
+  }
+
+  .homepage-grid-body > h3 {
+    font-size: 24px; /* Reduce heading size */
+    line-height: 32px;
+    text-align: center; /* Center heading text */
+  }
+
+  .homepage-grid-body > p {
+    font-size: 16px; /* Reduce paragraph size */
+    line-height: 22px;
+    width: 100%; /* Allow paragraph to use full width */
+    text-align: center; /* Center paragraph text */
+  }
+
+  .homepage-grid-body-divider {
+    margin: 0 auto; /* Center the divider */
+  }
+}
+
+.figma-login-card-shadow {
+  box-shadow: 0px 15px 34px 0px rgba(0, 0, 0, 0.1), 0px 62px 62px 0px rgba(0, 0, 0, 0.09), 0px 139px 83px 0px rgba(0, 0, 0, 0.05), 0px 246px 99px 0px rgba(0, 0, 0, 0.01), 0px 385px 108px 0px rgba(0, 0, 0, 0);
+}
+
+/* Add special handling for mobile devices */
+@media screen and (max-width: 700px) {
+  .cart-summary-aside {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: white;
+    z-index: 10;
+    border-top: 1px solid var(--color-dark);
+    /* Add shadow for better visibility */
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Add padding-bottom to the cart-main equal to the approximate height of the summary */
+  .cart-main {
+    padding-bottom: 150px; /* Adjust this value based on your summary's height */
+  }
+}
+
+/* Target form within summary aside specifically */
+.cart-summary-aside .cart-note > div > form {
+  /* Remove width, add auto margins for centering */
+  /* width: 100%; */ 
+  display: block; 
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Add special handling for mobile devices */
+@media screen and (max-width: 700px) {
+  .popup {
+    width: 70%;
+  }
 }

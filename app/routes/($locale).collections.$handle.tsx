@@ -98,19 +98,22 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
   // Get pagination variables (reads 'first', 'last', 'before', 'after' from URL)
   const paginationVariables = getPaginationVariables(request, {pageBy: 24});
 
-  console.log(
-    'DEBUG: Received env object in loader:',
-    JSON.stringify(env, null, 2),
-  );
+  // --> ADDED: Read diamondType from URL
+  const url = new URL(request.url);
+  const initialDiamondTypeParam = url.searchParams.get('diamondType');
+  // Validate the param to ensure it's one of the expected values
+  const initialDiamondType =
+    initialDiamondTypeParam === 'Natural' ||
+    initialDiamondTypeParam === 'Lab-Grown'
+      ? initialDiamondTypeParam
+      : null; // Default to null if param is missing or invalid
+  // <-- END ADDED
+
+ 
 
   if (!handle) {
     throw redirect('/collections');
   }
-
-  console.log(
-    `[Loader Debug] Handle: ${handle}, Variables:`,
-    paginationVariables,
-  );
 
   // --- Fetch Shopify Data ---
   const {collection: rawCollection} = await storefront.query(COLLECTION_QUERY, {
@@ -122,10 +125,6 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
   }
 
   // Log the received pageInfo before returning or processing further
-  console.log(
-    '[Loader Debug] Received pageInfo from Storefront Query:',
-    rawCollection?.products?.pageInfo,
-  );
 
   // Cast to our extended type for potential modification
   const collection: BaseCollectionType | null =
@@ -138,9 +137,6 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
   );
 
   if (isInitialLoad) {
-    console.log(
-      '[Loader Debug] Initial load detected (no cursors found), proceeding with Nivoda fetch...',
-    );
     const nivodaIds = collection.products.nodes
       .map((product) => product.nivodaId?.value)
       .filter((id): id is string => !!id);
@@ -359,6 +355,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
   // No totalCount is returned as it's unavailable
   return json({
     collection,
+    initialDiamondType,
     analytics: {
       collection: {
         id: collection.id,
@@ -371,12 +368,15 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
 export default function CollectionComponent() {
   // Renamed to avoid conflict with imported Collection type
   // Use the extended type here
-  const {collection} = useLoaderData<{collection: ExtendedCollectionType}>();
+  const {collection, initialDiamondType} = useLoaderData<{
+    collection: ExtendedCollectionType;
+    initialDiamondType: 'Natural' | 'Lab-Grown' | null;
+  }>();
 
   const renderCollection = () => {
     switch (collection.handle) {
       case 'diamonds':
-        // Pass the collection with Nivoda details to DiamondsCollection
+        // Pass the collection with Nivoda details AND the initial type to DiamondsCollection
         return <DiamondsCollection collection={collection} />;
       case 'rings':
       case 'bracelets':

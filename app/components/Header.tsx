@@ -108,7 +108,6 @@ function HeaderCtas({
 }: Pick<HeaderProps, 'isLoggedIn' | 'cart'>) {
   return (
     <nav className="header-ctas" role="navigation">
-      <HeaderMenuMobileToggle />
       <NavLink
         prefetch="intent"
         to="/account"
@@ -139,6 +138,7 @@ function HeaderCtas({
       </NavLink>
       <SearchToggle />
       <CartToggle cart={cart} />
+      <HeaderMenuMobileToggle />
     </nav>
   );
 }
@@ -147,10 +147,10 @@ function HeaderMenuMobileToggle() {
   const {open} = useAside();
   return (
     <button
-      className="header-menu-mobile-toggle reset"
+      className="header-menu-mobile-toggle reset flex items-center justify-center"
       onClick={() => open('mobile')}
     >
-      <h3>☰</h3>
+      <img src="/assets/icons/dehaze.svg" alt="Menu" className="h-8 w-8" />
     </button>
   );
 }

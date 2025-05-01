@@ -1,9 +1,11 @@
 import {Link} from '@remix-run/react';
 import {Image, Money} from '@shopify/hydrogen';
-import {useState, useMemo} from 'react';
+import {useState, useMemo, useEffect} from 'react';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import CloseIcon from '@mui/icons-material/Close';
 // Import Image type
 import type { Image as ImageType } from '@shopify/hydrogen/storefront-api-types';
 import type {ProductItemFragment} from 'storefrontapi.generated';
@@ -52,6 +54,18 @@ type ProductWithVariants = ProductItemFragment & {
 export function JewelleryCollection({collection}: JewelleryCollectionProps) { // Use specific props type
   const [filters, setFilters] = useState<JewelleryFilterState>(initialFilters);
   const [sortOption, setSortOption] = useState<string>(sortOptions[0].value);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  useEffect(() => {
+    if (showMobileFilters) {
+      document.body.classList.add('body-aside-open');
+    } else {
+      document.body.classList.remove('body-aside-open');
+    }
+    return () => {
+      document.body.classList.remove('body-aside-open');
+    };
+  }, [showMobileFilters]);
 
   // Filter and sort products based on state
   const filteredAndSortedProducts = useMemo(() => {
@@ -86,132 +100,152 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
 
 
   return (
-    // Use flex layout similar to DiamondsCollection
-    <div className="jewellery-collection flex flex-col md:flex-row md:items-start gap-6 p-4 md:p-6">
-      {/* Filter Section */}
-      <div className="filters-section w-full md:w-72 lg:w-80 flex-shrink-0 p-4 border rounded-lg shadow-sm md:p-6 md:border-r md:border-gray-200 md:rounded-none md:shadow-none flex flex-col gap-6 md:gap-8">
+    <>
+      <div className="jewellery-collection flex flex-col md:flex-row md:items-start gap-6 p-4 md:p-6">
+        {/* Filter Section */}
+        <div className={`filters-section w-full md:w-72 lg:w-80 flex-shrink-0 p-4 border rounded-lg shadow-sm md:p-6 md:border-r md:border-gray-200 md:rounded-none md:shadow-none flex flex-col gap-6 md:gap-8 ${showMobileFilters ? 'mobile-open' : ''}`}>
+          {/* Add Close button for mobile view */}
+          <button
+            type="button"
+            className="mobile-filter-close-button md:hidden"
+            onClick={() => setShowMobileFilters(false)}
+            aria-label="Close filters"
+          >
+            <CloseIcon />
+          </button>
 
-        {/* Sort By Section */}
-        <div className="flex justify-between items-center">
-           <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase mb-0">Sort By</h2>
-            <div className="relative w-auto">
-              <select
-                id="sort-select"
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
-                className="appearance-none block w-full bg-white border border-slate-300 hover:border-slate-600 px-3 py-2 pr-8 rounded hover:shadow-md text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-slate-600"
+          {/* Sort By Section - Add margin-bottom */}
+          <div className="flex justify-between items-center mb-6">
+             <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase mb-0">Sort By</h2>
+              <div className="relative w-auto">
+                <select
+                  id="sort-select"
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value)}
+                  className="appearance-none block w-full bg-white border border-slate-300 hover:border-slate-600 px-3 py-2 pr-8 rounded hover:shadow-md text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-slate-600"
+                >
+                  {sortOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                  <KeyboardArrowDownIcon className="h-5 w-5 text-gray-700" />
+                </div>
+              </div>
+          </div>
+          {/* Divider */}
+          <hr className="border border-slate-200" />
+
+          {/* Filters Header - Add margin-top */}
+          <div className="flex justify-between items-baseline mt-6 mb-2">
+            <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase">Filters</h2>
+             {/* Conditionally display Clear All button */}
+             {JSON.stringify(filters) !== JSON.stringify(initialFilters) && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="text-sm text-gray-600 hover:text-black font-normal underline underline-offset-2"
               >
-                {sortOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                <KeyboardArrowDownIcon className="h-5 w-5 text-gray-700" />
+                Clear All
+              </button>
+            )}
+          </div>
+
+          {/* Price Filter */}
+          <div className="filter-group">
+            <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">Price</h3>
+            <Slider
+              range
+              min={0}
+              max={5000} // Adjust max price for jewellery if needed
+              value={filters.priceRange}
+              onChange={(value) => {
+                if (Array.isArray(value) && value.length === 2) {
+                  const [newMin, newMax] = value as [number, number];
+                  setFilters({...filters, priceRange: [newMin, newMax]});
+                }
+              }}
+              // Add relevant slider styles if needed via className or global CSS
+               className="rc-slider-custom" // Example class for potential custom styling
+            />
+            <div className="flex justify-between items-center mt-4 gap-2 price-input-container">
+              <div className="flex-1">
+                <label htmlFor="minPrice" className="block text-xs text-slate-700 mb-1">Min Price</label>
+                <input
+                  type="number"
+                  id="minPrice"
+                  value={filters.priceRange[0]}
+                  min={0}
+                  max={filters.priceRange[1]}
+                  onChange={(e) => {
+                    const newMin = parseInt(e.target.value, 10);
+                    if (!isNaN(newMin)) {
+                      const validatedMin = Math.min(newMin, filters.priceRange[1]);
+                      setFilters({...filters, priceRange: [validatedMin, filters.priceRange[1]]});
+                    }
+                  }}
+                  className="w-full p-1 border rounded text-sm"
+                />
+              </div>
+              <span className="text-gray-400">-</span>
+              <div className="flex-1">
+                <label htmlFor="maxPrice" className="block text-xs text-gray-500 mb-1">Max Price</label>
+                <input
+                  type="number"
+                  id="maxPrice"
+                  value={filters.priceRange[1]}
+                  min={filters.priceRange[0]}
+                  max={5000} // Same max as slider
+                  onChange={(e) => {
+                    const newMax = parseInt(e.target.value, 10);
+                    if (!isNaN(newMax)) {
+                      const validatedMax = Math.max(newMax, filters.priceRange[0]);
+                      setFilters({...filters, priceRange: [filters.priceRange[0], validatedMax]});
+                    }
+                  }}
+                  className="w-full p-1 border rounded text-sm"
+                />
               </div>
             </div>
-        </div>
-        {/* Divider */}
-        <hr className="border border-slate-200" />
+          </div>
 
-        {/* Filters Header */}
-        <div className="flex justify-between items-baseline">
-          <h2 className="text-xl md:text-2xl font-['SF_Pro'] font-normal text-black uppercase">Filters</h2>
-           {/* Conditionally display Clear All button */}
-           {JSON.stringify(filters) !== JSON.stringify(initialFilters) && (
-            <button
-              type="button"
-              onClick={handleClearFilters}
-              className="text-sm text-gray-600 hover:text-black font-normal underline underline-offset-2"
-            >
-              Clear All
-            </button>
-          )}
         </div>
 
-        {/* Price Filter */}
-        <div className="filter-group">
-          <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">Price</h3>
-          <Slider
-            range
-            min={0}
-            max={5000} // Adjust max price for jewellery if needed
-            value={filters.priceRange}
-            onChange={(value) => {
-              if (Array.isArray(value) && value.length === 2) {
-                const [newMin, newMax] = value as [number, number];
-                setFilters({...filters, priceRange: [newMin, newMax]});
-              }
-            }}
-            // Add relevant slider styles if needed via className or global CSS
-             className="rc-slider-custom" // Example class for potential custom styling
-          />
-          <div className="flex justify-between items-center mt-4 gap-2 price-input-container">
-            <div className="flex-1">
-              <label htmlFor="minPrice" className="block text-xs text-slate-700 mb-1">Min Price</label>
-              <input
-                type="number"
-                id="minPrice"
-                value={filters.priceRange[0]}
-                min={0}
-                max={filters.priceRange[1]}
-                onChange={(e) => {
-                  const newMin = parseInt(e.target.value, 10);
-                  if (!isNaN(newMin)) {
-                    const validatedMin = Math.min(newMin, filters.priceRange[1]);
-                    setFilters({...filters, priceRange: [validatedMin, filters.priceRange[1]]});
-                  }
-                }}
-                className="w-full p-1 border rounded text-sm"
-              />
-            </div>
-            <span className="text-gray-400">-</span>
-            <div className="flex-1">
-              <label htmlFor="maxPrice" className="block text-xs text-gray-500 mb-1">Max Price</label>
-              <input
-                type="number"
-                id="maxPrice"
-                value={filters.priceRange[1]}
-                min={filters.priceRange[0]}
-                max={5000} // Same max as slider
-                onChange={(e) => {
-                  const newMax = parseInt(e.target.value, 10);
-                  if (!isNaN(newMax)) {
-                    const validatedMax = Math.max(newMax, filters.priceRange[0]);
-                    setFilters({...filters, priceRange: [filters.priceRange[0], validatedMax]});
-                  }
-                }}
-                className="w-full p-1 border rounded text-sm"
-              />
-            </div>
+        {/* Product Grid Area */}
+        {/* Make this flex-1 to take remaining space */}
+        <div className="flex-1 min-w-0">
+           
+          {/* Grid for products */}
+          {/* Use the filtered and sorted list */}
+          <div className="products-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {filteredAndSortedProducts.length > 0 ? (
+                filteredAndSortedProducts.map((product: ProductWithVariants) => (
+                  <ProductItem key={product.id} product={product} />
+                ))
+            ) : (
+              // Message when no products match filters
+               <div className="col-span-full text-center py-10 text-gray-500">
+                <p className="text-lg">No products found matching your criteria.</p>
+                <p className="text-sm">Try adjusting your filters.</p>
+              </div>
+            )}
           </div>
         </div>
 
       </div>
 
-      {/* Product Grid Area */}
-      {/* Make this flex-1 to take remaining space */}
-      <div className="flex-1 min-w-0">
-         
-        {/* Grid for products */}
-        {/* Use the filtered and sorted list */}
-        <div className="products-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {filteredAndSortedProducts.length > 0 ? (
-              filteredAndSortedProducts.map((product: ProductWithVariants) => (
-                <ProductItem key={product.id} product={product} />
-              ))
-          ) : (
-            // Message when no products match filters
-             <div className="col-span-full text-center py-10 text-gray-500">
-              <p className="text-lg">No products found matching your criteria.</p>
-              <p className="text-sm">Try adjusting your filters.</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-    </div>
+      {/* Mobile Filter Toggle Button */}
+      <button
+        type="button"
+        className="mobile-filter-toggle md:hidden"
+        onClick={() => setShowMobileFilters(true)}
+        aria-label="Show filters"
+      >
+        <FilterListIcon />
+      </button>
+    </>
   );
 }
 

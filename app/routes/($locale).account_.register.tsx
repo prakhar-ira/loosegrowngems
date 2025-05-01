@@ -15,7 +15,8 @@ import {
   useNavigation,
 } from '@remix-run/react';
 import {type TypedResponse} from '@remix-run/server-runtime';
-import Logo from '~/assets/logo.png'; // Import the logo
+import GemIcon from '~/assets/gem-icon.svg'; // Add GemIcon import
+import { StyledInput } from '~/components/StyledInput'; // Import StyledInput
 
 // Define MetaFunction for the page title
 export const meta: MetaFunction = () => {
@@ -113,8 +114,6 @@ export async function action({
     // Using `throw redirect` is suitable here as it stops execution and sends the redirect response
     throw redirect('/account');
   } catch (error: unknown) {
-    console.log('errors', error);
-    console.log('errors 1', JSON.stringify(error));
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred';
     return json({error: errorMessage, newCustomer: null}, {status: 400});
@@ -128,18 +127,15 @@ export default function Register() {
   const isSubmitting = navigation.state === 'submitting';
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 md:p-10 rounded-xl shadow-md border border-gray-200">
-        <div className="text-center">
-          <Link to="/">
-            <img
-              className="mx-auto h-16 w-auto header-logo mb-6"
-              src={Logo}
-              alt="LGG Logo"
-            />
-          </Link>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Create your account
+    <div className="policies-container-parent flex justify-center items-center min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+      <div
+        className="bg-white rounded-xl figma-login-card-shadow flex flex-col justify-start items-center gap-8"
+        style={{width: '560px', height: 'auto', padding: '48px 0 16px'}}
+      >
+        <div className="flex flex-col items-center w-full px-4" style={{gap: '24px'}}>
+          <img src={GemIcon} alt="Gem Icon" style={{width: '40px', height: '40px'}} />
+          <h2 className="!text-3xl text-center text-black !font-light uppercase">
+             Create your account
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Already have an account?{' '}
@@ -153,15 +149,20 @@ export default function Register() {
         </div>
 
         {/* Use standard Form for direct action handling */}
-        <Form method="POST" className="mt-8 space-y-6" noValidate>
-          <fieldset className="space-y-4">
+        <Form
+          method="POST"
+          className="space-y-4 w-full px-4"
+          noValidate
+          style={{ maxWidth: 'none' }}
+        >
+          <fieldset className="space-y-3 w-full !p-0">
             {/* First Name and Last Name */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="firstName" className="sr-only">
                   First Name
                 </label>
-                <input
+                <StyledInput
                   id="firstName"
                   name="firstName"
                   type="text"
@@ -170,14 +171,13 @@ export default function Register() {
                   disabled={isSubmitting}
                   placeholder="First Name"
                   aria-label="First Name"
-                  className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 />
               </div>
               <div>
                 <label htmlFor="lastName" className="sr-only">
                   Last Name
                 </label>
-                <input
+                <StyledInput
                   id="lastName"
                   name="lastName"
                   type="text"
@@ -186,7 +186,6 @@ export default function Register() {
                   disabled={isSubmitting}
                   placeholder="Last Name"
                   aria-label="Last Name"
-                  className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 />
               </div>
             </div>
@@ -196,7 +195,7 @@ export default function Register() {
               <label htmlFor="email" className="sr-only">
                 Email address
               </label>
-              <input
+              <StyledInput
                 id="email"
                 name="email"
                 type="email"
@@ -205,7 +204,6 @@ export default function Register() {
                 disabled={isSubmitting}
                 placeholder="Email address"
                 aria-label="Email address"
-                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
               />
@@ -216,7 +214,7 @@ export default function Register() {
               <label htmlFor="password" className="sr-only">
                 Password
               </label>
-              <input
+              <StyledInput
                 id="password"
                 name="password"
                 type="password"
@@ -226,7 +224,6 @@ export default function Register() {
                 minLength={8}
                 placeholder="Password (min. 8 characters)"
                 aria-label="Password"
-                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
               />
             </div>
 
@@ -235,7 +232,7 @@ export default function Register() {
               <label htmlFor="passwordConfirm" className="sr-only">
                 Re-enter password
               </label>
-              <input
+              <StyledInput
                 id="passwordConfirm"
                 name="passwordConfirm"
                 type="password"
@@ -245,7 +242,6 @@ export default function Register() {
                 minLength={8}
                 required
                 disabled={isSubmitting}
-                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
               />
             </div>
           </fieldset>
@@ -275,10 +271,10 @@ export default function Register() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#212121] hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-60 transition duration-150 ease-in-out"
+              className="w-full p-4 bg-[#212121] text-white text-2xl font-light rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#212121] disabled:opacity-70 transition-opacity"
             >
               {isSubmitting ? (
-                <span className="flex items-center">
+                <span className="flex items-center justify-center">
                   <svg
                     className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
                     xmlns="http://www.w3.org/2000/svg"
@@ -302,7 +298,7 @@ export default function Register() {
                   Creating account...
                 </span>
               ) : (
-                'Create account'
+                'CREATE ACCOUNT'
               )}
             </button>
           </div>

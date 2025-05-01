@@ -65,7 +65,7 @@ export function PolicyContainer() {
                 return the item. Please package the jewelry securely in its
                 original box, including all grading reports, appraisals, and
                 accessories. For your security, please avoid writing
-                &quot;Complete Carat&quot; on the exterior of the return box.
+                &quot;Loose Grown Gems&quot; on the exterior of the return box.
               </p>
             </div>
           </div>

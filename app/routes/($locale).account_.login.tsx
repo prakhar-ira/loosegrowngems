@@ -11,7 +11,9 @@ import {
   useNavigation,
   type MetaFunction,
 } from '@remix-run/react';
-import Logo from '~/assets/logo.png'; // Import the logo
+// import Logo from '~/assets/logo.png'; // No longer using the main logo here
+import GemIcon from '~/assets/gem-icon.svg'; // Import the downloaded Gem icon
+import { StyledInput } from '~/components/StyledInput'; // Import the new input component
 
 type ActionResponse = {
   error: string | null;
@@ -75,77 +77,72 @@ export default function Login() {
   const error = data?.error || null;
   const navigation = useNavigation();
   const isLoading = navigation.state === 'submitting';
-  const isSubmitting = navigation.state === 'submitting';
+  // const isSubmitting = navigation.state === 'submitting'; // Redundant
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 md:p-10 rounded-xl shadow-md border border-gray-200">
-        <div className="text-center">
-          <Link to="/">
-            <img
-              className="mx-auto h-16 w-auto header-logo mb-6"
-              src={Logo}
-              alt="LGG Logo"
-            />
-          </Link>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Sign in to your account
+    // Outer container with gradient background
+    <div className="policies-container-parent flex justify-center items-center min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+      {/* Login Card - Figma: Frame 1410104226 */}
+      <div
+        className="bg-white rounded-xl figma-login-card-shadow flex flex-col justify-start items-center gap-12"
+        style={{width: '560px', height: 'auto', padding: '48px 16px 16px'}}
+      >
+        {/* Top Section: Icon + Title */}
+        <div className="flex flex-col items-center w-full" style={{gap: '24px'}}>
+          <img src={GemIcon} alt="Gem Icon" style={{width: '40px', height: '40px'}} /> {/* Adjust size as needed */}
+          <h2 className="!text-3xl text-center text-black"> {/* Add !important modifier */}
+            <span className="font-light">LOGIN TO </span>
+            <span className="font-normal">LOOSE GROWN GEMS</span>
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Or{' '}
-            <Link
-              to="/account/register"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              create a new account
-            </Link>
-          </p>
         </div>
 
+        {/* Middle Section: Form Fields */}
         <Form
           method="POST"
-          className={`mt-8 space-y-6 transition-opacity duration-300 ${
-            isSubmitting ? 'opacity-95' : 'opacity-100'
-          }`}
+          className="w-full flex flex-col"
+          style={{ gap: '48px', maxWidth: 'none' }}
+          data-discover="true"
         >
-          <fieldset className="-space-y-px" disabled={isLoading}>
-            <div>
-              <label htmlFor="email-address" className="sr-only">
-                Email address
-              </label>
-              <input
+          {/* Input Fields Container */}
+          <div className="w-full flex flex-col" style={{gap: '16px'}}>
+            {/* Email Input */}
+            <div className="w-full">
+              <StyledInput
                 id="email-address"
                 name="email"
                 type="email"
                 autoComplete="email"
                 required
-                className={`appearance-none rounded-t-md relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm transition-opacity duration-300 ${
-                  isLoading ? 'opacity-75' : 'opacity-100'
-                }`}
-                placeholder="Email address"
+                disabled={isLoading}
+                placeholder="Email Address"
                 aria-label="Email address"
               />
             </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                minLength={8}
-                className={`appearance-none rounded-b-md relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm transition-opacity duration-300 ${
-                  isLoading ? 'opacity-75' : 'opacity-100'
-                }`}
-                placeholder="Password"
-                aria-label="Password"
-              />
+            {/* Password Section */}
+            <div className="w-full flex flex-col" style={{gap: '8px'}}>
+              <div className="w-full">
+                <StyledInput
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  disabled={isLoading}
+                  minLength={8}
+                  placeholder="Password"
+                  aria-label="Password"
+                />
+              </div>
+              <Link
+                to="/account/recover"
+                className="self-end text-base font-light text-[#212121] hover:underline"
+              >
+                Forgot Password?
+              </Link>
             </div>
-          </fieldset>
+          </div>
 
+          {/* Error Display */}
           {error && (
             <div className="flex items-center p-3 bg-red-50 border border-red-200 text-sm text-red-700 rounded-md">
               <svg
@@ -165,59 +162,30 @@ export default function Login() {
             </div>
           )}
 
-          <div className="flex items-center justify-end">
-            <div className="text-sm">
-              <Link
-                to="/account/recover"
-                className={`font-medium text-blue-600 hover:text-blue-500 transition-opacity duration-300 ${
-                  isLoading ? 'opacity-50 pointer-events-none' : ''
-                }`}
-              >
-                Forgot your password?
-              </Link>
-            </div>
-          </div>
-
-          <div>
+          {/* Bottom Section: Button + Create Account */}
+          <div className="w-full flex flex-col items-center mt-auto" style={{gap: '16px'}}>
+            {/* Login Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#212121] hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-80 transition-all duration-300 ease-in-out"
+              className="w-full p-4 bg-[#212121] text-white text-2xl font-light rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#212121] disabled:opacity-70 transition-opacity"
             >
-              <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-                {isLoading && (
-                  <svg
-                    className="animate-spin h-5 w-5 text-gray-300"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                )}
-              </span>
-              <span
-                className={`${
-                  isLoading ? 'ml-2' : ''
-                } transition-all duration-300`}
-              >
-                {isLoading ? 'Signing in...' : 'Sign in'}
-              </span>
+              {isLoading ? 'LOGGING IN...' : 'LOGIN'}
             </button>
+
+            {/* Create Account Link */}
+            <div className="flex justify-center items-center" style={{gap: '4px'}}>
+              <span className="text-base font-light text-[#999999]">New here?</span>
+              <Link
+                to="/account/register"
+                className="text-base font-normal text-[#212121] hover:underline"
+              >
+                Create an account
+              </Link>
+            </div>
           </div>
         </Form>
+
       </div>
     </div>
   );

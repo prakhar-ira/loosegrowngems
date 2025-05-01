@@ -10,6 +10,7 @@ import {
   ScrollRestoration,
   isRouteErrorResponse,
   type ShouldRevalidateFunction,
+  useLocation,
 } from '@remix-run/react';
 import {useEffect} from 'react';
 import favicon from '~/assets/logo.png';
@@ -19,6 +20,8 @@ import tailwindCss from './styles/tailwind.css?url';
 import {PageLayout} from '~/components/PageLayout';
 import {FOOTER_QUERY, HEADER_QUERY} from '~/lib/fragments';
 import ErrorContainer from './components/ErrorContainer';
+import {motion, AnimatePresence} from 'framer-motion';
+import {Aside} from '~/components/Aside';
 
 export type RootLoader = typeof loader;
 
@@ -202,7 +205,9 @@ export function Layout({children}: {children?: React.ReactNode}) {
             shop={data.shop}
             consent={data.consent}
           >
-            <PageLayout {...data}>{children}</PageLayout>
+            <Aside.Provider>
+              <PageLayout {...data}>{children}</PageLayout>
+            </Aside.Provider>
           </Analytics.Provider>
         ) : (
           children
@@ -215,7 +220,19 @@ export function Layout({children}: {children?: React.ReactNode}) {
 }
 
 export default function App() {
-  return <Outlet />;
+  return (
+    <AnimatePresence mode="wait">
+      <motion.main
+        key={useLocation().pathname} // Ensure animation triggers on route change
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }} // Adjust duration as needed
+      >
+        <Outlet />
+      </motion.main>
+    </AnimatePresence>
+  );
 }
 
 export function ErrorBoundary() {
