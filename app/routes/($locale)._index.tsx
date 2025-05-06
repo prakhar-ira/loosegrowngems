@@ -38,7 +38,7 @@ export default function Homepage() {
     <div className="home">
       <ExcellenceSection />
       {/* <FeaturedCollection collection={data.featuredCollection} /> */}
-      <DiamondTypes />
+      {/* <DiamondTypes /> */}
       {/* <jewelryTypes /> */}
       <WhyChooseUs />
     </div>

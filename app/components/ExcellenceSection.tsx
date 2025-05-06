@@ -13,9 +13,9 @@ export function ExcellenceSection() {
           - where luxury meets sustainability.
         </p>
         <div className="excellence-buttons-container">
-          <Link to="/collections/diamonds">
+          {/* <Link to="/collections/diamonds">
             <button>Shop Diamonds</button>
-          </Link>
+          </Link> */}
           <NavLink 
             prefetch="intent" 
             to="/pages/contact-us" 

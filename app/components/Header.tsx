@@ -136,7 +136,7 @@ function HeaderCtas({
           </Await>
         </Suspense>
       </NavLink>
-      <SearchToggle />
+      {/* <SearchToggle /> */}
       <CartToggle cart={cart} />
       <HeaderMenuMobileToggle />
     </nav>

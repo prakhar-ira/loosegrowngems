@@ -110,7 +110,7 @@ function CartEmpty({
         started!
       </p>
       <br />
-      <Link to="/collections/diamonds" onClick={close} prefetch="viewport">
+      <Link to="/collections/engagement-rings" onClick={close} prefetch="viewport">
         Continue shopping →
       </Link>
     </div>

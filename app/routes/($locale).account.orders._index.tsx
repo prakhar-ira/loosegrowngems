@@ -66,7 +66,7 @@ export default function Orders() {
           </span>
         </h2>
         <button
-          onClick={() => navigate('/collections/diamonds')}
+          onClick={() => navigate('/collections/engagement-rings')}
           className="inline-flex cursor-pointer justify-center items-center rounded-md border border-transparent shadow-sm px-6 py-2.5 bg-gradient-to-r from-gray-800 to-gray-900 text-base font-medium text-white hover:from-gray-900 hover:to-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 sm:text-sm disabled:opacity-50 transition-all duration-200"
         >
           Start Shopping
