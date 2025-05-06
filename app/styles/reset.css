@@ -130,3 +130,7 @@ code {
   font-family: monospace;
   padding: 0.25rem;
 }
+
+.cart-form-container > form {
+  width: auto;
+}

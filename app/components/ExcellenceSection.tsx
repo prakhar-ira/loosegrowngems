@@ -16,14 +16,17 @@ export function ExcellenceSection() {
           {/* <Link to="/collections/diamonds">
             <button>Shop Diamonds</button>
           </Link> */}
-          <NavLink 
+          <Link   to="/pages/contact-us">
+            <button>Book 1:1 Appointment</button>
+          </Link>
+          {/* <NavLink 
             prefetch="intent" 
             to="/pages/contact-us" 
             end
             className="relative inline-block text-base after:absolute after:bottom-0 after:left-0 after:h-[1px] after:w-0 after:bg-black after:transition-all after:duration-300 hover:after:w-full"
           >
             Book 1:1 Appointment
-          </NavLink>
+          </NavLink> */}
         </div>
       </div>
       <div className="excellence-container-2">

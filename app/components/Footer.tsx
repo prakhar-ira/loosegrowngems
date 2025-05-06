@@ -3,7 +3,7 @@ import type {FooterQuery, HeaderQuery} from 'storefrontapi.generated';
 
 import Logo from '~/assets/logo.png';
 import {Suspense} from 'react';
-import insta from '~/assets/insta.png';
+import instagram from '~/assets/instagram.svg';
 import star from '~/assets/star.png';
 import tiktok from '~/assets/tiktok.svg';
 
@@ -63,14 +63,15 @@ function FooterMenu({
             href="https://www.instagram.com/loosegrowngems?igsh=b3A3Y3c0YnN0ZnZ2"
             target="_blank"
             rel="noreferrer"
+            className="text-white hover:text-gray-300"
           >
-            <img src={insta} alt={'Instagram'} />
+            <img src={instagram} alt={'Instagram'} className="w-6 h-6" />
           </a>
           <a
             href="https://www.tiktok.com/@loosegrowngems?_t=ZP-8w07GUpLFJ1&_r=1"
             target="_blank"
             rel="noreferrer"
-            className="text-white hover:text-gray-300 mt-[8px]"
+            className="text-white hover:text-gray-300"
           >
             <img src={tiktok} alt={'TikTok'} className="w-6 h-6" />
           </a>

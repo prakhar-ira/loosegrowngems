@@ -770,7 +770,7 @@ button.reset:hover:not(:has(> *)) {
   align-items: start;
   justify-content: space-between;
   gap: 30px;
-  margin: 0 0 1rem 1rem;
+  margin: 0 0 0 1rem;
 }
 
 /* Limit header image size */

@@ -111,7 +111,7 @@ export function PolicyContainer() {
                 business days. Please note that your bank or credit card company
                 may take additional time to process the refund. If you
                 haven&apos;t received your refund after 10 business days, please
-                reach out to us at info@completecarat.com for assistance. For
+                reach out to us at info@loosegrowngems.com for assistance. For
                 the quickest way to get the item you truly want, we recommend
                 returning the original item and placing a new order for the
                 replacement. If you need assistance with the process, our team

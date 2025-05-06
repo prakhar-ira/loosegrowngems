@@ -69,7 +69,7 @@ export function CartLineItem({
       {/* Details Section: flex column, justify-between */}
       <div className="flex flex-col justify-between flex-grow">
         {/* Top Part: Title, Price, Remove Button */}
-        <div className="flex justify-between items-start gap-2">
+        <div className="flex justify-between items-start gap-2 cart-form-container">
           {/* Title and Price */}
           <div className="flex flex-col gap-1">
             <Link

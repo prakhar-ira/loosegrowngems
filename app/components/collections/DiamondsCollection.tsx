@@ -85,7 +85,7 @@ function parseProductAttributesFromHtml(html: string | null | undefined, title: 
   attributes.cut = matchAttribute(/Cut[:\s]*(Excellent|Very\s*Good|Good|Fair|Poor|Ideal)\b/i);
 
   // Carat (e.g., Carat: 1.02, 1.02 ct, 1.02 Carat)
-  attributes.carat = matchAttribute(/(\d+\.?\d*)\s*(?:ct|carat|carats)/i);
+  attributes.carat = matchAttribute(/(\d+\.?\d*)\s*(?:ct|carat|carats|karat|karats)/i);
   // Fallback if unit is missing but looks like a carat weight
   if (!attributes.carat) {
      attributes.carat = matchAttribute(/Carat[:\s]*(\d+\.?\d*)/i);

@@ -374,7 +374,7 @@ export default function Product() {
                                       >
                                         {value
                                           .split(' ')[0]
-                                          .replace('k', ' carats')}
+                                          .replace('k', ' Karat')}
                                       </span>
                                       {isManuallyActive && (
                                         <svg
@@ -655,7 +655,7 @@ export default function Product() {
           {/* Why Complete Carat Section */}
           <section className="flex flex-col items-center gap-12 mt-24">
             <h2 className="why-complete-carat text-2xl font-normal leading-7 mb-4 text-center">
-              WHY COMPLETE CARAT
+              WHY LOOSE GROWN GEMS
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full px-4 sm:px-6 lg:px-8 mb-16">
               {/* In-House */}
@@ -859,7 +859,7 @@ function parseDiamondAttributes(description: string | null | undefined): {
 
   // Define potential subsequent attribute keywords - ADDED many more from example
   const nextKeywords =
-    'Clarity|Cut|Shape|Carats|Polish|Symmetry|Fluorescence|Measurements|Table|DepthPercentage|Lab|' +
+    'Clarity|Cut|Shape|Carats|Karat|Polish|Symmetry|Fluorescence|Measurements|Table|DepthPercentage|Lab|' +
     'Intensity|Overtone|ColorShade|Labgrowntype|Fcolor|Fovertone|Fintensity|FloInt|Width|Length|DiamondType';
 
   // Match 'Color : Value' - capture non-greedily until next keyword or end of string
