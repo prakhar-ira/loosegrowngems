@@ -3,9 +3,9 @@ import type {FooterQuery, HeaderQuery} from 'storefrontapi.generated';
 
 import Logo from '~/assets/logo.png';
 import {Suspense} from 'react';
-import google from '~/assets/google.png';
 import insta from '~/assets/insta.png';
 import star from '~/assets/star.png';
+import tiktok from '~/assets/tiktok.svg';
 
 interface FooterProps {
   footer: Promise<FooterQuery | null>;
@@ -60,26 +60,27 @@ function FooterMenu({
         </div>
         <div className="social-media-container">
           <a
-            href="https://www.instagram.com/completecarat/"
+            href="https://www.instagram.com/loosegrowngems?igsh=b3A3Y3c0YnN0ZnZ2"
             target="_blank"
             rel="noreferrer"
           >
             <img src={insta} alt={'Instagram'} />
           </a>
           <a
-            href="https://www.google.com/maps/place/Complete+Carat/@40.7574844,-73.9828387,17z/data=!4m8!3m7!1s0x883b4b7804cad1dd:0x70ee511590d1d9dc!8m2!3d40.7574804!4d-73.9802638!9m1!1b1!16s%2Fg%2F11vsw3l9jh?entry=ttu&g_ep=EgoyMDI0MTIwMS4xIKXMDSoASAFQAw%3D%3D"
+            href="https://www.tiktok.com/@loosegrowngems?_t=ZP-8w07GUpLFJ1&_r=1"
             target="_blank"
             rel="noreferrer"
+            className="text-white hover:text-gray-300 mt-[8px]"
           >
-            <img src={google} alt={'Google'} />
+            <img src={tiktok} alt={'TikTok'} className="w-6 h-6" />
           </a>
-          <a
+          {/* <a
             href="https://www.trustpilot.com/review/completecarat.com?utm_medium=trustbox&utm_source=TrustBoxReviewCollector"
             target="_blank"
             rel="noreferrer"
           >
             <img src={star} alt={'TrustPilot'} />
-          </a>
+          </a> */}
         </div>
       </section>
       <section className="footer-link-menu">
