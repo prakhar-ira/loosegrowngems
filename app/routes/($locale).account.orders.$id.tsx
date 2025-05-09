@@ -439,40 +439,40 @@ export default function OrderRoute() {
     <>
       <div className="hidden">{InvoiceTemplate}</div>
 
-      <div className="space-y-8">
+    <div className="space-y-8">
         <div className="flex justify-between items-center border-b border-[#f9fafb] pb-4 mb-2">
-          <div>
+        <div>
             <h2 className="text-xl font-medium text-[#1a202c] flex items-center">
-              Order {order.name}
-              <span
-                className={`ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}
-              >
-                {formatStatus(order.fulfillmentStatus)}
-              </span>
-            </h2>
-            <p className="text-sm text-[#6b7280] mt-1">Placed on {date}</p>
-          </div>
-          <Link
-            to="/account/orders"
-            className="text-sm text-blue-600 hover:text-blue-500 font-medium flex items-center"
-          >
-            <svg
-              className="w-4 h-4 mr-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
+            Order {order.name}
+            <span
+              className={`ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              ></path>
-            </svg>
-            Back to Orders
-          </Link>
+              {formatStatus(order.fulfillmentStatus)}
+            </span>
+          </h2>
+            <p className="text-sm text-[#6b7280] mt-1">Placed on {date}</p>
         </div>
+        <Link
+          to="/account/orders"
+          className="text-sm text-blue-600 hover:text-blue-500 font-medium flex items-center"
+        >
+          <svg
+            className="w-4 h-4 mr-1"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            ></path>
+          </svg>
+          Back to Orders
+        </Link>
+      </div>
 
         <div
           id="order-summary"
@@ -482,40 +482,40 @@ export default function OrderRoute() {
             <h3 className="text-lg font-medium text-[#1a202c]">
               Order Summary
             </h3>
-          </div>
+        </div>
 
-          <div className="overflow-x-auto">
+        <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-[#f9fafb]">
               <thead className="bg-[#f9fafb]">
-                <tr>
-                  <th
-                    scope="col"
+              <tr>
+                <th
+                  scope="col"
                     className="px-6 py-3 text-left text-xs font-medium text-[#6b7280] uppercase tracking-wider"
-                  >
-                    Product
-                  </th>
-                  <th
-                    scope="col"
+                >
+                  Product
+                </th>
+                <th
+                  scope="col"
                     className="px-6 py-3 text-left text-xs font-medium text-[#6b7280] uppercase tracking-wider"
-                  >
-                    Price
-                  </th>
-                  <th
-                    scope="col"
+                >
+                  Price
+                </th>
+                <th
+                  scope="col"
                     className="px-6 py-3 text-left text-xs font-medium text-[#6b7280] uppercase tracking-wider"
-                  >
-                    Quantity
-                  </th>
-                  <th
-                    scope="col"
+                >
+                  Quantity
+                </th>
+                <th
+                  scope="col"
                     className="px-6 py-3 text-left text-xs font-medium text-[#6b7280] uppercase tracking-wider"
-                  >
-                    Total
-                  </th>
-                </tr>
-              </thead>
+                >
+                  Total
+                </th>
+              </tr>
+            </thead>
               <tbody className="bg-[#fffff] divide-y divide-[#f9fafb]">
-                {lineItems.map((lineItem: any, lineItemIndex: any) => (
+              {lineItems.map((lineItem: any, lineItemIndex: any) => (
                   <tr key={lineItemIndex}>
                     <td className="px-6 py-4 align-top max-w-md">
                       <div className="flex items-center">
@@ -557,134 +557,134 @@ export default function OrderRoute() {
                       <Money data={lineItem.discountedTotalPrice!} />
                     </td>
                   </tr>
-                ))}
-              </tbody>
+              ))}
+            </tbody>
               <tfoot className="bg-[#f9fafb]">
-                {((discountValue && discountValue.amount) ||
-                  discountPercentage) && (
-                  <tr>
-                    <th
-                      scope="row"
-                      colSpan={3}
-                      className="hidden sm:table-cell"
-                    ></th>
-                    <th
-                      scope="row"
+              {((discountValue && discountValue.amount) ||
+                discountPercentage) && (
+                <tr>
+                  <th
+                    scope="row"
+                    colSpan={3}
+                    className="hidden sm:table-cell"
+                  ></th>
+                  <th
+                    scope="row"
                       className="px-6 py-3 text-right text-sm font-medium text-[#1a202c]"
-                    >
-                      Discounts
-                    </th>
+                  >
+                    Discounts
+                  </th>
                     <td className="px-6 py-3 text-right text-sm text-[#6b7280]">
-                      {discountPercentage ? (
+                    {discountPercentage ? (
                         <span className="text-[#38a169]">
-                          -{discountPercentage}% OFF
-                        </span>
-                      ) : (
-                        discountValue && (
-                          <Money
-                            data={discountValue!}
+                        -{discountPercentage}% OFF
+                      </span>
+                    ) : (
+                      discountValue && (
+                        <Money
+                          data={discountValue!}
                             className="text-[#38a169]"
-                          />
-                        )
-                      )}
-                    </td>
-                  </tr>
-                )}
-                <tr>
-                  <th
-                    scope="row"
-                    colSpan={2}
-                    className="hidden sm:table-cell"
-                  ></th>
-                  <th
-                    scope="row"
-                    className="px-6 py-3 text-right text-sm font-medium text-[#1a202c]"
-                  >
-                    Subtotal
-                  </th>
-                  <td className="px-6 py-3 text-right text-sm text-[#1a202c]">
-                    <Money data={order.subtotalPriceV2!} />
+                        />
+                      )
+                    )}
                   </td>
                 </tr>
-                <tr>
-                  <th
-                    scope="row"
+              )}
+              <tr>
+                <th
+                  scope="row"
                     colSpan={2}
-                    className="hidden sm:table-cell"
-                  ></th>
-                  <th
-                    scope="row"
+                  className="hidden sm:table-cell"
+                ></th>
+                <th
+                  scope="row"
                     className="px-6 py-3 text-right text-sm font-medium text-[#1a202c]"
-                  >
-                    Tax
-                  </th>
+                >
+                  Subtotal
+                </th>
                   <td className="px-6 py-3 text-right text-sm text-[#1a202c]">
-                    <Money data={order.totalTaxV2!} />
-                  </td>
-                </tr>
-                <tr>
-                  <th
-                    scope="row"
+                  <Money data={order.subtotalPriceV2!} />
+                </td>
+              </tr>
+              <tr>
+                <th
+                  scope="row"
                     colSpan={2}
-                    className="hidden sm:table-cell"
-                  ></th>
-                  <th
-                    scope="row"
+                  className="hidden sm:table-cell"
+                ></th>
+                <th
+                  scope="row"
                     className="px-6 py-3 text-right text-sm font-medium text-[#1a202c]"
-                  >
-                    Total
-                  </th>
+                >
+                  Tax
+                </th>
+                  <td className="px-6 py-3 text-right text-sm text-[#1a202c]">
+                  <Money data={order.totalTaxV2!} />
+                </td>
+              </tr>
+              <tr>
+                <th
+                  scope="row"
+                    colSpan={2}
+                  className="hidden sm:table-cell"
+                ></th>
+                <th
+                  scope="row"
+                    className="px-6 py-3 text-right text-sm font-medium text-[#1a202c]"
+                >
+                  Total
+                </th>
                   <td className="px-6 py-3 text-right text-sm font-bold text-[#1a202c]">
-                    <Money data={order.totalPriceV2!} />
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                  <Money data={order.totalPriceV2!} />
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white border border-[#f9fafb] rounded-lg shadow-sm p-6">
             <h3 className="text-lg font-medium text-[#1a202c] mb-4">
-              Shipping Details
-            </h3>
-            {order?.shippingAddress ? (
+            Shipping Details
+          </h3>
+          {order?.shippingAddress ? (
               <address className="not-italic text-sm text-[#4a5568]">
                 <p className="font-medium text-[#1a202c]">
-                  {order.shippingAddress.firstName &&
-                    order.shippingAddress.firstName + ' '}
-                  {order.shippingAddress.lastName}
-                </p>
-                {order?.shippingAddress?.formatted ? (
-                  <div className="mt-2 space-y-1">
-                    {order.shippingAddress.formatted.map((line: string) => (
-                      <p key={line}>{line}</p>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-2">
-                    No detailed address information available
-                  </p>
-                )}
-              </address>
-            ) : (
-              <p className="text-sm text-[#6b7280]">
-                No shipping address provided
+                {order.shippingAddress.firstName &&
+                  order.shippingAddress.firstName + ' '}
+                {order.shippingAddress.lastName}
               </p>
-            )}
-          </div>
+              {order?.shippingAddress?.formatted ? (
+                <div className="mt-2 space-y-1">
+                  {order.shippingAddress.formatted.map((line: string) => (
+                    <p key={line}>{line}</p>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2">
+                  No detailed address information available
+                </p>
+              )}
+            </address>
+          ) : (
+              <p className="text-sm text-[#6b7280]">
+              No shipping address provided
+            </p>
+          )}
+        </div>
 
           <div className="bg-white border border-[#f9fafb] rounded-lg shadow-sm p-6">
             <h3 className="text-lg font-medium text-[#1a202c] mb-4">
-              Order Status
-            </h3>
+            Order Status
+          </h3>
             <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => window.open(order.statusUrl)}
+          <button
+            onClick={() => window.open(order.statusUrl)}
                 className="w-full sm:w-auto flex justify-center items-center rounded-md border border-transparent shadow-sm px-6 py-2.5 bg-gradient-to-r from-[#1a202c] to-[#1a202c] text-base font-medium text-white hover:from-[#1a202c] hover:to-[#1a202c] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1a202c] sm:text-sm disabled:opacity-50 transition-all duration-200"
-              >
-                Track Order Status
-              </button>
+          >
+            Track Order Status
+          </button>
               <button
                 onClick={() => downloadInvoice(order.name)}
                 className="cursor-pointer w-full sm:w-auto flex justify-center items-center rounded-md border border-gray-300 shadow-sm px-6 py-2.5 bg-white text-base font-medium text-[#4a5568] hover:bg-[#f9fafb] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1a202c] sm:text-sm transition-all"

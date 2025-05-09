@@ -128,15 +128,15 @@ export default function AccountProfile() {
               >
                 First name
               </label>
-              <input
-                id="firstName"
-                name="firstName"
-                type="text"
-                autoComplete="given-name"
-                placeholder="First name"
-                aria-label="First name"
-                defaultValue={customer.firstName ?? ''}
-                minLength={2}
+          <input
+            id="firstName"
+            name="firstName"
+            type="text"
+            autoComplete="given-name"
+            placeholder="First name"
+            aria-label="First name"
+            defaultValue={customer.firstName ?? ''}
+            minLength={2}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
               />
             </div>
@@ -147,15 +147,15 @@ export default function AccountProfile() {
               >
                 Last name
               </label>
-              <input
-                id="lastName"
-                name="lastName"
-                type="text"
-                autoComplete="family-name"
-                placeholder="Last name"
-                aria-label="Last name"
-                defaultValue={customer.lastName ?? ''}
-                minLength={2}
+          <input
+            id="lastName"
+            name="lastName"
+            type="text"
+            autoComplete="family-name"
+            placeholder="Last name"
+            aria-label="Last name"
+            defaultValue={customer.lastName ?? ''}
+            minLength={2}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
               />
             </div>
@@ -166,14 +166,14 @@ export default function AccountProfile() {
               >
                 Mobile
               </label>
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                autoComplete="tel"
-                placeholder="Mobile"
-                aria-label="Mobile"
-                defaultValue={customer.phone ?? ''}
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            placeholder="Mobile"
+            aria-label="Mobile"
+            defaultValue={customer.phone ?? ''}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
               />
             </div>
@@ -184,17 +184,17 @@ export default function AccountProfile() {
               >
                 Email address
               </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                placeholder="Email address"
-                aria-label="Email address"
-                defaultValue={customer.email ?? ''}
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="Email address"
+            aria-label="Email address"
+            defaultValue={customer.email ?? ''}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
-              />
+          />
             </div>
           </div>
           <div className="mt-6 flex items-center">
@@ -230,14 +230,14 @@ export default function AccountProfile() {
               >
                 New password
               </label>
-              <input
-                id="newPassword"
-                name="newPassword"
-                type="password"
-                placeholder="New password"
+          <input
+            id="newPassword"
+            name="newPassword"
+            type="password"
+            placeholder="New password"
                 autoComplete="off"
-                aria-label="New password"
-                minLength={8}
+            aria-label="New password"
+            minLength={8}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
               />
             </div>
@@ -248,14 +248,14 @@ export default function AccountProfile() {
               >
                 New password (confirm)
               </label>
-              <input
-                id="newPasswordConfirm"
-                name="newPasswordConfirm"
-                type="password"
+          <input
+            id="newPasswordConfirm"
+            name="newPasswordConfirm"
+            type="password"
                 autoComplete="off"
-                placeholder="New password (confirm)"
-                aria-label="New password confirm"
-                minLength={8}
+            placeholder="New password (confirm)"
+            aria-label="New password confirm"
+            minLength={8}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
               />
             </div>
@@ -267,7 +267,7 @@ export default function AccountProfile() {
 
         {/* Feedback and Submit Button */}
         <div className={`mt-7 flex justify-between`}>
-          {action?.error ? (
+        {action?.error ? (
             <div className="flex items-center p-3 bg-red-50 border border-red-200 text-sm text-red-700 rounded-md">
               <svg
                 className="flex-shrink-0 h-5 w-5 mr-2"
@@ -340,7 +340,7 @@ export default function AccountProfile() {
             ) : (
               'Update Profile'
             )}
-          </button>
+        </button>
         </div>
       </Form>
     </div>
