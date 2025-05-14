@@ -1238,9 +1238,7 @@ function ProductItem({product}: {product: ProductWithDetails}) {
         <div className="relative w-full h-64 bg-gray-100">
           {hasValidImage ? (
             <img
-              src={
-                'https://nivoda-images.s3.eu-west-2.amazonaws.com/c4df2295-230a-4c66-8ee6-57cc02a0d771.jpg'
-              }
+              src={product.images.nodes[0].url}
               alt={product.images.nodes[0].altText || 'Diamond image'}
               className="w-full h-full object-contain"
             />
