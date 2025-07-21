@@ -137,6 +137,7 @@ type ProductWithDetails = ProductItemFragment & {
   certificateNumber?: string | null;
   title?: string;
   nivodaId?: {value: string} | null;
+  merchandiseId?: string | null; // Add merchandiseId property
   // Add specific Nivoda certificate details matching the structure in the loader
   nivodaCertificateDetails?: {
     color?: string | null;
@@ -157,8 +158,17 @@ type ProductWithDetails = ProductItemFragment & {
     depthPercentage?: number | null;
     table?: number | null;
   } | null;
-  videoUrl?: string | null;
   availabilityStatus?: string | null;
+  existsInShopify?: boolean;
+  shopifyHandle?: string | null;
+  // Add direct properties for easier access
+  shape?: string;
+  carat?: string | number;
+  color?: string;
+  clarity?: string;
+  certificate?: string;
+  price?: number;
+  image?: string;
 };
 
 // --- Define Shape Data ---
@@ -204,6 +214,7 @@ interface FilterState {
   diamondType: 'Natural' | 'Lab-Grown' | null;
   shape: string[];
   certification: string[];
+  certificateNumber?: string;
 }
 
 // --- Define Sort Options ---
@@ -235,37 +246,161 @@ export function DiamondsCollection({
   const navigate = useNavigate();
   const location = useLocation();
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
-  // Parse current filter parameters from the URL
-  const searchParams = useMemo(
+  // State to store accumulated products
+  const [allProducts, setAllProducts] = useState<ProductWithDetails[]>([]);
+
+  // Parse current filter parameters from the URL for initializing states
+  const initialSearchParams = useMemo(
     () => new URLSearchParams(location.search),
     [location.search],
   );
 
-  // Extract filter state from URL search params
+  // Declare certificateSearch state here
+  const [certificateSearch, setCertificateSearch] = useState(
+    initialSearchParams.get('certificateNumber') || '',
+  );
+
+  // Add loading state for certificate search
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Initialize allProducts with collection.products.nodes on first render
+  // and when offset is 0 (meaning we're starting fresh)
+  useEffect(() => {
+    const isInitialLoad =
+      !location.search.includes('offset=') ||
+      location.search.includes('offset=0');
+
+    if (isInitialLoad) {
+      // Reset accumulated products
+      setAllProducts([...collection.products.nodes]);
+    } else {
+      // Add new products to accumulated list
+      setAllProducts((prev) => {
+        // Filter out duplicates by ID
+        const existingIds = new Set(prev.map((p) => p.id));
+        const newProducts = collection.products.nodes.filter(
+          (p) => !existingIds.has(p.id),
+        );
+        return [...prev, ...newProducts];
+      });
+    }
+  }, [collection.products.nodes, location.search]);
+
+  // Debug pagination data on component mount
+  // useEffect(() => {
+  //   console.log(
+  //     'DiamondsCollection received pagination data:',
+  //     collection.products,
+  //   );
+  //   console.log(
+  //     'DiamondsCollection - should enable Previous button:',
+  //     collection.products.pageInfo.hasPreviousPage,
+  //   );
+  //   console.log(
+  //     'DiamondsCollection - should enable Next button:',
+  //     collection.products.pageInfo.hasNextPage,
+  //   );
+  // }, [collection.products]);
+
+  // Function to load more items
+  const loadMoreItems = useCallback(() => {
+    if (!collection.products.pageInfo.hasNextPage || isLoadingMore) return;
+
+    setIsLoadingMore(true);
+
+    // Calculate new offset
+    const newOffset = collection.products.pageInfo.endCursor
+      ? parseInt(collection.products.pageInfo.endCursor.split('=')[1])
+      : 0;
+    const newSearchParams = new URLSearchParams(location.search); // Use current location.search
+
+    // Update offset parameter
+    newSearchParams.set('offset', newOffset.toString());
+
+    // Store current products in state to be merged with new products
+    const currentProducts = [...allProducts]; // Use allProducts for accumulation
+
+    // Navigate to the new URL to fetch more items
+    const newUrl = `${location.pathname}?${newSearchParams.toString()}`;
+
+    navigate(newUrl, {
+      replace: true, // Important for infinite scroll to avoid large history stack
+      state: {
+        previousProducts: currentProducts,
+      },
+    });
+
+    // Reset loading state after navigation (may need adjustment based on data loading flow)
+    // setIsLoadingMore(false); // This might be set too early, ideally after new data is merged
+  }, [
+    collection.products.pageInfo.hasNextPage,
+    isLoadingMore,
+    location.search,
+    location.pathname,
+    navigate,
+    allProducts,
+  ]);
+
+  // Set up intersection observer for infinite scroll
+  useEffect(() => {
+    if (!loadMoreTriggerRef.current) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        const canLoadMore = collection.products.pageInfo.hasNextPage
+          ? true
+          : false;
+
+        if (entries[0].isIntersecting && canLoadMore && !isLoadingMore) {
+          // Check isLoadingMore here
+          loadMoreItems();
+        }
+      },
+      {threshold: 0.1},
+    );
+
+    observerRef.current.observe(loadMoreTriggerRef.current);
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [loadMoreItems, collection.products.pageInfo.hasNextPage, isLoadingMore]); // Add isLoadingMore to dependencies
+
+  // Extract filter state from URL search params - this is the source of truth for filters
   const filters = useMemo(() => {
+    const currentSearchParams = new URLSearchParams(location.search);
     return {
       priceRange: [
-        parseFloat(searchParams.get('minPrice') || '0'),
-        parseFloat(searchParams.get('maxPrice') || '100000'),
+        parseFloat(currentSearchParams.get('minPrice') || '0'),
+        parseFloat(currentSearchParams.get('maxPrice') || '100000'),
       ] as [number, number],
       caratRange: [
-        parseFloat(searchParams.get('minCarat') || '0'),
-        parseFloat(searchParams.get('maxCarat') || '10'),
+        parseFloat(currentSearchParams.get('minCarat') || '0'),
+        parseFloat(currentSearchParams.get('maxCarat') || '10'),
       ] as [number, number],
-      color: searchParams.getAll('color'),
-      clarity: searchParams.getAll('clarity'),
-      cut: searchParams.getAll('cut'),
-      diamondType: (searchParams.get('diamondType') || 'Lab-Grown') as
+      color: currentSearchParams.getAll('color'),
+      clarity: currentSearchParams.getAll('clarity'),
+      cut: currentSearchParams.getAll('cut'),
+      diamondType: (currentSearchParams.get('diamondType') || 'Lab-Grown') as
         | 'Natural'
         | 'Lab-Grown',
-      shape: searchParams.getAll('shape'),
-      certification: searchParams.getAll('certification'),
+      shape: currentSearchParams.getAll('shape'),
+      certification: currentSearchParams.getAll('certification'),
+      certificateNumber: currentSearchParams.get('certificateNumber') || '',
     };
-  }, [searchParams]);
+  }, [location.search]);
 
   // Extract sort option from URL
-  const sortOption = searchParams.get('sort') || 'featured';
+  const sortOption = useMemo(
+    () => new URLSearchParams(location.search).get('sort') || 'featured',
+    [location.search],
+  );
 
   // Effect to handle body scroll lock when mobile filters are open
   useEffect(() => {
@@ -274,7 +409,6 @@ export function DiamondsCollection({
     } else {
       document.body.classList.remove('body-aside-open');
     }
-    // Cleanup function to remove the class if the component unmounts while open
     return () => {
       document.body.classList.remove('body-aside-open');
     };
@@ -282,12 +416,11 @@ export function DiamondsCollection({
 
   // Function to update URL with filter changes
   const applyFilters = useCallback(
-    (newFilters: any, newSort?: string) => {
-      const newParams = new URLSearchParams();
+    (newFilters: FilterState, newSort?: string) => {
+      const newParams = new URLSearchParams(); // Start with fresh params
 
-      // Preserve pagination if needed
-      const offset = searchParams.get('offset');
-      if (offset) newParams.set('offset', offset);
+      // Always reset offset to 0 when filters change
+      newParams.set('offset', '0');
 
       // Set diamond type
       if (newFilters.diamondType) {
@@ -295,31 +428,46 @@ export function DiamondsCollection({
       }
 
       // Set shape filters (multiple possible)
-      newFilters.shape.forEach((shape: string) => {
-        newParams.append('shape', shape);
-      });
+      if (newFilters.shape && newFilters.shape.length > 0) {
+        newFilters.shape.forEach((shape: string) => {
+          newParams.append('shape', shape);
+        });
+      }
 
       // Set certification filters (multiple possible)
-      newFilters.certification.forEach((cert: string) => {
-        newParams.append('certification', cert);
-      });
+      if (newFilters.certification && newFilters.certification.length > 0) {
+        newFilters.certification.forEach((cert: string) => {
+          newParams.append('certification', cert);
+        });
+      }
+
+      // Set certificate number filter
+      if (newFilters.certificateNumber) {
+        newParams.set('certificateNumber', newFilters.certificateNumber);
+      }
 
       // Set color filters (multiple possible)
-      newFilters.color.forEach((color: string) => {
-        newParams.append('color', color);
-      });
+      if (newFilters.color && newFilters.color.length > 0) {
+        newFilters.color.forEach((color: string) => {
+          newParams.append('color', color);
+        });
+      }
 
-      // Set clarity filters (multiple possible)
-      newFilters.clarity.forEach((clarity: string) => {
-        newParams.append('clarity', clarity);
-      });
+      // Set clarity filters
+      if (newFilters.clarity && newFilters.clarity.length > 0) {
+        newFilters.clarity.forEach((clarity: string) => {
+          newParams.append('clarity', clarity);
+        });
+      }
 
-      // Set cut filters (multiple possible)
-      newFilters.cut.forEach((cut: string) => {
-        newParams.append('cut', cut);
-      });
+      // Set cut filters
+      if (newFilters.cut && newFilters.cut.length > 0) {
+        newFilters.cut.forEach((cut: string) => {
+          newParams.append('cut', cut);
+        });
+      }
 
-      // Set price range if not default
+      // Set price range
       if (newFilters.priceRange[0] > 0) {
         newParams.set('minPrice', newFilters.priceRange[0].toString());
       }
@@ -327,7 +475,7 @@ export function DiamondsCollection({
         newParams.set('maxPrice', newFilters.priceRange[1].toString());
       }
 
-      // Set carat range if not default
+      // Set carat range
       if (newFilters.caratRange[0] > 0) {
         newParams.set('minCarat', newFilters.caratRange[0].toString());
       }
@@ -340,135 +488,44 @@ export function DiamondsCollection({
         newParams.set('sort', newSort);
       }
 
-      // Navigate to new URL with filters
-      navigate(`${location.pathname}?${newParams.toString()}`);
+      const newUrl = `${location.pathname}?${newParams.toString()}`;
+      navigate(newUrl, {replace: true});
     },
-    [location.pathname, navigate, searchParams],
+    [location.pathname, navigate],
   );
 
-  // Clear all filters
-  const handleClearFilters = () => {
-    navigate(location.pathname);
-  };
+  // Handle certificate number search submission (e.g., on button click or enter)
+  const handleCertificateSearch = useCallback(() => {
+    applyFilters(
+      {...filters, certificateNumber: certificateSearch},
+      sortOption,
+    );
+  }, [applyFilters, filters, certificateSearch, sortOption]);
 
-  // Handle toggle change for diamond type
-  const handleDiamondTypeChange = (type: 'Natural' | 'Lab-Grown') => {
-    applyFilters({...filters, diamondType: type}, sortOption);
-  };
+  // Debounced search effect for certificate number
+  useEffect(() => {
+    // Only trigger search if certificateSearch has a value or if we're clearing it
+    if (certificateSearch !== (filters.certificateNumber || '')) {
+      setIsSearching(true);
+      const timeoutId = setTimeout(() => {
+        applyFilters(
+          {...filters, certificateNumber: certificateSearch || undefined},
+          sortOption,
+        );
+        setIsSearching(false);
+      }, 500); // 500ms delay for debouncing
 
-  // Handle shape selection
-  const handleShapeChange = (selectedShape: string) => {
-    const currentShapes = [...filters.shape];
-    const index = currentShapes.indexOf(selectedShape);
-
-    if (index >= 0) {
-      // Remove if already selected
-      currentShapes.splice(index, 1);
-    } else {
-      // Add if not selected
-      currentShapes.push(selectedShape);
+      return () => {
+        clearTimeout(timeoutId);
+        setIsSearching(false);
+      };
     }
+  }, [certificateSearch, applyFilters, filters, sortOption]);
 
-    applyFilters({...filters, shape: currentShapes}, sortOption);
-  };
-
-  // Handle certification selection
-  const handleCertificationChange = (selectedCert: string) => {
-    const currentCerts = [...filters.certification];
-    const index = currentCerts.indexOf(selectedCert);
-
-    if (index >= 0) {
-      // Remove if already selected
-      currentCerts.splice(index, 1);
-    } else {
-      // Add if not selected
-      currentCerts.push(selectedCert);
-    }
-
-    applyFilters({...filters, certification: currentCerts}, sortOption);
-  };
-
-  // Handle color selection
-  const handleColorChange = (selectedColor: string) => {
-    const currentColors = [...filters.color];
-    const index = currentColors.indexOf(selectedColor);
-
-    if (index >= 0) {
-      // Remove if already selected
-      currentColors.splice(index, 1);
-    } else {
-      // Add if not selected
-      currentColors.push(selectedColor);
-    }
-
-    applyFilters({...filters, color: currentColors}, sortOption);
-  };
-
-  // Handle clarity selection
-  const handleClarityChange = (selectedClarity: string) => {
-    const currentClarities = [...filters.clarity];
-    const index = currentClarities.indexOf(selectedClarity);
-
-    if (index >= 0) {
-      // Remove if already selected
-      currentClarities.splice(index, 1);
-    } else {
-      // Add if not selected
-      currentClarities.push(selectedClarity);
-    }
-
-    applyFilters({...filters, clarity: currentClarities}, sortOption);
-  };
-
-  // Handle cut selection
-  const handleCutChange = (selectedCut: string) => {
-    const currentCuts = [...filters.cut];
-    const index = currentCuts.indexOf(selectedCut);
-
-    if (index >= 0) {
-      // Remove if already selected
-      currentCuts.splice(index, 1);
-    } else {
-      // Add if not selected
-      currentCuts.push(selectedCut);
-    }
-
-    applyFilters({...filters, cut: currentCuts}, sortOption);
-  };
-
-  // Handle sort change
-  const handleSortChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const newSortOption = event.target.value;
-    applyFilters(filters, newSortOption);
-  };
-
-  // Handle price range change
-  const handlePriceRangeChange = (value: number | number[]) => {
-    if (Array.isArray(value) && value.length === 2) {
-      // Only apply after a delay to prevent too many URL changes while sliding
-      applyFilters(
-        {...filters, priceRange: value as [number, number]},
-        sortOption,
-      );
-    }
-  };
-
-  // Handle carat range change
-  const handleCaratRangeChange = (value: number | number[]) => {
-    if (Array.isArray(value) && value.length === 2) {
-      // Only apply after a delay to prevent too many URL changes while sliding
-      applyFilters(
-        {
-          ...filters,
-          caratRange: [
-            parseFloat(value[0].toFixed(2)),
-            parseFloat(value[1].toFixed(2)),
-          ] as [number, number],
-        },
-        sortOption,
-      );
-    }
-  };
+  // Update local certificateSearch state when the filters.certificateNumber (from URL) changes
+  useEffect(() => {
+    setCertificateSearch(filters.certificateNumber || '');
+  }, [filters.certificateNumber]);
 
   // Filter display logic remains untouched
 
@@ -502,7 +559,10 @@ export function DiamondsCollection({
               <select
                 id="sort-select"
                 value={sortOption}
-                onChange={handleSortChange}
+                onChange={(e) => {
+                  const newSortOption = e.target.value;
+                  applyFilters(filters, newSortOption);
+                }}
                 className="appearance-none block w-full bg-white border border-slate-300 hover:border-slate-600 px-3 py-2 pr-8 rounded hover:shadow-md text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-slate-600"
               >
                 {sortOptions.map((option) => (
@@ -539,7 +599,9 @@ export function DiamondsCollection({
               filters.caratRange[1] < 10) && (
               <button
                 type="button"
-                onClick={handleClearFilters}
+                onClick={() => {
+                  navigate(location.pathname);
+                }}
                 className="text-sm text-gray-600 hover:text-black font-normal underline underline-offset-2"
               >
                 Clear All
@@ -547,12 +609,64 @@ export function DiamondsCollection({
             )}
           </div>
 
+          {/* Certificate Number Search - Placed before Natural/Lab-Grown Toggle */}
+          <div className="filter-group mb-6">
+            <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-2 uppercase">
+              Search by Certificate #
+            </h3>
+            <div className="relative">
+              <input
+                type="text"
+                value={certificateSearch}
+                onChange={(e) => setCertificateSearch(e.target.value)}
+                placeholder="Type GIA/IGI Number..."
+                className="w-full p-2 pr-10 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+              />
+              {/* Search/Loading indicator */}
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                {isSearching ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-black rounded-full"></div>
+                ) : certificateSearch ? (
+                  <svg
+                    className="h-4 w-4 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Natural/Lab-Grown Toggle - Add margin-bottom */}
           <div className="natural-lab-toggle flex border border-gray-300 rounded overflow-hidden mb-6">
             {/* Lab-Grown button first */}
             <button
               type="button"
-              onClick={() => handleDiamondTypeChange('Lab-Grown')}
+              onClick={() =>
+                applyFilters({...filters, diamondType: 'Lab-Grown'}, sortOption)
+              }
               className={`flex-1 py-3 px-4 text-center text-sm md:text-base font-['SF_Pro'] font-normal transition-colors duration-150 ${
                 filters.diamondType === 'Lab-Grown'
                   ? 'bg-black text-white'
@@ -564,7 +678,9 @@ export function DiamondsCollection({
             {/* Natural button second */}
             <button
               type="button"
-              onClick={() => handleDiamondTypeChange('Natural')}
+              onClick={() =>
+                applyFilters({...filters, diamondType: 'Natural'}, sortOption)
+              }
               className={`flex-1 py-3 px-4 text-center text-sm md:text-base font-['SF_Pro'] font-normal transition-colors duration-150 ${
                 filters.diamondType === 'Natural'
                   ? 'bg-black text-white'
@@ -587,7 +703,17 @@ export function DiamondsCollection({
                   <button
                     key={shape.name}
                     type="button"
-                    onClick={() => handleShapeChange(shape.name)}
+                    onClick={() =>
+                      applyFilters(
+                        {
+                          ...filters,
+                          shape: isSelected
+                            ? filters.shape.filter((s) => s !== shape.name)
+                            : ([...filters.shape, shape.name] as string[]),
+                        },
+                        sortOption,
+                      )
+                    }
                     className={`flex flex-col items-center justify-between gap-2 p-3 border rounded ${
                       isSelected
                         ? 'border-black bg-gray-100'
@@ -628,7 +754,15 @@ export function DiamondsCollection({
                     type="checkbox"
                     value={cert}
                     checked={filters.certification.includes(cert)}
-                    onChange={() => handleCertificationChange(cert)}
+                    onChange={(e) => {
+                      const newCertification = e.target.checked
+                        ? [...filters.certification, cert]
+                        : filters.certification.filter((c) => c !== cert);
+                      applyFilters(
+                        {...filters, certification: newCertification},
+                        sortOption,
+                      );
+                    }}
                     className="opacity-0 absolute h-0 w-0"
                   />
                   <div
@@ -686,7 +820,12 @@ export function DiamondsCollection({
                     type="checkbox"
                     value={col}
                     checked={filters.color.includes(col)}
-                    onChange={() => handleColorChange(col)}
+                    onChange={(e) => {
+                      const newColor = e.target.checked
+                        ? [...filters.color, col]
+                        : filters.color.filter((c) => c !== col);
+                      applyFilters({...filters, color: newColor}, sortOption);
+                    }}
                     className="opacity-0 absolute h-0 w-0"
                   />
                   <div
@@ -735,7 +874,12 @@ export function DiamondsCollection({
                     type="checkbox"
                     value={col}
                     checked={filters.color.includes(col)}
-                    onChange={() => handleColorChange(col)}
+                    onChange={(e) => {
+                      const newColor = e.target.checked
+                        ? [...filters.color, col]
+                        : filters.color.filter((c) => c !== col);
+                      applyFilters({...filters, color: newColor}, sortOption);
+                    }}
                     className="opacity-0 absolute h-0 w-0"
                   />
                   <div
@@ -791,7 +935,15 @@ export function DiamondsCollection({
                     type="checkbox"
                     value={clar}
                     checked={filters.clarity.includes(clar)}
-                    onChange={() => handleClarityChange(clar)}
+                    onChange={(e) => {
+                      const newClarity = e.target.checked
+                        ? [...filters.clarity, clar]
+                        : filters.clarity.filter((c) => c !== clar);
+                      applyFilters(
+                        {...filters, clarity: newClarity},
+                        sortOption,
+                      );
+                    }}
                     className="opacity-0 absolute h-0 w-0"
                   />
                   <div
@@ -840,7 +992,15 @@ export function DiamondsCollection({
                     type="checkbox"
                     value={clar}
                     checked={filters.clarity.includes(clar)}
-                    onChange={() => handleClarityChange(clar)}
+                    onChange={(e) => {
+                      const newClarity = e.target.checked
+                        ? [...filters.clarity, clar]
+                        : filters.clarity.filter((c) => c !== clar);
+                      applyFilters(
+                        {...filters, clarity: newClarity},
+                        sortOption,
+                      );
+                    }}
                     className="opacity-0 absolute h-0 w-0"
                   />
                   <div
@@ -892,7 +1052,12 @@ export function DiamondsCollection({
                     type="checkbox"
                     value={cut}
                     checked={filters.cut.includes(cut)}
-                    onChange={() => handleCutChange(cut)}
+                    onChange={(e) => {
+                      const newCut = e.target.checked
+                        ? [...filters.cut, cut]
+                        : filters.cut.filter((c) => c !== cut);
+                      applyFilters({...filters, cut: newCut}, sortOption);
+                    }}
                     className="opacity-0 absolute h-0 w-0"
                   />
                   <div
@@ -938,7 +1103,10 @@ export function DiamondsCollection({
               onChange={(value) => {
                 // Prepare debounced update
                 if (Array.isArray(value) && value.length === 2) {
-                  handlePriceRangeChange(value);
+                  applyFilters(
+                    {...filters, priceRange: value as [number, number]},
+                    sortOption,
+                  );
                 }
               }}
             />
@@ -963,10 +1131,16 @@ export function DiamondsCollection({
                         newMin,
                         filters.priceRange[1],
                       );
-                      handlePriceRangeChange([
-                        validatedMin,
-                        filters.priceRange[1],
-                      ]);
+                      applyFilters(
+                        {
+                          ...filters,
+                          priceRange: [validatedMin, filters.priceRange[1]] as [
+                            number,
+                            number,
+                          ],
+                        },
+                        sortOption,
+                      );
                     }
                   }}
                   className="w-full p-1 border rounded text-sm"
@@ -993,10 +1167,16 @@ export function DiamondsCollection({
                         newMax,
                         filters.priceRange[0],
                       );
-                      handlePriceRangeChange([
-                        filters.priceRange[0],
-                        validatedMax,
-                      ]);
+                      applyFilters(
+                        {
+                          ...filters,
+                          priceRange: [filters.priceRange[0], validatedMax] as [
+                            number,
+                            number,
+                          ],
+                        },
+                        sortOption,
+                      );
                     }
                   }}
                   className="w-full p-1 border rounded text-sm"
@@ -1018,7 +1198,10 @@ export function DiamondsCollection({
               value={filters.caratRange}
               onChange={(value) => {
                 if (Array.isArray(value) && value.length === 2) {
-                  handleCaratRangeChange(value);
+                  applyFilters(
+                    {...filters, caratRange: value as [number, number]},
+                    sortOption,
+                  );
                 }
               }}
             />
@@ -1044,10 +1227,16 @@ export function DiamondsCollection({
                         newMin,
                         filters.caratRange[1],
                       );
-                      handleCaratRangeChange([
-                        parseFloat(validatedMin.toFixed(2)),
-                        filters.caratRange[1],
-                      ]);
+                      applyFilters(
+                        {
+                          ...filters,
+                          caratRange: [validatedMin, filters.caratRange[1]] as [
+                            number,
+                            number,
+                          ],
+                        },
+                        sortOption,
+                      );
                     }
                   }}
                   className="w-full p-1 border rounded text-sm"
@@ -1075,10 +1264,16 @@ export function DiamondsCollection({
                         newMax,
                         filters.caratRange[0],
                       );
-                      handleCaratRangeChange([
-                        filters.caratRange[0],
-                        parseFloat(validatedMax.toFixed(2)),
-                      ]);
+                      applyFilters(
+                        {
+                          ...filters,
+                          caratRange: [filters.caratRange[0], validatedMax] as [
+                            number,
+                            number,
+                          ],
+                        },
+                        sortOption,
+                      );
                     }
                   }}
                   className="w-full p-1 border rounded text-sm"
@@ -1092,8 +1287,8 @@ export function DiamondsCollection({
         <div className="flex-1 min-w-0">
           {/* Display Products */}
           <div className="products-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1 md:gap-2">
-            {collection.products.nodes.length > 0 ? (
-              collection.products.nodes.map((product: ProductWithDetails) => (
+            {allProducts.length > 0 ? (
+              allProducts.map((product: ProductWithDetails) => (
                 <ProductItem
                   key={`${product.id}-${sortOption}`}
                   product={product}
@@ -1167,8 +1362,12 @@ export function DiamondsCollection({
 
 // Update the ProductItem component to safely handle properties that might be null/undefined
 function ProductItem({product}: {product: ProductWithDetails}) {
-  const variantUrl = useVariantUrl(product.handle);
-  console.log('Product item to render:', product);
+  const originalVariantUrl = useVariantUrl(product.handle);
+  const variantUrl =
+    product.existsInShopify && product.shopifyHandle
+      ? `/products/${product.shopifyHandle}`
+      : originalVariantUrl;
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
 
   // Get the merchandiseId (variant ID) from the first variant
   const merchandiseId = product.variants?.nodes?.[0]?.id;
@@ -1216,9 +1415,6 @@ function ProductItem({product}: {product: ProductWithDetails}) {
     />
   );
 
-  // Check if we have a valid image URL
-  const hasValidImage = product.images.nodes.length > 0;
-
   // Get the product's price as a formatted string
   const getPrice = () => {
     if (!product.priceRange?.minVariantPrice) {
@@ -1226,6 +1422,21 @@ function ProductItem({product}: {product: ProductWithDetails}) {
     }
     return <Money data={product.priceRange.minVariantPrice} />;
   };
+
+  // Get direct image URL for fallback
+  const getDirectImageUrl = () => {
+    if (product.featuredImage?.url) {
+      return product.featuredImage.url;
+    }
+
+    if (product.images?.nodes?.[0]?.url) {
+      return product.images.nodes[0].url;
+    }
+
+    return null;
+  };
+
+  const imageUrl = getDirectImageUrl();
 
   return (
     <div className="product-item-container border border-slate-200 rounded-md overflow-hidden flex flex-col transition-shadow duration-200 hover:shadow-md no-underline">
@@ -1236,33 +1447,34 @@ function ProductItem({product}: {product: ProductWithDetails}) {
         className="group flex flex-col flex-grow hover:!no-underline relative"
       >
         <div className="relative w-full h-64 bg-gray-100">
-          {hasValidImage ? (
+          {imageUrl && !imageLoadFailed ? (
             <img
-              src={product.images.nodes[0].url}
-              alt={product.images.nodes[0].altText || 'Diamond image'}
+              src={imageUrl}
+              alt={product.title || 'Diamond image'}
               className="w-full h-full object-contain"
+              onError={() => {
+                setImageLoadFailed(true);
+              }}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
-              No Image Available
-            </div>
-          )}
-
-          {/* Video thumbnail overlay if available */}
-          {/* {product.videoUrl && (
-            <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 rounded-full p-1">
+            <div className="w-full h-full flex items-center justify-center text-gray-400 flex-col">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
+                className="h-12 w-12"
+                fill="none"
                 viewBox="0 0 24 24"
-                fill="white"
-                width="24px"
-                height="24px"
+                stroke="currentColor"
               >
-                <path d="M0 0h24v24H0z" fill="none" />
-                <path d="M8 5v14l11-7z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1}
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
               </svg>
-          </div>
-          )} */}
+              <p className="ml-2 mt-2">No Image Available</p>
+            </div>
+          )}
         </div>
 
         <div className="p-4 flex flex-col flex-grow">
@@ -1330,18 +1542,223 @@ function ProductItem({product}: {product: ProductWithDetails}) {
 
       {/* Add to Cart Button */}
       <div className="p-4 pt-0">
-        {merchandiseId ? (
-          <AddToCartButton
-            lines={[{merchandiseId, quantity: 1}]}
-            className="w-full bg-black text-white px-4 py-2 text-sm font-light hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50"
-          >
-            Add to Cart
-          </AddToCartButton>
+        {product.merchandiseId ? (
+          product.existsInShopify ? (
+            <Link
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200"
+              to={variantUrl}
+            >
+              View Product
+            </Link>
+          ) : (
+            <AddToCartButton
+              disabled={false}
+              lines={[
+                {
+                  merchandiseId: product.merchandiseId.split('/')[1],
+                  quantity: 1,
+                  selectedVariant: {
+                    id: product.merchandiseId.split('/')[1],
+                    title: `${attributes.shape || 'Diamond'} Diamond - ${
+                      attributes.carat || '1'
+                    }ct`,
+                    availableForSale: true,
+                    price: {
+                      amount:
+                        product.priceRange?.minVariantPrice?.amount || '1000',
+                      currencyCode:
+                        product.priceRange?.minVariantPrice?.currencyCode ||
+                        'USD',
+                    },
+                    product: {
+                      id: product.id.split('/')[1],
+                      title: `${attributes.shape || 'Diamond'} Diamond - ${
+                        attributes.carat || '1'
+                      }ct`,
+                      handle: product.handle || `diamond-${product.id}`,
+                      vendor: 'Nivoda',
+                      productType: 'Diamond',
+                    },
+                  },
+                },
+              ]}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              createProduct={true}
+              productData={{
+                title: `${attributes.shape || 'Diamond'} Diamond - ${
+                  attributes.carat || '1'
+                }ct`,
+                description: `Beautiful ${(
+                  attributes.shape || 'round'
+                ).toLowerCase()} cut diamond weighing ${
+                  attributes.carat || '1'
+                } carats with ${attributes.color || 'G'} color and ${
+                  attributes.clarity || 'VS1'
+                } clarity. Certificate: ${attributes.certification || 'GIA'} ${
+                  product.certificateNumber ||
+                  product.nivodaCertificateDetails?.certNumber ||
+                  ''
+                }. Price: $${
+                  product.priceRange?.minVariantPrice?.amount || '1000'
+                }. Lab: ${
+                  product.nivodaCertificateDetails?.lab || 'GIA'
+                }. Polish: ${
+                  product.nivodaCertificateDetails?.polish || 'Excellent'
+                }. Symmetry: ${
+                  product.nivodaCertificateDetails?.symmetry || 'Excellent'
+                }.`,
+                vendor: 'Nivoda',
+                productType: 'Diamond',
+                tags: [
+                  'diamond',
+                  (attributes.shape || 'round').toLowerCase(),
+                  attributes.color || 'G',
+                  attributes.clarity || 'VS1',
+                  attributes.certification || 'GIA',
+                  product.nivodaCertificateDetails?.lab || 'GIA',
+                  'lab-grown',
+                ],
+                images: product.featuredImage?.url ? [product.featuredImage.url] : [],
+                metafields: [
+                  {
+                    namespace: 'nivoda',
+                    key: 'nivodaStockId',
+                    value: product.id,
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'carat',
+                    value: (attributes.carat || '1').toString(),
+                    type: 'number_decimal',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'color',
+                    value: attributes.color || 'G',
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'clarity',
+                    value: attributes.clarity || 'VS1',
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'shape',
+                    value: attributes.shape || 'Round',
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'certificate',
+                    value: attributes.certification || 'GIA',
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'certificateNumber',
+                    value:
+                      product.certificateNumber ||
+                      product.nivodaCertificateDetails?.certNumber ||
+                      '',
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'price',
+                    value: (
+                      product.priceRange?.minVariantPrice?.amount || '1000'
+                    ).toString(),
+                    type: 'number_decimal',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'lab',
+                    value: product.nivodaCertificateDetails?.lab || 'GIA',
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'polish',
+                    value:
+                      product.nivodaCertificateDetails?.polish || 'Excellent',
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'symmetry',
+                    value:
+                      product.nivodaCertificateDetails?.symmetry || 'Excellent',
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'dimensions',
+                    value: `${
+                      product.nivodaCertificateDetails?.length || 0
+                    } x ${product.nivodaCertificateDetails?.width || 0} x ${
+                      product.nivodaCertificateDetails?.depth || 0
+                    }`,
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'depthPercentage',
+                    value: (
+                      product.nivodaCertificateDetails?.depthPercentage || 0
+                    ).toString(),
+                    type: 'number_decimal',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'table',
+                    value: (
+                      product.nivodaCertificateDetails?.table || 0
+                    ).toString(),
+                    type: 'number_decimal',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'girdle',
+                    value: product.nivodaCertificateDetails?.girdle || '',
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'diamond',
+                    key: 'fluorescence',
+                    value: product.nivodaCertificateDetails?.floInt || 'None',
+                    type: 'single_line_text_field',
+                  },
+                ],
+                variants: [
+                  {
+                    price: parseFloat(
+                      product.priceRange?.minVariantPrice?.amount || '1000',
+                    ),
+                    compareAtPrice: null,
+                    sku:
+                      product.certificateNumber ||
+                      product.nivodaCertificateDetails?.certNumber ||
+                      product.id,
+                    inventoryQuantity: 1,
+                    inventoryPolicy: 'DENY',
+                    requiresShipping: true,
+                    taxable: true,
+                    weight: parseFloat(attributes.carat || '1'),
+                    weightUnit: 'GRAMS',
+                  },
+                ],
+              }}
+            >
+              Add to Cart
+            </AddToCartButton>
+          )
         ) : (
           <button
-            type="button"
-            className="w-full bg-gray-400 text-white px-4 py-2 text-sm font-light cursor-not-allowed"
             disabled
+            className="w-full bg-gray-400 text-white py-2 px-4 rounded-md text-sm font-medium cursor-not-allowed"
           >
             Unavailable
           </button>

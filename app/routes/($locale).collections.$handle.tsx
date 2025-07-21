@@ -30,6 +30,7 @@ type ProductWithNivodaDetails = ProductItemFragment & {
   nivodaId?: {value: string} | null; // Keep this to perform the lookup
   nivodaDetails?: NivodaDiamondDetails | null; // Store fetched details here
   certificateNumber?: string | null; // Added certificateNumber to the final merged product type
+  merchandiseId?: string; // Add merchandiseId for compatibility with AddToCartButton
 };
 
 // Update the ExtendedCollectionType to use the new product type
@@ -66,8 +67,8 @@ type NivodaResponse = {
 type NivodaAuthResponse = {
   data?: {
     authenticate?: {
-      username_and_password?: {
-        token?: string | null;
+    username_and_password?: {
+      token?: string | null;
         expires?: string | null;
       } | null;
     } | null;
@@ -182,6 +183,9 @@ type ProductDataFromNivoda = {
   certificateNumber: string | null;
   videoUrl?: string | null;
   availabilityStatus?: string | null;
+  existsInShopify: boolean;
+  shopifyHandle?: string | null;
+  merchandiseId?: string;
 };
 
 // Type for a collection object when its data is sourced purely from Nivoda
@@ -237,12 +241,11 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
 
   if (handle.toLowerCase() === 'diamonds') {
     console.log("[Loader] Handling 'diamonds' collection via Nivoda API");
-    const nivodaEmail = env.NIVODA_USERNAME;
-    const nivodaPassword = env.NIVODA_PASSWORD;
-    const nivodaApiUrl =
-      'https://intg-customer-staging.nivodaapi.net/api/diamonds';
+      const nivodaEmail = env.NIVODA_USERNAME;
+      const nivodaPassword = env.NIVODA_PASSWORD;
+      const nivodaApiUrl = 'https://integrations.nivoda.net/api/diamonds';
 
-    if (!nivodaEmail || !nivodaPassword) {
+      if (!nivodaEmail || !nivodaPassword) {
       console.warn(
         'NIVODA_USERNAME or NIVODA_PASSWORD are not set. Cannot fetch diamonds from Nivoda.',
       );
@@ -251,10 +254,10 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
       });
     }
 
-    let authToken: string | null = null;
-    try {
+        let authToken: string | null = null;
+        try {
       console.log('Authenticating with Nivoda API for diamond listing...');
-      const authQuery = ` 
+      const authQuery = `
         query Authenticate($username: String!, $password: String!) {
           authenticate {
             username_and_password(username: $username, password: $password) {
@@ -272,6 +275,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
           variables: {username: nivodaEmail, password: nivodaPassword},
         }),
       });
+
       if (!authResponse.ok) {
         const errorBody = await authResponse.text();
         console.error(
@@ -280,7 +284,10 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
         );
         throw new Error(`Nivoda authentication failed: ${authResponse.status}`);
       }
-      const authResult = (await authResponse.json()) as NivodaAuthResponse;
+
+          const authResult = (await authResponse.json()) as NivodaAuthResponse;
+      console.log('Nivoda auth response:', JSON.stringify(authResult, null, 2));
+
       if (authResult.errors) {
         console.error(
           'Nivoda Authentication GraphQL Errors (diamonds flow):',
@@ -288,6 +295,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
         );
         throw new Error('Nivoda authentication returned GraphQL errors.');
       }
+
       authToken =
         authResult.data?.authenticate?.username_and_password?.token ?? null;
       if (!authToken) {
@@ -305,8 +313,160 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
         'Failed during Nivoda authentication step (diamonds flow):',
         error.message,
       );
-      throw new Response(`Nivoda authentication error: ${error.message}`, {
-        status: 500,
+
+      // Fallback: Return mock diamond data instead of crashing
+      console.log(
+        'Falling back to mock diamond data due to authentication failure',
+      );
+
+      const mockDiamonds: ProductDataFromNivoda[] = [
+        {
+          id: 'nivoda-mock-1',
+          handle: 'diamond-mock-1',
+          title: '1.50ct Round Brilliant Diamond',
+          productType: 'Diamond' as const,
+          vendor: 'Nivoda',
+          descriptionHtml:
+            '<p><strong>Shape:</strong> Round<br/><strong>Carat:</strong> 1.50 ct<br/><strong>Color:</strong> D<br/><strong>Clarity:</strong> VS1<br/><strong>Cut:</strong> Excellent<br/><strong>Lab:</strong> GIA<br/><strong>Certificate Number:</strong> 2141234567</p>',
+          featuredImage: {
+            url: 'https://via.placeholder.com/800x800?text=Diamond+1.5ct',
+            altText: '1.50ct Round Brilliant Diamond',
+          },
+          images: {
+            nodes: [
+              {
+                url: 'https://via.placeholder.com/800x800?text=Diamond+1.5ct',
+                altText: '1.50ct Round Brilliant Diamond',
+              },
+            ],
+            pageInfo: {hasNextPage: false, endCursor: null},
+          },
+          priceRange: {
+            minVariantPrice: {amount: '8500', currencyCode: 'USD'},
+            maxVariantPrice: {amount: '8500', currencyCode: 'USD'},
+          },
+          nivodaId: {value: 'mock-1'},
+          nivodaStockNum: 'MOCK-001',
+          nivodaCertificateDetails: {
+            color: 'D',
+            clarity: 'VS1',
+            cut: 'Excellent',
+            certNumber: '2141234567',
+            shape: 'Round',
+            carats: 1.5,
+            lab: 'GIA',
+            polish: 'Excellent',
+            symmetry: 'Excellent',
+          },
+          certificateNumber: '2141234567',
+          videoUrl: null,
+          availabilityStatus: 'AVAILABLE',
+          options: [{name: 'Title', values: ['Default Title']}],
+          variants: {
+            nodes: [
+              {
+                id: 'nivoda-variant-mock-1',
+                availableForSale: true,
+                price: {amount: '8500', currencyCode: 'USD'},
+                title: 'Default Title',
+              },
+            ],
+            pageInfo: {hasNextPage: false, endCursor: null},
+          },
+          existsInShopify: false,
+          shopifyHandle: null,
+          merchandiseId: 'nivoda-variant-mock-1',
+        },
+        {
+          id: 'nivoda-mock-2',
+          handle: 'diamond-mock-2',
+          title: '2.00ct Princess Cut Diamond',
+          productType: 'Diamond' as const,
+          vendor: 'Nivoda',
+          descriptionHtml:
+            '<p><strong>Shape:</strong> Princess<br/><strong>Carat:</strong> 2.00 ct<br/><strong>Color:</strong> E<br/><strong>Clarity:</strong> VVS2<br/><strong>Cut:</strong> Very Good<br/><strong>Lab:</strong> GIA<br/><strong>Certificate Number:</strong> 5171234568</p>',
+          featuredImage: {
+            url: 'https://via.placeholder.com/800x800?text=Diamond+2.0ct',
+            altText: '2.00ct Princess Cut Diamond',
+          },
+          images: {
+            nodes: [
+              {
+                url: 'https://via.placeholder.com/800x800?text=Diamond+2.0ct',
+                altText: '2.00ct Princess Cut Diamond',
+              },
+            ],
+            pageInfo: {hasNextPage: false, endCursor: null},
+          },
+          priceRange: {
+            minVariantPrice: {amount: '15000', currencyCode: 'USD'},
+            maxVariantPrice: {amount: '15000', currencyCode: 'USD'},
+          },
+          nivodaId: {value: 'mock-2'},
+          nivodaStockNum: 'MOCK-002',
+          nivodaCertificateDetails: {
+            color: 'E',
+            clarity: 'VVS2',
+            cut: 'Very Good',
+            certNumber: '5171234568',
+            shape: 'Princess',
+            carats: 2.0,
+            lab: 'GIA',
+            polish: 'Very Good',
+            symmetry: 'Very Good',
+          },
+          certificateNumber: '5171234568',
+          videoUrl: null,
+          availabilityStatus: 'AVAILABLE',
+          options: [{name: 'Title', values: ['Default Title']}],
+          variants: {
+            nodes: [
+              {
+                id: 'nivoda-variant-mock-2',
+                availableForSale: true,
+                price: {amount: '15000', currencyCode: 'USD'},
+                title: 'Default Title',
+              },
+            ],
+            pageInfo: {hasNextPage: false, endCursor: null},
+          },
+          existsInShopify: false,
+          shopifyHandle: null,
+          merchandiseId: 'nivoda-variant-mock-2',
+        },
+      ];
+
+      const mockCollection: NivodaSourcedCollection = {
+        id: 'gid://nivoda/Collection/diamonds',
+        handle: 'diamonds',
+        title: 'Diamonds (Mock Data)',
+        description: 'Mock diamond data - Nivoda authentication failed',
+        products: {
+          nodes: mockDiamonds,
+          pageInfo: {
+            hasPreviousPage: false,
+            hasNextPage: false,
+            startCursor: null,
+            endCursor: null,
+          },
+        },
+        seo: {
+          title: 'Diamonds (Mock Data)',
+        },
+      };
+
+      return json({
+        collection: mockCollection,
+        initialDiamondType,
+        analytics: {
+          collection: {
+            id: mockCollection.id,
+            handle: mockCollection.handle,
+          },
+        },
+        dataSource: 'nivoda',
+        nivodaTotalCount: 2,
+        error: 'Using mock data due to Nivoda authentication failure',
       });
     }
 
@@ -427,7 +587,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
               id: `nivoda-${item.id}`,
               handle: `diamond-${item.id}`.toLowerCase(),
               title: `Diamond ${item.id}`,
-              productType: 'Diamond',
+              productType: 'Diamond' as const,
               vendor: 'Nivoda',
               descriptionHtml: '<p>Diamond details unavailable</p>',
               featuredImage: null,
@@ -450,6 +610,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
                 ],
                 pageInfo: {hasNextPage: false, endCursor: null},
               },
+              existsInShopify: false,
             };
           }
 
@@ -459,13 +620,13 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
           // Fix image URL if needed - some APIs return relative paths
           let imageUrl = nivDiamondInfo.image;
           if (imageUrl && !imageUrl.startsWith('http')) {
-            imageUrl = `https://intg-customer-staging.nivodaapi.net${imageUrl}`;
+            imageUrl = `https://integrations.nivoda.net${imageUrl}`;
           }
 
           // Fix video URL if needed
           let videoUrl = nivDiamondInfo.video;
           if (videoUrl && !videoUrl.startsWith('http')) {
-            videoUrl = `https://intg-customer-staging.nivodaapi.net${videoUrl}`;
+            videoUrl = `https://integrations.nivoda.net${videoUrl}`;
           }
 
           // Build a descriptive title
@@ -568,7 +729,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
             id: `nivoda-${item.id}`,
             handle: `diamond-${item.id}`.toLowerCase(),
             title,
-            productType: 'Diamond',
+            productType: 'Diamond' as const,
             vendor: 'Nivoda',
             descriptionHtml: descHtml,
             featuredImage: imageUrl ? {url: imageUrl, altText: title} : null,
@@ -610,6 +771,8 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
               ],
               pageInfo: {hasNextPage: false, endCursor: null},
             },
+            existsInShopify: false,
+            merchandiseId: `nivoda-variant-${item.id}`,
           };
         },
       );
@@ -743,7 +906,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
         const nivodaEmailForShopify = env.NIVODA_USERNAME;
         const nivodaPasswordForShopify = env.NIVODA_PASSWORD;
         const nivodaApiUrlForShopify =
-          'https://intg-customer-staging.nivodaapi.net/api/diamonds';
+          'https://integrations.nivoda.net/api/diamonds';
 
         if (!nivodaEmailForShopify || !nivodaPasswordForShopify) {
           console.warn(
@@ -870,7 +1033,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
         (productNode) => {
           const nivodaIdVal = productNode.nivodaId?.value;
           const details = nivodaIdVal ? nivodaDataMap.get(nivodaIdVal) : null;
-          return {
+      return {
             ...productNode,
             nivodaDetails: details || null,
             certificateNumber: details?.certNumber || null,
@@ -879,17 +1042,17 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
       );
     }
 
-    return json({
-      collection,
+  return json({
+    collection,
       initialDiamondType,
-      analytics: {
-        collection: {
-          id: collection.id,
-          handle: collection.handle,
-        },
+    analytics: {
+      collection: {
+        id: collection.id,
+        handle: collection.handle,
       },
+    },
       dataSource: 'shopify',
-    });
+  });
   }
 }
 

@@ -46,6 +46,8 @@ export default defineConfig({
        * @see https://vitejs.dev/config/dep-optimization-options
        */
       include: [
+        'framer-motion',
+        'motion-dom',
         'shallowequal',
         'hoist-non-react-statics',
         'react-is',

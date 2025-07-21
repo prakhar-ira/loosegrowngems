@@ -13,6 +13,11 @@ export default async function handleRequest(
   context: AppLoadContext,
 ) {
   const {nonce, header, NonceProvider} = createContentSecurityPolicy({
+    imgSrc: [
+      "'self'", // Allow same-origin images
+      'https://cdn.shopify.com', // Shopify CDN
+      'https://nivoda-images.nivodaapi.net', // Add Nivoda domain
+    ],
     styleSrc: [
       "'self'",
       "'unsafe-inline'",
