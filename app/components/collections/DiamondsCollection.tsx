@@ -1587,26 +1587,32 @@ function ProductItem({product}: {product: ProductWithDetails}) {
               productData={{
                 title: `${attributes.shape || 'Diamond'} Diamond - ${
                   attributes.carat || '1'
-                }ct`,
+                }ct ${attributes.color || 'G'} ${attributes.clarity || 'VS1'}${
+                  product.certificateNumber ||
+                  product.nivodaCertificateDetails?.certNumber
+                    ? ` - Cert# ${
+                        product.certificateNumber ||
+                        product.nivodaCertificateDetails?.certNumber
+                      }`
+                    : ''
+                }`,
                 description: `Beautiful ${(
                   attributes.shape || 'round'
                 ).toLowerCase()} cut diamond weighing ${
                   attributes.carat || '1'
                 } carats with ${attributes.color || 'G'} color and ${
                   attributes.clarity || 'VS1'
-                } clarity. Certificate: ${attributes.certification || 'GIA'} ${
+                } clarity. Certificate: ${attributes.certification || 'GIA'}${
                   product.certificateNumber ||
-                  product.nivodaCertificateDetails?.certNumber ||
-                  ''
+                  product.nivodaCertificateDetails?.certNumber
+                    ? `. Certificate Number: ${
+                        product.certificateNumber ||
+                        product.nivodaCertificateDetails?.certNumber
+                      }`
+                    : ''
                 }. Price: $${
                   product.priceRange?.minVariantPrice?.amount || '1000'
-                }. Lab: ${
-                  product.nivodaCertificateDetails?.lab || 'GIA'
-                }. Polish: ${
-                  product.nivodaCertificateDetails?.polish || 'Excellent'
-                }. Symmetry: ${
-                  product.nivodaCertificateDetails?.symmetry || 'Excellent'
-                }.`,
+                }`,
                 vendor: 'Nivoda',
                 productType: 'Diamond',
                 tags: [
@@ -1615,15 +1621,39 @@ function ProductItem({product}: {product: ProductWithDetails}) {
                   attributes.color || 'G',
                   attributes.clarity || 'VS1',
                   attributes.certification || 'GIA',
-                  product.nivodaCertificateDetails?.lab || 'GIA',
-                  'lab-grown',
+                  'nivoda',
                 ],
-                images: product.featuredImage?.url ? [product.featuredImage.url] : [],
+                images: product.featuredImage?.url
+                  ? [product.featuredImage.url]
+                  : [],
                 metafields: [
                   {
                     namespace: 'nivoda',
                     key: 'nivodaStockId',
                     value: product.id,
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'nivoda',
+                    key: 'originalPrice',
+                    value: (
+                      product.priceRange?.minVariantPrice?.amount || '1000'
+                    ).toString(),
+                    type: 'number_decimal',
+                  },
+                  {
+                    namespace: 'certificate',
+                    key: 'certificateNumber',
+                    value:
+                      product.certificateNumber ||
+                      product.nivodaCertificateDetails?.certNumber ||
+                      '',
+                    type: 'single_line_text_field',
+                  },
+                  {
+                    namespace: 'certificate',
+                    key: 'lab',
+                    value: attributes.certification || 'GIA',
                     type: 'single_line_text_field',
                   },
                   {
@@ -1652,85 +1682,112 @@ function ProductItem({product}: {product: ProductWithDetails}) {
                   },
                   {
                     namespace: 'diamond',
-                    key: 'certificate',
-                    value: attributes.certification || 'GIA',
+                    key: 'cut',
+                    value: attributes.cut || 'Excellent',
                     type: 'single_line_text_field',
                   },
                   {
                     namespace: 'diamond',
-                    key: 'certificateNumber',
-                    value:
-                      product.certificateNumber ||
-                      product.nivodaCertificateDetails?.certNumber ||
-                      '',
+                    key: 'type',
+                    value: attributes.type || 'Lab-Grown',
                     type: 'single_line_text_field',
                   },
-                  {
-                    namespace: 'diamond',
-                    key: 'price',
-                    value: (
-                      product.priceRange?.minVariantPrice?.amount || '1000'
-                    ).toString(),
-                    type: 'number_decimal',
-                  },
-                  {
-                    namespace: 'diamond',
-                    key: 'lab',
-                    value: product.nivodaCertificateDetails?.lab || 'GIA',
-                    type: 'single_line_text_field',
-                  },
-                  {
-                    namespace: 'diamond',
-                    key: 'polish',
-                    value:
-                      product.nivodaCertificateDetails?.polish || 'Excellent',
-                    type: 'single_line_text_field',
-                  },
-                  {
-                    namespace: 'diamond',
-                    key: 'symmetry',
-                    value:
-                      product.nivodaCertificateDetails?.symmetry || 'Excellent',
-                    type: 'single_line_text_field',
-                  },
-                  {
-                    namespace: 'diamond',
-                    key: 'dimensions',
-                    value: `${
-                      product.nivodaCertificateDetails?.length || 0
-                    } x ${product.nivodaCertificateDetails?.width || 0} x ${
-                      product.nivodaCertificateDetails?.depth || 0
-                    }`,
-                    type: 'single_line_text_field',
-                  },
-                  {
-                    namespace: 'diamond',
-                    key: 'depthPercentage',
-                    value: (
-                      product.nivodaCertificateDetails?.depthPercentage || 0
-                    ).toString(),
-                    type: 'number_decimal',
-                  },
-                  {
-                    namespace: 'diamond',
-                    key: 'table',
-                    value: (
-                      product.nivodaCertificateDetails?.table || 0
-                    ).toString(),
-                    type: 'number_decimal',
-                  },
-                  {
-                    namespace: 'diamond',
-                    key: 'girdle',
-                    value: product.nivodaCertificateDetails?.girdle || '',
-                    type: 'single_line_text_field',
-                  },
-                  {
-                    namespace: 'diamond',
-                    key: 'fluorescence',
-                    value: product.nivodaCertificateDetails?.floInt || 'None',
-                    type: 'single_line_text_field',
-                  },
+                  // Add additional Nivoda-specific fields if available
+                  ...(product.nivodaCertificateDetails?.polish
+                    ? [
+                        {
+                          namespace: 'diamond',
+                          key: 'polish',
+                          value: product.nivodaCertificateDetails.polish,
+                          type: 'single_line_text_field',
+                        },
+                      ]
+                    : []),
+                  ...(product.nivodaCertificateDetails?.symmetry
+                    ? [
+                        {
+                          namespace: 'diamond',
+                          key: 'symmetry',
+                          value: product.nivodaCertificateDetails.symmetry,
+                          type: 'single_line_text_field',
+                        },
+                      ]
+                    : []),
+                  ...(product.nivodaCertificateDetails?.table
+                    ? [
+                        {
+                          namespace: 'diamond',
+                          key: 'table',
+                          value:
+                            product.nivodaCertificateDetails.table.toString(),
+                          type: 'number_decimal',
+                        },
+                      ]
+                    : []),
+                  ...(product.nivodaCertificateDetails?.depthPercentage
+                    ? [
+                        {
+                          namespace: 'diamond',
+                          key: 'depth',
+                          value:
+                            product.nivodaCertificateDetails.depthPercentage.toString(),
+                          type: 'number_decimal',
+                        },
+                      ]
+                    : []),
+                  ...(product.nivodaCertificateDetails?.girdle
+                    ? [
+                        {
+                          namespace: 'diamond',
+                          key: 'girdle',
+                          value: product.nivodaCertificateDetails.girdle,
+                          type: 'single_line_text_field',
+                        },
+                      ]
+                    : []),
+                  ...(product.nivodaCertificateDetails?.floInt
+                    ? [
+                        {
+                          namespace: 'diamond',
+                          key: 'fluorescenceIntensity',
+                          value: product.nivodaCertificateDetails.floInt,
+                          type: 'single_line_text_field',
+                        },
+                      ]
+                    : []),
+                  ...(product.nivodaCertificateDetails?.floCol
+                    ? [
+                        {
+                          namespace: 'diamond',
+                          key: 'fluorescenceColor',
+                          value: product.nivodaCertificateDetails.floCol,
+                          type: 'single_line_text_field',
+                        },
+                      ]
+                    : []),
+                  // Add dimensions if available
+                  ...(product.nivodaCertificateDetails?.length
+                    ? [
+                        {
+                          namespace: 'diamond',
+                          key: 'length',
+                          value:
+                            product.nivodaCertificateDetails.length.toString(),
+                          type: 'number_decimal',
+                        },
+                      ]
+                    : []),
+                  ...(product.nivodaCertificateDetails?.width
+                    ? [
+                        {
+                          namespace: 'diamond',
+                          key: 'width',
+                          value:
+                            product.nivodaCertificateDetails.width.toString(),
+                          type: 'number_decimal',
+                        },
+                      ]
+                    : []),
                 ],
                 variants: [
                   {
@@ -1738,10 +1795,7 @@ function ProductItem({product}: {product: ProductWithDetails}) {
                       product.priceRange?.minVariantPrice?.amount || '1000',
                     ),
                     compareAtPrice: null,
-                    sku:
-                      product.certificateNumber ||
-                      product.nivodaCertificateDetails?.certNumber ||
-                      product.id,
+                    sku: `NIVODA-${product.id}`,
                     inventoryQuantity: 1,
                     inventoryPolicy: 'DENY',
                     requiresShipping: true,

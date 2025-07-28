@@ -239,7 +239,7 @@ export default function AccountProfile() {
             aria-label="New password"
             minLength={8}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
-              />
+          />
             </div>
             <div>
               <label
@@ -257,7 +257,7 @@ export default function AccountProfile() {
             aria-label="New password confirm"
             minLength={8}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-all"
-              />
+          />
             </div>
           </div>
           <p className="mt-2 text-xs text-gray-500">
@@ -304,9 +304,9 @@ export default function AccountProfile() {
               </svg>
               <span>Profile updated successfully!</span>
             </div>
-          ) : (
+        ) : (
             <div className="mb-4"></div> // Placeholder for spacing when no message
-          )}
+        )}
 
           <button
             type="submit"
