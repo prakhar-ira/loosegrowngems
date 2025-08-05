@@ -1,21 +1,18 @@
-import 'rc-slider/assets/index.css'; // Import default styles
 
-import {Image, Money, Pagination} from '@shopify/hydrogen';
-import {Link, useLocation, useNavigate} from '@remix-run/react';
+
+import {Image, Money} from '@shopify/hydrogen';
+import {Link, useLocation, useNavigate, useNavigation} from '@remix-run/react';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
 import {AddToCartButton} from '~/components/AddToCartButton';
-import CloseIcon from '@mui/icons-material/Close'; // Import close icon
-import FilterListIcon from '@mui/icons-material/FilterList'; // Import filter icon
-// Import Material UI Icon
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import {ClientOnly} from '~/components/ClientOnly';
+import {CloseIcon, FilterListIcon, KeyboardArrowDownIcon} from '~/components/icons';
 import type {ProductItemFragment} from 'storefrontapi.generated';
-// Import rc-slider
-import Slider from 'rc-slider';
+
 import {Tag} from '~/components/Tag';
 import {useVariantUrl} from '~/lib/variants';
 
-// Add custom styles for scrollbar hiding
+// Add custom styles for scrollbar hiding and shimmer animation
 const scrollbarHideStyle = `
   .hide-scrollbar::-webkit-scrollbar {
     display: none; /* Safari and Chrome */
@@ -23,6 +20,19 @@ const scrollbarHideStyle = `
   .hide-scrollbar {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
+  }
+  
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 1.5s infinite;
   }
 `;
 
@@ -85,11 +95,25 @@ function parseProductAttributesFromHtml(
     /Clarity[:\s]*(FL|IF|VVS1|VVS2|VS1|VS2|SI1|SI2|I1|I2|I3)\b/i,
   );
 
-  // Cut (e.g., Cut: Excellent, Cut Excellent)
-  // Be more specific with expected values if possible
-  attributes.cut = matchAttribute(
-    /Cut[:\s]*(Excellent|Very\s*Good|Good|Fair|Poor|Ideal)\b/i,
+  // Cut (e.g., Cut: Excellent, Cut Excellent, Cut: EX, Cut: VG)
+  // Support both full names and abbreviations, map to Nivoda format
+  const cutMatch = matchAttribute(
+    /Cut[:\s]*(Excellent|Very\s*Good|Good|Fair|Poor|Ideal|EX|VG|G|F|P)\b/i,
   );
+  
+  if (cutMatch) {
+    // Map to Nivoda's expected format (abbreviations)
+    const cutMapping: { [key: string]: string } = {
+      'Excellent': 'EX',
+      'Very Good': 'VG',
+      'Good': 'G',
+      'Fair': 'F',
+      'Poor': 'P',
+      'Ideal': 'EX', // Map Ideal to Excellent as they're often equivalent
+    };
+    
+    attributes.cut = cutMapping[cutMatch] || cutMatch;
+  }
 
   // Carat (e.g., Carat: 1.02, 1.02 ct, 1.02 Carat)
   attributes.carat = matchAttribute(
@@ -206,12 +230,11 @@ type DiamondsCollectionProps = {
 };
 
 interface FilterState {
-  priceRange: [number, number];
+  priceRanges: string[];
   caratRange: [number, number];
   color: string[];
   clarity: string[];
   cut: string[];
-  diamondType: 'Natural' | 'Lab-Grown' | null;
   shape: string[];
   certification: string[];
   certificateNumber?: string;
@@ -229,12 +252,11 @@ const sortOptions = [
 // --- End Sort Options ---
 
 const initialFilters: FilterState = {
-  priceRange: [0, 100000],
+  priceRanges: [],
   caratRange: [0, 10],
   color: [],
   clarity: [],
   cut: [],
-  diamondType: 'Lab-Grown',
   shape: [],
   certification: ['GIA', 'IGI'],
 };
@@ -245,19 +267,28 @@ export function DiamondsCollection({
 }: DiamondsCollectionProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const navigation = useNavigation();
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
-  // State to store accumulated products
-  const [allProducts, setAllProducts] = useState<ProductWithDetails[]>([]);
+  // State to store accumulated products - initialize with current products to prevent hydration mismatch
+  const [allProducts, setAllProducts] = useState<ProductWithDetails[]>(collection.products.nodes);
 
   // Parse current filter parameters from the URL for initializing states
   const initialSearchParams = useMemo(
     () => new URLSearchParams(location.search),
     [location.search],
   );
+
+  // Simple offset-based pagination
+  const currentOffset = parseInt(initialSearchParams.get('offset') || '0');
+  const limit = parseInt(initialSearchParams.get('limit') || '50');
+
+  // Build pagination URL helper for offset-based navigation
+  const buildPaginationURL = useCallback((newOffset: number) => {
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set('offset', newOffset.toString());
+    return `${location.pathname}?${searchParams.toString()}`;
+  }, [location.search, location.pathname]);
 
   // Declare certificateSearch state here
   const [certificateSearch, setCertificateSearch] = useState(
@@ -267,28 +298,28 @@ export function DiamondsCollection({
   // Add loading state for certificate search
   const [isSearching, setIsSearching] = useState(false);
 
-  // Initialize allProducts with collection.products.nodes on first render
-  // and when offset is 0 (meaning we're starting fresh)
-  useEffect(() => {
-    const isInitialLoad =
-      !location.search.includes('offset=') ||
-      location.search.includes('offset=0');
+  // Add loading state for filter changes
+  const [isFiltering, setIsFiltering] = useState(false);
 
-    if (isInitialLoad) {
-      // Reset accumulated products
-      setAllProducts([...collection.products.nodes]);
-    } else {
-      // Add new products to accumulated list
-      setAllProducts((prev) => {
-        // Filter out duplicates by ID
-        const existingIds = new Set(prev.map((p) => p.id));
-        const newProducts = collection.products.nodes.filter(
-          (p) => !existingIds.has(p.id),
-        );
-        return [...prev, ...newProducts];
-      });
+  // Add loading state for navigation/pagination
+  const isNavigating = navigation.state === 'loading';
+
+  // Simply use the current page's products - no accumulation needed for offset pagination
+  useEffect(() => {
+    setAllProducts([...collection.products.nodes]);
+  }, [collection.products.nodes]);
+
+  // Auto-scroll to top when products change (page navigation)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [collection.products.nodes]);
+
+  // Auto-scroll to top immediately when navigation starts (button press)
+  useEffect(() => {
+    if (isNavigating) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [collection.products.nodes, location.search]);
+  }, [isNavigating]);
 
   // Debug pagination data on component mount
   // useEffect(() => {
@@ -306,80 +337,13 @@ export function DiamondsCollection({
   //   );
   // }, [collection.products]);
 
-  // Function to load more items
-  const loadMoreItems = useCallback(() => {
-    if (!collection.products.pageInfo.hasNextPage || isLoadingMore) return;
-
-    setIsLoadingMore(true);
-
-    // Calculate new offset
-    const newOffset = collection.products.pageInfo.endCursor
-      ? parseInt(collection.products.pageInfo.endCursor.split('=')[1])
-      : 0;
-    const newSearchParams = new URLSearchParams(location.search); // Use current location.search
-
-    // Update offset parameter
-    newSearchParams.set('offset', newOffset.toString());
-
-    // Store current products in state to be merged with new products
-    const currentProducts = [...allProducts]; // Use allProducts for accumulation
-
-    // Navigate to the new URL to fetch more items
-    const newUrl = `${location.pathname}?${newSearchParams.toString()}`;
-
-    navigate(newUrl, {
-      replace: true, // Important for infinite scroll to avoid large history stack
-      state: {
-        previousProducts: currentProducts,
-      },
-    });
-
-    // Reset loading state after navigation (may need adjustment based on data loading flow)
-    // setIsLoadingMore(false); // This might be set too early, ideally after new data is merged
-  }, [
-    collection.products.pageInfo.hasNextPage,
-    isLoadingMore,
-    location.search,
-    location.pathname,
-    navigate,
-    allProducts,
-  ]);
-
-  // Set up intersection observer for infinite scroll
-  useEffect(() => {
-    if (!loadMoreTriggerRef.current) return;
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        const canLoadMore = collection.products.pageInfo.hasNextPage
-          ? true
-          : false;
-
-        if (entries[0].isIntersecting && canLoadMore && !isLoadingMore) {
-          // Check isLoadingMore here
-          loadMoreItems();
-        }
-      },
-      {threshold: 0.1},
-    );
-
-    observerRef.current.observe(loadMoreTriggerRef.current);
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [loadMoreItems, collection.products.pageInfo.hasNextPage, isLoadingMore]); // Add isLoadingMore to dependencies
+  // Removed infinite scroll logic - using simple offset-based pagination instead
 
   // Extract filter state from URL search params - this is the source of truth for filters
   const filters = useMemo(() => {
     const currentSearchParams = new URLSearchParams(location.search);
     return {
-      priceRange: [
-        parseFloat(currentSearchParams.get('minPrice') || '0'),
-        parseFloat(currentSearchParams.get('maxPrice') || '100000'),
-      ] as [number, number],
+      priceRanges: currentSearchParams.getAll('priceRange'),
       caratRange: [
         parseFloat(currentSearchParams.get('minCarat') || '0'),
         parseFloat(currentSearchParams.get('maxCarat') || '10'),
@@ -387,9 +351,6 @@ export function DiamondsCollection({
       color: currentSearchParams.getAll('color'),
       clarity: currentSearchParams.getAll('clarity'),
       cut: currentSearchParams.getAll('cut'),
-      diamondType: (currentSearchParams.get('diamondType') || 'Lab-Grown') as
-        | 'Natural'
-        | 'Lab-Grown',
       shape: currentSearchParams.getAll('shape'),
       certification: currentSearchParams.getAll('certification'),
       certificateNumber: currentSearchParams.get('certificateNumber') || '',
@@ -417,15 +378,12 @@ export function DiamondsCollection({
   // Function to update URL with filter changes
   const applyFilters = useCallback(
     (newFilters: FilterState, newSort?: string) => {
+      setIsFiltering(true); // Start loading
+      
       const newParams = new URLSearchParams(); // Start with fresh params
 
       // Always reset offset to 0 when filters change
       newParams.set('offset', '0');
-
-      // Set diamond type
-      if (newFilters.diamondType) {
-        newParams.set('diamondType', newFilters.diamondType);
-      }
 
       // Set shape filters (multiple possible)
       if (newFilters.shape && newFilters.shape.length > 0) {
@@ -467,12 +425,11 @@ export function DiamondsCollection({
         });
       }
 
-      // Set price range
-      if (newFilters.priceRange[0] > 0) {
-        newParams.set('minPrice', newFilters.priceRange[0].toString());
-      }
-      if (newFilters.priceRange[1] < 100000) {
-        newParams.set('maxPrice', newFilters.priceRange[1].toString());
+      // Set price ranges (multiple possible)
+      if (newFilters.priceRanges && newFilters.priceRanges.length > 0) {
+        newFilters.priceRanges.forEach((priceRange: string) => {
+          newParams.append('priceRange', priceRange);
+        });
       }
 
       // Set carat range
@@ -496,36 +453,44 @@ export function DiamondsCollection({
 
   // Handle certificate number search submission (e.g., on button click or enter)
   const handleCertificateSearch = useCallback(() => {
+    setIsSearching(true);
     applyFilters(
       {...filters, certificateNumber: certificateSearch},
       sortOption,
     );
+    // Note: setIsSearching(false) will be handled by the useEffect that watches filters.certificateNumber
   }, [applyFilters, filters, certificateSearch, sortOption]);
 
-  // Debounced search effect for certificate number
-  useEffect(() => {
-    // Only trigger search if certificateSearch has a value or if we're clearing it
-    if (certificateSearch !== (filters.certificateNumber || '')) {
-      setIsSearching(true);
-      const timeoutId = setTimeout(() => {
-        applyFilters(
-          {...filters, certificateNumber: certificateSearch || undefined},
-          sortOption,
-        );
-        setIsSearching(false);
-      }, 500); // 500ms delay for debouncing
+  // Remove the debounced search effect - we'll only search on button click now
+  // useEffect(() => {
+  //   // Only trigger search if certificateSearch has a value or if we're clearing it
+  //   if (certificateSearch !== (filters.certificateNumber || '')) {
+  //     setIsSearching(true);
+  //     const timeoutId = setTimeout(() => {
+  //       applyFilters(
+  //         {...filters, certificateNumber: certificateSearch || undefined},
+  //         sortOption,
+  //       );
+  //       setIsSearching(false);
+  //     }, 500); // 500ms delay for debouncing
 
-      return () => {
-        clearTimeout(timeoutId);
-        setIsSearching(false);
-      };
-    }
-  }, [certificateSearch, applyFilters, filters, sortOption]);
+  //     return () => {
+  //       clearTimeout(timeoutId);
+  //       setIsSearching(false);
+  //     };
+  //   }
+  // }, [certificateSearch, applyFilters, filters, sortOption]);
 
   // Update local certificateSearch state when the filters.certificateNumber (from URL) changes
   useEffect(() => {
     setCertificateSearch(filters.certificateNumber || '');
+    setIsSearching(false); // Stop loading when the URL updates
   }, [filters.certificateNumber]);
+
+  // Reset filtering loading state when URL changes (indicating new data has loaded)
+  useEffect(() => {
+    setIsFiltering(false);
+  }, [location.search]);
 
   // Filter display logic remains untouched
 
@@ -559,11 +524,14 @@ export function DiamondsCollection({
               <select
                 id="sort-select"
                 value={sortOption}
+                disabled={isFiltering}
                 onChange={(e) => {
                   const newSortOption = e.target.value;
                   applyFilters(filters, newSortOption);
                 }}
-                className="appearance-none block w-full bg-white border border-slate-300 hover:border-slate-600 px-3 py-2 pr-8 rounded hover:shadow-md text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-slate-600"
+                className={`appearance-none block w-full bg-white border border-slate-300 hover:border-slate-600 px-3 py-2 pr-8 rounded hover:shadow-md text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-slate-600 ${
+                  isFiltering ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
                 {sortOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -574,7 +542,7 @@ export function DiamondsCollection({
               {/* Absolutely positioned icon container - Use Material UI Icon */}
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                 {/* Add text color class directly to the icon */}
-                <KeyboardArrowDownIcon className="h-5 w-5 text-gray-700" />{' '}
+                <KeyboardArrowDownIcon className="h-5 w-5 text-gray-700" />
                 {/* Use MUI icon */}
               </div>
             </div>
@@ -593,8 +561,7 @@ export function DiamondsCollection({
               filters.cut.length > 0 ||
               filters.shape.length > 0 ||
               filters.certification.length > 0 ||
-              filters.priceRange[0] > 0 ||
-              filters.priceRange[1] < 100000 ||
+              filters.priceRanges.length > 0 ||
               filters.caratRange[0] > 0 ||
               filters.caratRange[1] < 10) && (
               <button
@@ -603,6 +570,7 @@ export function DiamondsCollection({
                   navigate(location.pathname);
                 }}
                 className="text-sm text-gray-600 hover:text-black font-normal underline underline-offset-2"
+                disabled={isFiltering}
               >
                 Clear All
               </button>
@@ -618,29 +586,54 @@ export function DiamondsCollection({
               <input
                 type="text"
                 value={certificateSearch}
+                disabled={isFiltering}
                 onChange={(e) => setCertificateSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && certificateSearch.trim()) {
+                    handleCertificateSearch();
+                  }
+                }}
                 placeholder="Type GIA/IGI Number..."
-                className="w-full p-2 pr-10 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                className={`w-full p-2 pr-20 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black ${
+                  isFiltering ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               />
-              {/* Search/Loading indicator */}
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                {isSearching ? (
-                  <div className="animate-spin h-4 w-4 border-2 border-gray-300 border-t-black rounded-full"></div>
-                ) : certificateSearch ? (
-                  <svg
-                    className="h-4 w-4 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
+              {/* Search/Clear button */}
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                {certificateSearch.trim() ? (
+                  // Show search button when user has typed something but no search is active
+                  filters.certificateNumber !== certificateSearch.trim() ? (
+                    <button
+                      type="button"
+                      onClick={handleCertificateSearch}
+                      disabled={isSearching || isFiltering}
+                      className="bg-black text-white mb-1 px-3 py-2 rounded text-xs font-medium hover:bg-gray-800 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    >
+                      {isSearching ? (
+                        // Spinning loader
+                        <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full"></div>
+                      ) : null}
+                      Search
+                    </button>
+                  ) : (
+                    // Show clear button when search is active
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCertificateSearch('');
+                        applyFilters(
+                          {...filters, certificateNumber: ''},
+                          sortOption,
+                        );
+                      }}
+                      disabled={isFiltering}
+                      className="bg-gray-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-gray-700 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    >
+                      Clear
+                    </button>
+                  )
                 ) : (
+                  // Show search icon when input is empty
                   <svg
                     className="h-4 w-4 text-gray-400"
                     fill="none"
@@ -657,38 +650,6 @@ export function DiamondsCollection({
                 )}
               </div>
             </div>
-          </div>
-
-          {/* Natural/Lab-Grown Toggle - Add margin-bottom */}
-          <div className="natural-lab-toggle flex border border-gray-300 rounded overflow-hidden mb-6">
-            {/* Lab-Grown button first */}
-            <button
-              type="button"
-              onClick={() =>
-                applyFilters({...filters, diamondType: 'Lab-Grown'}, sortOption)
-              }
-              className={`flex-1 py-3 px-4 text-center text-sm md:text-base font-['SF_Pro'] font-normal transition-colors duration-150 ${
-                filters.diamondType === 'Lab-Grown'
-                  ? 'bg-black text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Lab-Grown
-            </button>
-            {/* Natural button second */}
-            <button
-              type="button"
-              onClick={() =>
-                applyFilters({...filters, diamondType: 'Natural'}, sortOption)
-              }
-              className={`flex-1 py-3 px-4 text-center text-sm md:text-base font-['SF_Pro'] font-normal transition-colors duration-150 ${
-                filters.diamondType === 'Natural'
-                  ? 'bg-black text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Natural
-            </button>
           </div>
 
           {/* Shape Filter */}
@@ -754,6 +715,7 @@ export function DiamondsCollection({
                     type="checkbox"
                     value={cert}
                     checked={filters.certification.includes(cert)}
+                    disabled={isFiltering}
                     onChange={(e) => {
                       const newCertification = e.target.checked
                         ? [...filters.certification, cert]
@@ -814,12 +776,13 @@ export function DiamondsCollection({
                     filters.color.includes(col)
                       ? 'border-black bg-white'
                       : 'border-gray-300 bg-white hover:border-gray-500'
-                  }`}
+                  } ${isFiltering ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <input
                     type="checkbox"
                     value={col}
                     checked={filters.color.includes(col)}
+                    disabled={isFiltering}
                     onChange={(e) => {
                       const newColor = e.target.checked
                         ? [...filters.color, col]
@@ -831,7 +794,7 @@ export function DiamondsCollection({
                   <div
                     className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${
                       filters.color.includes(col) ? 'bg-black' : 'bg-white'
-                    }`}
+                    } ${isFiltering ? 'opacity-50' : ''}`}
                   >
                     {filters.color.includes(col) && (
                       <svg
@@ -868,12 +831,13 @@ export function DiamondsCollection({
                     filters.color.includes(col)
                       ? 'border-black bg-white'
                       : 'border-gray-300 bg-white hover:border-gray-500'
-                  }`}
+                  } ${isFiltering ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <input
                     type="checkbox"
                     value={col}
                     checked={filters.color.includes(col)}
+                    disabled={isFiltering}
                     onChange={(e) => {
                       const newColor = e.target.checked
                         ? [...filters.color, col]
@@ -885,7 +849,7 @@ export function DiamondsCollection({
                   <div
                     className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${
                       filters.color.includes(col) ? 'bg-black' : 'bg-white'
-                    }`}
+                    } ${isFiltering ? 'opacity-50' : ''}`}
                   >
                     {filters.color.includes(col) && (
                       <svg
@@ -935,6 +899,7 @@ export function DiamondsCollection({
                     type="checkbox"
                     value={clar}
                     checked={filters.clarity.includes(clar)}
+                    disabled={isFiltering}
                     onChange={(e) => {
                       const newClarity = e.target.checked
                         ? [...filters.clarity, clar]
@@ -992,6 +957,7 @@ export function DiamondsCollection({
                     type="checkbox"
                     value={clar}
                     checked={filters.clarity.includes(clar)}
+                    disabled={isFiltering}
                     onChange={(e) => {
                       const newClarity = e.target.checked
                         ? [...filters.clarity, clar]
@@ -1039,33 +1005,38 @@ export function DiamondsCollection({
               Cut
             </h3>
             <div className="flex flex-row gap-2">
-              {['Ideal', 'Excellent', 'Very Good'].map((cut) => (
+              {[
+                {value: 'EX', label: 'Excellent'},
+                {value: 'VG', label: 'Very Good'},
+                {value: 'G', label: 'Good'}
+              ].map((cut) => (
                 <label
-                  key={cut}
+                  key={cut.value}
                   className={`flex-1 flex flex-col items-center justify-center p-3 border cursor-pointer transition-colors duration-150 ${
-                    filters.cut.includes(cut)
+                    filters.cut.includes(cut.value)
                       ? 'border-black bg-white'
                       : 'border-gray-300 bg-white hover:border-gray-500'
                   }`}
                 >
                   <input
                     type="checkbox"
-                    value={cut}
-                    checked={filters.cut.includes(cut)}
+                    value={cut.value}
+                    checked={filters.cut.includes(cut.value)}
+                    disabled={isFiltering}
                     onChange={(e) => {
                       const newCut = e.target.checked
-                        ? [...filters.cut, cut]
-                        : filters.cut.filter((c) => c !== cut);
+                        ? [...filters.cut, cut.value]
+                        : filters.cut.filter((c) => c !== cut.value);
                       applyFilters({...filters, cut: newCut}, sortOption);
                     }}
                     className="opacity-0 absolute h-0 w-0"
                   />
                   <div
                     className={`w-4 h-4 border border-black mb-1 flex items-center justify-center ${
-                      filters.cut.includes(cut) ? 'bg-black' : 'bg-white'
+                      filters.cut.includes(cut.value) ? 'bg-black' : 'bg-white'
                     }`}
                   >
-                    {filters.cut.includes(cut) && (
+                    {filters.cut.includes(cut.value) && (
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 20 20"
@@ -1083,7 +1054,7 @@ export function DiamondsCollection({
                     )}
                   </div>
                   <span className="text-xs font-['SF_Pro'] font-normal text-black text-center">
-                    {cut}
+                    {cut.label}
                   </span>
                 </label>
               ))}
@@ -1095,93 +1066,67 @@ export function DiamondsCollection({
             <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
               Price
             </h3>
-            <Slider
-              range
-              min={0}
-              max={100000}
-              value={filters.priceRange}
-              onChange={(value) => {
-                // Prepare debounced update
-                if (Array.isArray(value) && value.length === 2) {
-                  applyFilters(
-                    {...filters, priceRange: value as [number, number]},
-                    sortOption,
-                  );
-                }
-              }}
-            />
-            <div className="flex justify-between items-center mt-4 gap-2 price-input-container">
-              <div className="flex-1">
+            <div className="space-y-2">
+              {[
+                {value: '0-1000', label: 'Under $1,000'},
+                {value: '1000-5000', label: '$1,000 - $5,000'},
+                {value: '5000-10000', label: '$5,000 - $10,000'},
+                {value: '10000-25000', label: '$10,000 - $25,000'},
+                {value: '25000-50000', label: '$25,000 - $50,000'},
+                {value: '50000-100000', label: '$50,000 - $100,000'},
+                {value: '100000+', label: 'Over $100,000'}
+              ].map((priceRange) => (
                 <label
-                  htmlFor="minPrice"
-                  className="block text-xs text-slate-700 mb-1"
+                  key={priceRange.value}
+                  className={`flex items-center p-2 border cursor-pointer transition-colors duration-150 ${
+                    filters.priceRanges.includes(priceRange.value)
+                      ? 'border-black bg-white'
+                      : 'border-gray-300 bg-white hover:border-gray-500'
+                  } ${isFiltering ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  Min Price
-                </label>
-                <input
-                  type="number"
-                  id="minPrice"
-                  value={filters.priceRange[0]}
-                  min={0}
-                  max={filters.priceRange[1]}
-                  onChange={(e) => {
-                    const newMin = parseInt(e.target.value, 10);
-                    if (!isNaN(newMin)) {
-                      const validatedMin = Math.min(
-                        newMin,
-                        filters.priceRange[1],
-                      );
+                  <input
+                    type="checkbox"
+                    value={priceRange.value}
+                    checked={filters.priceRanges.includes(priceRange.value)}
+                    disabled={isFiltering}
+                    onChange={(e) => {
+                      const newPriceRanges = e.target.checked
+                        ? [...filters.priceRanges, priceRange.value]
+                        : filters.priceRanges.filter((p) => p !== priceRange.value);
                       applyFilters(
-                        {
-                          ...filters,
-                          priceRange: [validatedMin, filters.priceRange[1]] as [
-                            number,
-                            number,
-                          ],
-                        },
+                        {...filters, priceRanges: newPriceRanges},
                         sortOption,
                       );
-                    }
-                  }}
-                  className="w-full p-1 border rounded text-sm"
-                />
-              </div>
-              <span className="text-gray-400">-</span>
-              <div className="flex-1">
-                <label
-                  htmlFor="maxPrice"
-                  className="block text-xs text-gray-500 mb-1"
-                >
-                  Max Price
+                    }}
+                    className="opacity-0 absolute h-0 w-0"
+                  />
+                  <div
+                    className={`w-4 h-4 border border-black mr-3 flex items-center justify-center ${
+                      filters.priceRanges.includes(priceRange.value) ? 'bg-black' : 'bg-white'
+                    } ${isFiltering ? 'opacity-50' : ''}`}
+                  >
+                    {filters.priceRanges.includes(priceRange.value) && (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="w-3 h-3 text-white"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm font-['SF_Pro'] font-normal text-black">
+                    {priceRange.label}
+                  </span>
                 </label>
-                <input
-                  type="number"
-                  id="maxPrice"
-                  value={filters.priceRange[1]}
-                  min={filters.priceRange[0]}
-                  max={100000}
-                  onChange={(e) => {
-                    const newMax = parseInt(e.target.value, 10);
-                    if (!isNaN(newMax)) {
-                      const validatedMax = Math.max(
-                        newMax,
-                        filters.priceRange[0],
-                      );
-                      applyFilters(
-                        {
-                          ...filters,
-                          priceRange: [filters.priceRange[0], validatedMax] as [
-                            number,
-                            number,
-                          ],
-                        },
-                        sortOption,
-                      );
-                    }
-                  }}
-                  className="w-full p-1 border rounded text-sm"
-                />
-              </div>
+              ))}
             </div>
           </div>
 
@@ -1190,22 +1135,7 @@ export function DiamondsCollection({
             <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
               Carat
             </h3>
-            <Slider
-              range
-              min={0}
-              max={10}
-              step={0.1}
-              value={filters.caratRange}
-              onChange={(value) => {
-                if (Array.isArray(value) && value.length === 2) {
-                  applyFilters(
-                    {...filters, caratRange: value as [number, number]},
-                    sortOption,
-                  );
-                }
-              }}
-            />
-            <div className="flex justify-between items-center mt-4 gap-2 price-input-container">
+            <div className="flex justify-between items-center mt-4 gap-2 carat-input-container">
               <div className="flex-1">
                 <label
                   htmlFor="minCarat"
@@ -1284,7 +1214,59 @@ export function DiamondsCollection({
         </div>
 
         {/* Product Grid Area */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 relative">
+          {/* Loading Overlay */}
+          {(isFiltering || isNavigating) && (
+            <div className="absolute inset-0 bg-white bg-opacity-75 z-10">
+              <div className="products-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1 md:gap-2">
+                {Array.from({ length: 9 }).map((_, index) => (
+                  <div key={index} className="product-item-container border border-slate-200 rounded-md overflow-hidden flex flex-col">
+                    {/* Image skeleton */}
+                    <div className="relative w-full h-64 bg-gray-200 animate-pulse">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer"></div>
+                    </div>
+                    
+                    {/* Content skeleton */}
+                    <div className="p-4 flex flex-col flex-grow">
+                      {/* Title skeleton */}
+                      <div className="h-4 bg-gray-200 rounded mb-2 animate-pulse">
+                        <div className="bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer h-full"></div>
+                      </div>
+                      
+                      {/* Price skeleton */}
+                      <div className="h-6 bg-gray-200 rounded mb-2 w-24 animate-pulse">
+                        <div className="bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer h-full"></div>
+                      </div>
+                      
+                      {/* Tags skeleton */}
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {Array.from({ length: 4 }).map((_, tagIndex) => (
+                          <div key={tagIndex} className="h-6 bg-gray-200 rounded px-2 py-1 animate-pulse w-16">
+                            <div className="bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer h-full"></div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Certification tag skeleton */}
+                      <div className="mt-auto pt-2">
+                        <div className="h-6 bg-gray-200 rounded px-2 py-1 animate-pulse w-20">
+                          <div className="bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer h-full"></div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Button skeleton */}
+                    <div className="p-4 pt-0">
+                      <div className="h-10 bg-gray-200 rounded-md animate-pulse">
+                        <div className="bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer h-full"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           {/* Display Products */}
           <div className="products-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1 md:gap-2">
             {allProducts.length > 0 ? (
@@ -1304,46 +1286,40 @@ export function DiamondsCollection({
             )}
           </div>
 
-          {/* Pagination Controls */}
-          <Pagination connection={collection.products}>
-            {({PreviousLink, NextLink, nodes, isLoading}) => {
-              return (
-                <div className="flex justify-center items-center gap-4 mt-6 py-4 border-t border-gray-200">
-                  {collection.products.pageInfo.hasPreviousPage &&
-                    (dataSource === 'nivoda' &&
-                    collection.products.pageInfo.startCursor ? (
-                      <Link
-                        to={`/collections/${collection.handle}?${collection.products.pageInfo.startCursor}`}
-                        prefetch="intent"
-                        className="w-24 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        Previous
-                      </Link>
-                    ) : (
-                      <PreviousLink className="w-24 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        Previous
-                      </PreviousLink>
-                    ))}
+          {/* Simple Offset-based Pagination */}
+          <div className="flex justify-center items-center gap-4 mt-6 py-4 border-t border-gray-200">
+            {currentOffset > 0 && (
+              <Link
+                to={buildPaginationURL(Math.max(0, currentOffset - limit))}
+                prefetch="intent"
+                className={`w-24 inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium transition-colors ${
+                  isNavigating 
+                    ? 'text-slate-400 cursor-not-allowed bg-gray-100' 
+                    : 'text-slate-700 hover:bg-gray-50'
+                }`}
+                aria-disabled={isNavigating}
+              >
+                {isNavigating ? 'Loading...' : 'Previous'}
+              </Link>
+            )}
 
-                  {collection.products.pageInfo.hasNextPage &&
-                    (dataSource === 'nivoda' &&
-                    collection.products.pageInfo.endCursor ? (
-                      <Link
-                        to={`/collections/${collection.handle}?${collection.products.pageInfo.endCursor}`}
-                        prefetch="intent"
-                        className="w-24 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        Next
-                      </Link>
-                    ) : (
-                      <NextLink className="w-24 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        Next
-                      </NextLink>
-                    ))}
-                </div>
-              );
-            }}
-          </Pagination>
+            <span className="text-sm text-gray-700">
+              {isNavigating ? 'Loading...' : `Showing ${currentOffset + 1}-${currentOffset + collection.products.nodes.length} items`}
+            </span>
+
+            <Link
+              to={buildPaginationURL(currentOffset + limit)}
+              prefetch="intent"
+              className={`w-24 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium transition-colors ${
+                isNavigating 
+                  ? 'text-slate-400 cursor-not-allowed bg-gray-100' 
+                  : 'text-slate-500 hover:bg-gray-50'
+              }`}
+              aria-disabled={isNavigating}
+            >
+              {isNavigating ? 'Loading...' : 'Next'}
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -1440,105 +1416,172 @@ function ProductItem({product}: {product: ProductWithDetails}) {
 
   return (
     <div className="product-item-container border border-slate-200 rounded-md overflow-hidden flex flex-col transition-shadow duration-200 hover:shadow-md no-underline">
-      <Link
-        key={product.id}
-        prefetch="intent"
-        to={variantUrl}
-        className="group flex flex-col flex-grow hover:!no-underline relative"
-      >
-        <div className="relative w-full h-64 bg-gray-100">
-          {imageUrl && !imageLoadFailed ? (
-            <img
-              src={imageUrl}
-              alt={product.title || 'Diamond image'}
-              className="w-full h-full object-contain"
-              onError={() => {
-                setImageLoadFailed(true);
-              }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400 flex-col">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-12 w-12"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <p className="ml-2 mt-2">No Image Available</p>
-            </div>
-          )}
-        </div>
-
-        <div className="p-4 flex flex-col flex-grow">
-          <h4 className="text-md font-medium mb-1 flex-grow">
-            {product.title || 'Diamond'}
-          </h4>
-          <small className="block text-lg font-semibold mb-2">
-            {getPrice()}
-          </small>
-
-          {/* Display diamond attributes */}
-          <div className="product-attributes flex flex-wrap gap-1 mb-2">
-            {attributes.shape && <Tag label="Shape" value={attributes.shape} />}
-            {attributes.carat && <Tag label="Carat" value={attributes.carat} />}
-            {attributes.color && <Tag label="Color" value={attributes.color} />}
-            {attributes.clarity && (
-              <Tag label="Clarity" value={attributes.clarity} />
-            )}
-            {attributes.cut && <Tag label="Cut" value={attributes.cut} />}
-            {/* Use certificate number from either source */}
-            {(product.certificateNumber ||
-              product.nivodaCertificateDetails?.certNumber) && (
-              <Tag
-                label="Cert #"
-                value={
-                  product.certificateNumber ||
-                  product.nivodaCertificateDetails?.certNumber ||
-                  ''
-                }
+      {product.existsInShopify && product.shopifyHandle ? (
+        <Link
+          key={product.id}
+          prefetch="intent"
+          to={`/products/${product.shopifyHandle}`}
+          className="group flex flex-col flex-grow hover:!no-underline relative"
+        >
+          <div className="relative w-full h-64 bg-gray-100">
+            {imageUrl && !imageLoadFailed ? (
+              <img
+                src={imageUrl}
+                alt={product.title || 'Diamond image'}
+                className="w-full h-full object-contain"
+                onError={() => {
+                  setImageLoadFailed(true);
+                }}
               />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-400 flex-col">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-12 w-12"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <p className="ml-2 mt-2">No Image Available</p>
+              </div>
             )}
           </div>
 
-          {/* Display Certification Tag for lab (GIA or IGI) */}
-          {(attributes.certification ||
-            product.nivodaCertificateDetails?.lab) && (
-            <div className="mt-auto pt-2">
-              <Tag
-                isCertification={true}
-                value={`${
-                  attributes.certification ||
-                  product.nivodaCertificateDetails?.lab
-                } Certified`}
-                icon={<CertificationIcon />}
-              />
-            </div>
-          )}
+          <div className="p-4 flex flex-col flex-grow">
+            <h4 className="text-md font-medium mb-1 flex-grow">
+              {product.title || 'Diamond'}
+            </h4>
+            <small className="block text-lg font-semibold mb-2">
+              {getPrice()}
+            </small>
 
-          {/* Availability badge if from Nivoda */}
-          {product.availabilityStatus && (
-            <div className="mt-2">
-              <span
-                className={`px-2 py-1 text-xs rounded ${
-                  product.availabilityStatus.toUpperCase() === 'AVAILABLE'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-yellow-100 text-yellow-800'
-                }`}
-              >
-                {product.availabilityStatus}
-              </span>
+            {/* Display diamond attributes */}
+            <div className="product-attributes flex flex-wrap gap-1 mb-2">
+              {attributes.shape && <Tag label="Shape" value={attributes.shape} />}
+              {attributes.carat && <Tag label="Carat" value={attributes.carat} />}
+              {attributes.color && <Tag label="Color" value={attributes.color} />}
+              {attributes.clarity && (
+                <Tag label="Clarity" value={attributes.clarity} />
+              )}
+              {attributes.cut && <Tag label="Cut" value={attributes.cut} />}
+              {/* Use certificate number from either source */}
+              {(product.certificateNumber ||
+                product.nivodaCertificateDetails?.certNumber) && (
+                <Tag
+                  label="Cert #"
+                  value={
+                    product.certificateNumber ||
+                    product.nivodaCertificateDetails?.certNumber ||
+                    ''
+                  }
+                />
+              )}
             </div>
-          )}
+
+            {/* Display Certification Tag for lab (GIA or IGI) */}
+            {(attributes.certification ||
+              product.nivodaCertificateDetails?.lab) && (
+              <div className="mt-auto pt-2">
+                <Tag
+                  isCertification={true}
+                  value={`${
+                    attributes.certification ||
+                    product.nivodaCertificateDetails?.lab
+                  } Certified`}
+                  icon={<CertificationIcon />}
+                />
+              </div>
+            )}
+          </div>
+        </Link>
+      ) : (
+        <div className="group flex flex-col flex-grow relative">
+          <div className="relative w-full h-64 bg-gray-100">
+            {imageUrl && !imageLoadFailed ? (
+              <img
+                src={imageUrl}
+                alt={product.title || 'Diamond image'}
+                className="w-full h-full object-contain"
+                onError={() => {
+                  setImageLoadFailed(true);
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-400 flex-col">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-12 w-12"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z"
+                  />
+                </svg>
+                <p className="ml-2 mt-2">No Image Available</p>
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 flex flex-col flex-grow">
+            <h4 className="text-md font-medium mb-1 flex-grow">
+              {product.title || 'Diamond'}
+            </h4>
+            <small className="block text-lg font-semibold mb-2">
+              {getPrice()}
+            </small>
+
+            {/* Display diamond attributes */}
+            <div className="product-attributes flex flex-wrap gap-1 mb-2">
+              {attributes.shape && <Tag label="Shape" value={attributes.shape} />}
+              {attributes.carat && <Tag label="Carat" value={attributes.carat} />}
+              {attributes.color && <Tag label="Color" value={attributes.color} />}
+              {attributes.clarity && (
+                <Tag label="Clarity" value={attributes.clarity} />
+              )}
+              {attributes.cut && <Tag label="Cut" value={attributes.cut} />}
+              {/* Use certificate number from either source */}
+              {(product.certificateNumber ||
+                product.nivodaCertificateDetails?.certNumber) && (
+                <Tag
+                  label="Cert #"
+                  value={
+                    product.certificateNumber ||
+                    product.nivodaCertificateDetails?.certNumber ||
+                    ''
+                  }
+                />
+              )}
+            </div>
+
+            {/* Display Certification Tag for lab (GIA or IGI) */}
+            {(attributes.certification ||
+              product.nivodaCertificateDetails?.lab) && (
+              <div className="mt-auto pt-2">
+                <Tag
+                  isCertification={true}
+                  value={`${
+                    attributes.certification ||
+                    product.nivodaCertificateDetails?.lab
+                  } Certified`}
+                  icon={<CertificationIcon />}
+                />
+              </div>
+            )}
+          </div>
         </div>
-      </Link>
+      )}
 
       {/* Add to Cart Button */}
       <div className="p-4 pt-0">
@@ -1553,214 +1596,87 @@ function ProductItem({product}: {product: ProductWithDetails}) {
           ) : (
             <AddToCartButton
               disabled={false}
-              lines={[
-                {
-                  merchandiseId: product.merchandiseId.split('/')[1],
-                  quantity: 1,
-                  selectedVariant: {
-                    id: product.merchandiseId.split('/')[1],
-                    title: `${attributes.shape || 'Diamond'} Diamond - ${
-                      attributes.carat || '1'
-                    }ct`,
-                    availableForSale: true,
-                    price: {
-                      amount:
-                        product.priceRange?.minVariantPrice?.amount || '1000',
-                      currencyCode:
-                        product.priceRange?.minVariantPrice?.currencyCode ||
-                        'USD',
-                    },
-                    product: {
-                      id: product.id.split('/')[1],
-                      title: `${attributes.shape || 'Diamond'} Diamond - ${
-                        attributes.carat || '1'
-                      }ct`,
-                      handle: product.handle || `diamond-${product.id}`,
-                      vendor: 'Nivoda',
-                      productType: 'Diamond',
-                    },
-                  },
-                },
-              ]}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              createProduct={true}
+              className="w-full bg-linear-to-b from-slate-600 to-slate-800 uppercase tracking-wide hover:bg-gray-800 text-white py-2 px-4 shadow-md h-12 text-sm font-medium transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
               productData={{
                 title: `${attributes.shape || 'Diamond'} Diamond - ${
                   attributes.carat || '1'
-                }ct ${attributes.color || 'G'} ${attributes.clarity || 'VS1'}${
-                  product.certificateNumber ||
-                  product.nivodaCertificateDetails?.certNumber
-                    ? ` - Cert# ${
-                        product.certificateNumber ||
-                        product.nivodaCertificateDetails?.certNumber
-                      }`
-                    : ''
-                }`,
-                description: `Beautiful ${(
-                  attributes.shape || 'round'
-                ).toLowerCase()} cut diamond weighing ${
-                  attributes.carat || '1'
-                } carats with ${attributes.color || 'G'} color and ${
-                  attributes.clarity || 'VS1'
-                } clarity. Certificate: ${attributes.certification || 'GIA'}${
-                  product.certificateNumber ||
-                  product.nivodaCertificateDetails?.certNumber
-                    ? `. Certificate Number: ${
-                        product.certificateNumber ||
-                        product.nivodaCertificateDetails?.certNumber
-                      }`
-                    : ''
-                }. Price: $${
-                  product.priceRange?.minVariantPrice?.amount || '1000'
-                }`,
-                vendor: 'Nivoda',
+                }ct`,
+                description: `
+                  <h3>Diamond Specifications</h3>
+                  <p><strong>Shape:</strong> ${attributes.shape || 'Not specified'}</p>
+                  <p><strong>Carat:</strong> ${attributes.carat || 'Not specified'}</p>
+                  <p><strong>Color:</strong> ${attributes.color || 'Not specified'}</p>
+                  <p><strong>Clarity:</strong> ${attributes.clarity || 'Not specified'}</p>
+                  <p><strong>Cut:</strong> ${attributes.cut || 'Not specified'}</p>
+                  ${
+                    product.nivodaCertificateDetails?.certNumber
+                      ? `<p><strong>Certificate:</strong> ${product.nivodaCertificateDetails.certNumber}</p>`
+                      : ''
+                  }
+                `,
                 productType: 'Diamond',
+                vendor: 'Nivoda',
                 tags: [
-                  'diamond',
-                  (attributes.shape || 'round').toLowerCase(),
-                  attributes.color || 'G',
-                  attributes.clarity || 'VS1',
-                  attributes.certification || 'GIA',
-                  'nivoda',
+                  attributes.shape || 'diamond',
+                  attributes.color || 'color',
+                  attributes.clarity || 'clarity',
+                  `${attributes.carat}ct` || 'carat',
                 ],
                 images: product.featuredImage?.url
                   ? [product.featuredImage.url]
                   : [],
                 metafields: [
+                  // Add basic diamond information
                   {
-                    namespace: 'nivoda',
-                    key: 'nivodaStockId',
-                    value: product.id,
-                    type: 'single_line_text_field',
-                  },
-                  {
-                    namespace: 'nivoda',
-                    key: 'originalPrice',
-                    value: (
-                      product.priceRange?.minVariantPrice?.amount || '1000'
-                    ).toString(),
-                    type: 'number_decimal',
-                  },
-                  {
-                    namespace: 'certificate',
-                    key: 'certificateNumber',
-                    value:
-                      product.certificateNumber ||
-                      product.nivodaCertificateDetails?.certNumber ||
-                      '',
-                    type: 'single_line_text_field',
-                  },
-                  {
-                    namespace: 'certificate',
-                    key: 'lab',
-                    value: attributes.certification || 'GIA',
+                    namespace: 'diamond',
+                    key: 'shape',
+                    value: attributes.shape || '',
                     type: 'single_line_text_field',
                   },
                   {
                     namespace: 'diamond',
                     key: 'carat',
-                    value: (attributes.carat || '1').toString(),
+                    value: attributes.carat || '',
                     type: 'number_decimal',
                   },
                   {
                     namespace: 'diamond',
                     key: 'color',
-                    value: attributes.color || 'G',
+                    value: attributes.color || '',
                     type: 'single_line_text_field',
                   },
                   {
                     namespace: 'diamond',
                     key: 'clarity',
-                    value: attributes.clarity || 'VS1',
-                    type: 'single_line_text_field',
-                  },
-                  {
-                    namespace: 'diamond',
-                    key: 'shape',
-                    value: attributes.shape || 'Round',
+                    value: attributes.clarity || '',
                     type: 'single_line_text_field',
                   },
                   {
                     namespace: 'diamond',
                     key: 'cut',
-                    value: attributes.cut || 'Excellent',
+                    value: attributes.cut || '',
+                    type: 'single_line_text_field',
+                  },
+                  // Add Nivoda-specific information
+                  {
+                    namespace: 'nivoda',
+                    key: 'id',
+                    value: product.nivodaId?.value || '',
                     type: 'single_line_text_field',
                   },
                   {
-                    namespace: 'diamond',
-                    key: 'type',
-                    value: attributes.type || 'Lab-Grown',
+                    namespace: 'nivoda',
+                    key: 'stock_number',
+                    value: (product as any).nivodaStockNum || '',
                     type: 'single_line_text_field',
                   },
-                  // Add additional Nivoda-specific fields if available
-                  ...(product.nivodaCertificateDetails?.polish
+                  // Add certificate information if available
+                  ...(product.nivodaCertificateDetails?.certNumber
                     ? [
                         {
-                          namespace: 'diamond',
-                          key: 'polish',
-                          value: product.nivodaCertificateDetails.polish,
-                          type: 'single_line_text_field',
-                        },
-                      ]
-                    : []),
-                  ...(product.nivodaCertificateDetails?.symmetry
-                    ? [
-                        {
-                          namespace: 'diamond',
-                          key: 'symmetry',
-                          value: product.nivodaCertificateDetails.symmetry,
-                          type: 'single_line_text_field',
-                        },
-                      ]
-                    : []),
-                  ...(product.nivodaCertificateDetails?.table
-                    ? [
-                        {
-                          namespace: 'diamond',
-                          key: 'table',
-                          value:
-                            product.nivodaCertificateDetails.table.toString(),
-                          type: 'number_decimal',
-                        },
-                      ]
-                    : []),
-                  ...(product.nivodaCertificateDetails?.depthPercentage
-                    ? [
-                        {
-                          namespace: 'diamond',
-                          key: 'depth',
-                          value:
-                            product.nivodaCertificateDetails.depthPercentage.toString(),
-                          type: 'number_decimal',
-                        },
-                      ]
-                    : []),
-                  ...(product.nivodaCertificateDetails?.girdle
-                    ? [
-                        {
-                          namespace: 'diamond',
-                          key: 'girdle',
-                          value: product.nivodaCertificateDetails.girdle,
-                          type: 'single_line_text_field',
-                        },
-                      ]
-                    : []),
-                  ...(product.nivodaCertificateDetails?.floInt
-                    ? [
-                        {
-                          namespace: 'diamond',
-                          key: 'fluorescenceIntensity',
-                          value: product.nivodaCertificateDetails.floInt,
-                          type: 'single_line_text_field',
-                        },
-                      ]
-                    : []),
-                  ...(product.nivodaCertificateDetails?.floCol
-                    ? [
-                        {
-                          namespace: 'diamond',
-                          key: 'fluorescenceColor',
-                          value: product.nivodaCertificateDetails.floCol,
+                          namespace: 'certificate',
+                          key: 'number',
+                          value: product.nivodaCertificateDetails.certNumber,
                           type: 'single_line_text_field',
                         },
                       ]

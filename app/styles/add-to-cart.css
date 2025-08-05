@@ -1,0 +1,193 @@
+/* Add to Cart Button Styles */
+.add-to-cart-error,
+.add-to-cart-success {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.add-to-cart-error .error-message,
+.add-to-cart-success .success-message {
+  font-size: 0.875rem;
+  text-align: center;
+  margin: 0;
+}
+
+.add-to-cart-error .error-message {
+  color: #dc2626;
+}
+
+.add-to-cart-success .success-message {
+  color: #059669;
+}
+
+/* Button base styles */
+.add-to-cart-error button,
+.add-to-cart-success button,
+.create-product,
+.add-to-cart {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  min-height: 3rem;
+  min-width: 8rem;
+}
+
+/* Default button state */
+.create-product,
+.add-to-cart {
+  background-color: #1f2937;
+  color: white;
+  border-color: #1f2937;
+}
+
+.create-product:hover:not(:disabled),
+.add-to-cart:hover:not(:disabled) {
+  background-color: #111827;
+  border-color: #111827;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.create-product:active:not(:disabled),
+.add-to-cart:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Disabled state */
+.create-product:disabled,
+.add-to-cart:disabled {
+  background-color: #9ca3af;
+  border-color: #9ca3af;
+  color: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Error retry button */
+.error-retry {
+  background-color: #dc2626;
+  color: white;
+  border-color: #dc2626;
+}
+
+.error-retry:hover:not(:disabled) {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* Success state */
+.success {
+  background-color: #059669;
+  color: white;
+  border-color: #059669;
+  cursor: default;
+}
+
+.success:hover {
+  background-color: #059669;
+  border-color: #059669;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Focus states for accessibility */
+.create-product:focus-visible,
+.add-to-cart:focus-visible,
+.error-retry:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Screen reader only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .create-product,
+  .add-to-cart,
+  .error-retry,
+  .success {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    min-height: 2.75rem;
+    min-width: 7rem;
+  }
+  
+  .add-to-cart-error .error-message,
+  .add-to-cart-success .success-message {
+    font-size: 0.75rem;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .create-product,
+  .add-to-cart {
+    border-width: 3px;
+  }
+  
+  .error-retry {
+    border-width: 3px;
+  }
+  
+  .success {
+    border-width: 3px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation: none;
+  }
+  
+  .create-product,
+  .add-to-cart,
+  .error-retry {
+    transition: none;
+  }
+  
+  .create-product:hover:not(:disabled),
+  .add-to-cart:hover:not(:disabled) {
+    transform: none;
+  }
+} 

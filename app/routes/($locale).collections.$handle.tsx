@@ -226,14 +226,24 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
   const paginationArgsFromUrl = getPaginationVariables(request, {pageBy: 24}); // Default pageBy for Shopify path
 
   const url = new URL(request.url);
-  const initialDiamondTypeParam = url.searchParams.get('diamondType');
-  const initialDiamondType =
-    initialDiamondTypeParam === 'Natural' ||
-    initialDiamondTypeParam === 'Lab-Grown'
-      ? initialDiamondTypeParam
-      : null;
-  // You can get other filter params from the URL similarly for Nivoda query
-  // For example: const shapesParam = url.searchParams.getAll('shapes'); // .getAll for multiple values
+  
+  // Read all filter parameters from URL
+  const certificateNumber = url.searchParams.get('certificateNumber');
+  const minCarat = url.searchParams.get('minCarat');
+  const maxCarat = url.searchParams.get('maxCarat');
+  const minPrice = url.searchParams.get('minPrice');
+  const maxPrice = url.searchParams.get('maxPrice');
+  const shapes = url.searchParams.getAll('shape');
+  const colors = url.searchParams.getAll('color');
+  const clarities = url.searchParams.getAll('clarity');
+  const cuts = url.searchParams.getAll('cut');
+  const certifications = url.searchParams.getAll('certification');
+  
+  // Simple offset-based pagination
+  const offset = parseInt(url.searchParams.get('offset') || '0');
+  const limit = parseInt(url.searchParams.get('limit') || '20');
+  
+  const sort = url.searchParams.get('sort') || 'price-asc';
 
   if (!handle) {
     throw redirect('/collections');
@@ -241,11 +251,27 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
 
   if (handle.toLowerCase() === 'diamonds') {
     console.log("[Loader] Handling 'diamonds' collection via Nivoda API");
-      const nivodaEmail = env.NIVODA_USERNAME;
-      const nivodaPassword = env.NIVODA_PASSWORD;
-      const nivodaApiUrl = 'https://integrations.nivoda.net/api/diamonds';
+    console.log("[Loader] Filter parameters:", {
+      certificateNumber,
+      minCarat,
+      maxCarat,
+      minPrice,
+      maxPrice,
+      shapes,
+      colors,
+      clarities,
+      cuts,
+      certifications,
+      offset,
+      limit,
+      sort
+    });
+    
+    const nivodaEmail = env.NIVODA_USERNAME;
+    const nivodaPassword = env.NIVODA_PASSWORD;
+    const nivodaApiUrl = 'https://integrations.nivoda.net/api/diamonds';
 
-      if (!nivodaEmail || !nivodaPassword) {
+    if (!nivodaEmail || !nivodaPassword) {
       console.warn(
         'NIVODA_USERNAME or NIVODA_PASSWORD are not set. Cannot fetch diamonds from Nivoda.',
       );
@@ -254,8 +280,8 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
       });
     }
 
-        let authToken: string | null = null;
-        try {
+    let authToken: string | null = null;
+    try {
       console.log('Authenticating with Nivoda API for diamond listing...');
       const authQuery = `
         query Authenticate($username: String!, $password: String!) {
@@ -285,7 +311,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
         throw new Error(`Nivoda authentication failed: ${authResponse.status}`);
       }
 
-          const authResult = (await authResponse.json()) as NivodaAuthResponse;
+      const authResult = (await authResponse.json()) as NivodaAuthResponse;
       console.log('Nivoda auth response:', JSON.stringify(authResult, null, 2));
 
       if (authResult.errors) {
@@ -457,7 +483,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
 
       return json({
         collection: mockCollection,
-        initialDiamondType,
+        initialDiamondType: null, // No longer needed
         analytics: {
           collection: {
             id: mockCollection.id,
@@ -470,66 +496,128 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
       });
     }
 
-    // Replace the diamond list GraphQL query with a hardcoded version
-    // that matches exactly the format from the working example
-    const HARDCODED_QUERY = `
-    query {
-      diamonds_by_query(
-        query: {
-          labgrown: false,
-          shapes: ["ROUND"],
-          sizes: [{ from: 1, to: 1.5}],
-          has_v360: true,
-          has_image: true,
-          color: [D,E],
-        },
-        offset: 0,
-        limit: 20, 
-        order: { type: price, direction: ASC }
-      ) {
-        items {
-          id
-          diamond {
-            id
-            video
-            image
-            availability
-            supplierStockId
-            brown
-            green
-            milky
-            eyeClean
-            mine_of_origin
-            certificate {
-              id
-              lab
-              shape
-              certNumber
-              cut
-              carats
-              clarity
-              polish
-              symmetry
-              color
-              width
-              length
-              depth
-              girdle
-              floInt
-              floCol
-              depthPercentage
-              table
-            }
-          }
-          price
-          discount
-        }
-        total_count
+    // Build dynamic query based on URL parameters
+    const buildDynamicQuery = () => {
+      const queryFilters: string[] = [];
+      
+      // Add shapes filter
+      if (shapes.length > 0) {
+        const shapeValues = shapes.map(shape => `"${shape.toUpperCase()}"`).join(', ');
+        queryFilters.push(`              shapes: [${shapeValues}]`);
       }
-    }`;
+
+      // Add carat range filter
+      if (minCarat || maxCarat) {
+        const from = minCarat ? parseFloat(minCarat) : 0;
+        const to = maxCarat ? parseFloat(maxCarat) : 10;
+        queryFilters.push(`              carats: [{ from: ${from}, to: ${to} }]`);
+      }
+
+      // Add color filter
+      if (colors.length > 0) {
+        const colorValues = colors.map(color => color.toUpperCase()).join(', ');
+        queryFilters.push(`              color: [${colorValues}]`);
+      }
+
+      // Add clarity filter
+      if (clarities.length > 0) {
+        const clarityValues = clarities.map(clarity => clarity.toUpperCase()).join(', ');
+        queryFilters.push(`              clarity: [${clarityValues}]`);
+      }
+
+      // Add cut filter - try different field names
+      if (cuts.length > 0) {
+        const cutValues = cuts.map(cut => cut.toUpperCase()).join(', ');
+         queryFilters.push(`              cut: [${cutValues}]`); 
+      }
+
+      // Add certification filter
+      if (certifications.length > 0) {
+        const certValues = certifications.map(cert => `"${cert}"`).join(', ');
+        queryFilters.push(`              lab: [${certValues}]`);
+      }
+
+      // Add certificate number filter
+      if (certificateNumber) {
+        // Use the correct field name as suggested by the API error
+        queryFilters.push(`              certificate_numbers: ["${certificateNumber}"]`);
+      }
+
+      // Add price range filter
+      if (minPrice || maxPrice) {
+        const min = minPrice ? parseFloat(minPrice) : 0;
+        const max = maxPrice ? parseFloat(maxPrice) : 100000;
+        queryFilters.push(`              price_range: { from: ${min}, to: ${max} }`);
+      }
+
+      // Add standard filters
+      queryFilters.push('              has_v360: true');
+      queryFilters.push('              has_image: true');
+
+      // Build the complete query
+      const query = `
+        query {
+          diamonds_by_query(
+            query: {
+${queryFilters.join(',\n')}
+            },
+            offset: ${offset},
+            limit: ${limit}, 
+            order: { type: ${sort === 'price-desc' ? 'price' : sort === 'price-asc' ? 'price' : 'price'}, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
+          ) {
+            items {
+              id
+              diamond {
+                id
+                video
+                image
+                availability
+                supplierStockId
+                brown
+                green
+                milky
+                eyeClean
+                mine_of_origin
+                certificate {
+                  id
+                  lab
+                  shape
+                  certNumber
+                  cut
+                  carats
+                  clarity
+                  polish
+                  symmetry
+                  color
+                  width
+                  length
+                  depth
+                  girdle
+                  floInt
+                  floCol
+                  depthPercentage
+                  table
+                }
+              }
+              price
+              discount
+            }
+            total_count
+          }
+        }
+      `;
+
+      return { query, queryFilters };
+    };
+
+    const { query: dynamicQuery, queryFilters } = buildDynamicQuery();
+    console.log('Dynamic Nivoda query:', dynamicQuery);
 
     try {
-      console.log('Fetching diamond list from Nivoda with hardcoded query');
+      console.log('Fetching diamond list from Nivoda with dynamic query');
+      console.log('Request body:', JSON.stringify({
+        query: dynamicQuery,
+      }, null, 2));
 
       const nivodaListApiResponse = await fetch(nivodaApiUrl, {
         method: 'POST',
@@ -538,9 +626,16 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
           Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          query: HARDCODED_QUERY,
+          query: dynamicQuery,
         }),
       });
+
+      console.log('Nivoda API response status:', nivodaListApiResponse.status);
+      console.log('Nivoda API response headers:', Object.fromEntries(nivodaListApiResponse.headers.entries()));
+
+      let nivodaResult: NivodaDiamondListApiResponse;
+      let nivodaItems: any[] = [];
+      let totalCount = 0;
 
       if (!nivodaListApiResponse.ok) {
         const errorBody = await nivodaListApiResponse.text();
@@ -548,35 +643,269 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
           `Nivoda Diamond List API Error: ${nivodaListApiResponse.status} ${nivodaListApiResponse.statusText}`,
           errorBody,
         );
-        throw new Error(
-          `Nivoda diamond list request failed: ${nivodaListApiResponse.status}`,
-        );
+        
+        // If certificate number search failed, try without it
+        if (certificateNumber && errorBody.includes('certificate_numbers')) {
+          console.log('Certificate number search failed, trying without certificate number filter...');
+          
+          // Build a simpler query without certificate number
+          const simpleQueryFilters = queryFilters.filter((filter: string) => !filter.includes('certificate_numbers'));
+          const simpleQuery = `
+            query {
+              diamonds_by_query(
+                query: {
+${simpleQueryFilters.join(',\n')}
+                },
+                offset: ${offset},
+                limit: ${limit}, 
+                order: { type: ${sort === 'price-desc' ? 'price' : sort === 'price-asc' ? 'price' : 'price'}, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
+              ) {
+                items {
+                  id
+                  diamond {
+                    id
+                    video
+                    image
+                    availability
+                    supplierStockId
+                    brown
+                    green
+                    milky
+                    eyeClean
+                    mine_of_origin
+                    certificate {
+                      id
+                      lab
+                      shape
+                      certNumber
+                      cut
+                      carats
+                      clarity
+                      polish
+                      symmetry
+                      color
+                      width
+                      length
+                      depth
+                      girdle
+                      floInt
+                      floCol
+                      depthPercentage
+                      table
+                    }
+                  }
+                  price
+                  discount
+                }
+                total_count
+              }
+            }
+          `;
+          
+          console.log('Trying simple query:', simpleQuery);
+          
+          const simpleResponse = await fetch(nivodaApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              query: simpleQuery,
+            }),
+          });
+          
+          if (!simpleResponse.ok) {
+            const simpleErrorBody = await simpleResponse.text();
+            console.error('Simple query also failed:', simpleErrorBody);
+            throw new Error(
+              `Nivoda diamond list request failed: ${nivodaListApiResponse.status} - ${errorBody}`,
+            );
+          }
+          
+          const simpleResponseText = await simpleResponse.text();
+          console.log('Simple query response:', simpleResponseText);
+          
+          try {
+            nivodaResult = JSON.parse(simpleResponseText) as NivodaDiamondListApiResponse;
+          } catch (parseError) {
+            console.error('Failed to parse simple query response as JSON:', parseError);
+            throw new Error(`Invalid JSON response from Nivoda API: ${simpleResponseText}`);
+          }
+          
+          if (nivodaResult.errors) {
+            console.error('Simple query GraphQL errors:', JSON.stringify(nivodaResult.errors, null, 2));
+            throw new Error(`Nivoda API returned GraphQL errors: ${JSON.stringify(nivodaResult.errors)}`);
+          }
+          
+          // Use the simple result
+          nivodaItems = nivodaResult.data?.diamonds_by_query?.items || [];
+          totalCount = nivodaResult.data?.diamonds_by_query?.total_count || 0;
+          
+          console.log('Certificate Number Query Response Debug:', {
+            itemsCount: nivodaItems.length,
+            totalCount,
+            rawTotalCount: nivodaResult.data?.diamonds_by_query?.total_count
+          });
+          console.log(`Simple query returned ${nivodaItems.length} items, total available: ${totalCount}`);
+        } else if (certifications.length > 0 && errorBody.includes('lab')) {
+          // If certification filter failed, try without it
+          console.log('Certification filter failed, trying without certification filter...');
+          
+          // Build a simpler query without certification filter
+          const simpleQueryFilters = queryFilters.filter((filter: string) => !filter.includes('lab:'));
+          const simpleQuery = `
+            query {
+              diamonds_by_query(
+                query: {
+${simpleQueryFilters.join(',\n')}
+                },
+                offset: ${offset},
+                limit: ${limit}, 
+                order: { type: ${sort === 'price-desc' ? 'price' : sort === 'price-asc' ? 'price' : 'price'}, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
+              ) {
+                items {
+                  id
+                  diamond {
+                    id
+                    video
+                    image
+                    availability
+                    supplierStockId
+                    brown
+                    green
+                    milky
+                    eyeClean
+                    mine_of_origin
+                    certificate {
+                      id
+                      lab
+                      shape
+                      certNumber
+                      cut
+                      carats
+                      clarity
+                      polish
+                      symmetry
+                      color
+                      width
+                      length
+                      depth
+                      girdle
+                      floInt
+                      floCol
+                      depthPercentage
+                      table
+                    }
+                  }
+                  price
+                  discount
+                }
+                total_count
+              }
+            }
+          `;
+          
+          console.log('Trying query without certification filter:', simpleQuery);
+          
+          const simpleResponse = await fetch(nivodaApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              query: simpleQuery,
+            }),
+          });
+          
+          if (!simpleResponse.ok) {
+            const simpleErrorBody = await simpleResponse.text();
+            console.error('Query without certification filter also failed:', simpleErrorBody);
+            throw new Error(
+              `Nivoda diamond list request failed: ${nivodaListApiResponse.status} - ${errorBody}`,
+            );
+          }
+          
+          const simpleResponseText = await simpleResponse.text();
+          console.log('Query without certification filter response:', simpleResponseText);
+          
+          try {
+            nivodaResult = JSON.parse(simpleResponseText) as NivodaDiamondListApiResponse;
+          } catch (parseError) {
+            console.error('Failed to parse response as JSON:', parseError);
+            throw new Error(`Invalid JSON response from Nivoda API: ${simpleResponseText}`);
+          }
+          
+          if (nivodaResult.errors) {
+            console.error('GraphQL errors:', JSON.stringify(nivodaResult.errors, null, 2));
+            throw new Error(`Nivoda API returned GraphQL errors: ${JSON.stringify(nivodaResult.errors)}`);
+          }
+          
+          // Use the simple result
+          nivodaItems = nivodaResult.data?.diamonds_by_query?.items || [];
+          totalCount = nivodaResult.data?.diamonds_by_query?.total_count || 0;
+          
+          console.log('Certification Filter Query Response Debug:', {
+            itemsCount: nivodaItems.length,
+            totalCount,
+            rawTotalCount: nivodaResult.data?.diamonds_by_query?.total_count
+          });
+          console.log(`Query without certification filter returned ${nivodaItems.length} items, total available: ${totalCount}`);
+        } else {
+          throw new Error(
+            `Nivoda diamond list request failed: ${nivodaListApiResponse.status} - ${errorBody}`,
+          );
+        }
+      } else {
+        // Original query succeeded
+        const responseText = await nivodaListApiResponse.text();
+        console.log('Raw Nivoda API response:', responseText);
+
+        try {
+          nivodaResult = JSON.parse(responseText) as NivodaDiamondListApiResponse;
+        } catch (parseError) {
+          console.error('Failed to parse Nivoda API response as JSON:', parseError);
+          throw new Error(`Invalid JSON response from Nivoda API: ${responseText}`);
+        }
+
+        if (nivodaResult.errors) {
+          console.error(
+            'Nivoda Diamond List GraphQL Errors:',
+            JSON.stringify(nivodaResult.errors, null, 2),
+          );
+          throw new Error(
+            `Nivoda API returned GraphQL errors: ${JSON.stringify(nivodaResult.errors)}`,
+          );
+        }
+
+        nivodaItems = nivodaResult.data?.diamonds_by_query?.items || [];
+        totalCount = nivodaResult.data?.diamonds_by_query?.total_count || 0;
+        
+        console.log('Nivoda API Response Debug:', {
+          itemsCount: nivodaItems.length,
+          totalCount,
+          rawTotalCount: nivodaResult.data?.diamonds_by_query?.total_count,
+          fullResponse: nivodaResult.data?.diamonds_by_query
+        });
       }
 
-      const nivodaResult =
-        (await nivodaListApiResponse.json()) as NivodaDiamondListApiResponse;
-
-      if (nivodaResult.errors) {
-        console.error(
-          'Nivoda Diamond List GraphQL Errors:',
-          JSON.stringify(nivodaResult.errors, null, 2),
-        );
-        throw new Error(
-          'Nivoda API returned GraphQL errors during diamond listing.',
-        );
-      }
-
-      const nivodaItems = nivodaResult.data?.diamonds_by_query?.items || [];
       console.log('Nivoda items:', JSON.stringify(nivodaItems, null, 2));
-      const totalCount = nivodaResult.data?.diamonds_by_query?.total_count || 0;
       console.log(
         `Nivoda raw items fetched: ${nivodaItems.length}, total available: ${totalCount}`,
       );
 
-      const mappedProducts: ProductDataFromNivoda[] = nivodaItems.map(
-        (item) => {
+      // Map Nivoda items to product format
+      const mappedProducts: ProductDataFromNivoda[] = nivodaItems
+        .map((item) => {
           // Log the entire item structure to debug
           console.log(`Processing diamond item ${item.id}:`, item);
+
+          // Ensure item.id exists, if not, skip this item
+          if (!item.id) {
+            console.error('Skipping item with undefined or null id:', item);
+            return null;
+          }
 
           const nivDiamondInfo = item.diamond; // Direct access to the diamond object
 
@@ -775,39 +1104,41 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
             merchandiseId: `nivoda-variant-${item.id}`,
           };
         },
-      );
+      )
+        .filter((product) => product !== null) as ProductDataFromNivoda[];
 
-      const currentOffsetVal = 0;
-      const currentLimitVal = 20;
-      const hasNextPage = currentOffsetVal + mappedProducts.length < totalCount;
+      const currentOffsetVal = offset;
+      const currentLimitVal = limit;
+      // Calculate pagination info
+      const hasNextPage = (currentOffsetVal + currentLimitVal) < totalCount;
       const hasPreviousPage = currentOffsetVal > 0;
+
+      // Debug pagination calculation
+      console.log('Pagination Debug:', {
+        currentOffsetVal,
+        currentLimitVal,
+        mappedProductsLength: mappedProducts.length,
+        totalCount,
+        hasNextPage,
+        hasPreviousPage,
+      });
 
       const nivodaSourcedCollection: NivodaSourcedCollection = {
         id: 'gid://nivoda/Collection/diamonds',
         handle: 'diamonds',
-        title: initialDiamondType
-          ? `${initialDiamondType} Diamonds`
-          : 'Diamonds',
-        description: `Explore our fine selection of ${
-          initialDiamondType || ''
-        } diamonds, sourced directly from Nivoda.`,
+        title: 'Diamonds',
+        description: `Explore our fine selection of diamonds, sourced directly from Nivoda.`,
         products: {
           nodes: mappedProducts,
           pageInfo: {
             hasPreviousPage,
             hasNextPage,
-            startCursor: hasPreviousPage
-              ? `offset=${Math.max(0, currentOffsetVal - currentLimitVal)}`
-              : null,
-            endCursor: hasNextPage
-              ? `offset=${currentOffsetVal + currentLimitVal}`
-              : null,
+            startCursor: hasPreviousPage ? `offset=${Math.max(0, currentOffsetVal - currentLimitVal)}` : null,
+            endCursor: hasNextPage ? `offset=${currentOffsetVal + currentLimitVal}` : null,
           },
         },
         seo: {
-          title: initialDiamondType
-            ? `${initialDiamondType} Diamonds`
-            : 'Diamonds',
+          title: 'Diamonds',
         },
       };
 
@@ -846,10 +1177,22 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
         'Collection page info:',
         JSON.stringify(nivodaSourcedCollection.products.pageInfo, null, 2),
       );
+      
+      // Final debug log for pagination
+      console.log('Final Pagination Summary:', {
+        totalCount,
+        currentOffset: currentOffsetVal,
+        currentLimit: currentLimitVal,
+        mappedProductsCount: mappedProducts.length,
+        hasNextPage,
+        hasPreviousPage,
+        endCursor: nivodaSourcedCollection.products.pageInfo.endCursor,
+        startCursor: nivodaSourcedCollection.products.pageInfo.startCursor
+      });
 
       return json({
         collection: nivodaSourcedCollection,
-        initialDiamondType,
+        initialDiamondType: null, // No longer needed
         analytics: {
           collection: {
             id: nivodaSourcedCollection.id,
@@ -1033,7 +1376,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
         (productNode) => {
           const nivodaIdVal = productNode.nivodaId?.value;
           const details = nivodaIdVal ? nivodaDataMap.get(nivodaIdVal) : null;
-      return {
+          return {
             ...productNode,
             nivodaDetails: details || null,
             certificateNumber: details?.certNumber || null,
@@ -1042,26 +1385,25 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
       );
     }
 
-  return json({
-    collection,
-      initialDiamondType,
-    analytics: {
-      collection: {
-        id: collection.id,
-        handle: collection.handle,
+    return json({
+      collection,
+      initialDiamondType: null, // No longer needed
+      analytics: {
+        collection: {
+          id: collection.id,
+          handle: collection.handle,
+        },
       },
-    },
       dataSource: 'shopify',
-  });
+    });
   }
 }
 
 export default function CollectionComponent() {
   // Renamed to avoid conflict with imported Collection type
   // Use the extended type here
-  const {collection, initialDiamondType, dataSource} = useLoaderData<{
+  const {collection, dataSource} = useLoaderData<{
     collection: ExtendedCollectionType;
-    initialDiamondType: 'Natural' | 'Lab-Grown' | null;
     dataSource?: 'shopify' | 'nivoda';
   }>();
 

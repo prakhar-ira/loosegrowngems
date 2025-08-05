@@ -12,7 +12,7 @@ import {
   type ShouldRevalidateFunction,
   useLocation,
 } from '@remix-run/react';
-import {useEffect} from 'react';
+import {useEffect, useState} from 'react';
 import favicon from '~/assets/logo.png';
 import resetStyles from '~/styles/reset.css?url';
 import appStyles from '~/styles/app.css?url';
@@ -156,9 +156,8 @@ export function Layout({children}: {children?: React.ReactNode}) {
   const siteName = 'Loose Grown Gems';
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
-        <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         {/* Default Open Graph / Twitter Card Tags */}
         <meta property="og:type" content="website" />
@@ -166,14 +165,15 @@ export function Layout({children}: {children?: React.ReactNode}) {
         <meta property="og:image" content={ogImageUrl} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:image" content={ogImageUrl} />
-        <meta name="twitter:site" content="@YourTwitterHandle" />{' '}
+        <meta name="twitter:site" content="@YourTwitterHandle" />
         {/* Optional: Add your Twitter handle */}
-        <meta name="twitter:creator" content="@YourTwitterHandle" />{' '}
+        <meta name="twitter:creator" content="@YourTwitterHandle" />
         {/* Optional: Add your Twitter handle */}
         {/* --- End Defaults --- */}
         <link rel="stylesheet" href={tailwindCss}></link>
         <link rel="stylesheet" href={resetStyles}></link>
         <link rel="stylesheet" href={appStyles}></link>
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link
           href="https://calendly.com/assets/external/widget.css"
           rel="stylesheet"
@@ -198,19 +198,31 @@ export function Layout({children}: {children?: React.ReactNode}) {
         <Meta />
         <Links />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         {data ? (
-          <Analytics.Provider
-            cart={data.cart}
-            shop={data.shop}
-            consent={data.consent}
-          >
-            <Aside.Provider>
-              <PageLayout {...data}>{children}</PageLayout>
-            </Aside.Provider>
-          </Analytics.Provider>
+          <>
+            {typeof window !== 'undefined' && window.location.hostname === 'localhost' ? (
+              // Disable analytics in development
+              <Aside.Provider>
+                <PageLayout {...data}>{children}</PageLayout>
+              </Aside.Provider>
+            ) : (
+              // Enable analytics in production
+              <Analytics.Provider
+                cart={data.cart}
+                shop={data.shop}
+                consent={data.consent}
+              >
+                <Aside.Provider>
+                  <PageLayout {...data}>{children}</PageLayout>
+                </Aside.Provider>
+              </Analytics.Provider>
+            )}
+          </>
         ) : (
-          children
+          <Aside.Provider>
+            {children}
+          </Aside.Provider>
         )}
         <ScrollRestoration nonce={nonce} />
         <Scripts nonce={nonce} />
@@ -220,18 +232,31 @@ export function Layout({children}: {children?: React.ReactNode}) {
 }
 
 export default function App() {
+  const location = useLocation();
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
   return (
-    <AnimatePresence mode="wait">
-      <motion.main
-        key={useLocation().pathname} // Ensure animation triggers on route change
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }} // Adjust duration as needed
-      >
+    <>
+      {mounted ? (
+        <AnimatePresence mode="wait">
+          <motion.main
+            key={location.pathname}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Outlet />
+          </motion.main>
+        </AnimatePresence>
+      ) : (
         <Outlet />
-      </motion.main>
-    </AnimatePresence>
+      )}
+    </>
   );
 }
 

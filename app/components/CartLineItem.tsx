@@ -42,7 +42,16 @@ export function CartLineItem({
 }) {
   const {id, merchandise} = line;
   const {product, title, image, selectedOptions} = merchandise;
-  const lineItemUrl = useVariantUrl(product.handle, selectedOptions);
+  
+  // Only generate URL if we have a valid product handle and it's not a temporary UUID
+  const hasValidHandle = product.handle && 
+                        product.handle !== '#' && 
+                        !product.handle.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  
+  const lineItemUrl = hasValidHandle 
+    ? useVariantUrl(product.handle, undefined, selectedOptions)
+    : '#';
+    
   const {close} = useAside();
 
   // Check if line.id is null or undefined, if so, return null
@@ -72,21 +81,27 @@ export function CartLineItem({
         <div className="flex justify-between items-start gap-2 cart-form-container">
           {/* Title and Price */}
           <div className="flex flex-col gap-1">
-            <Link
-              prefetch="intent"
-              to={lineItemUrl}
-              onClick={() => {
-                if (layout === 'aside') {
-                  close();
-                }
-              }}
-              className="hover:underline"
-            >
-              {/* Title styling: text-lg font-normal */}
+            {hasValidHandle ? (
+              <Link
+                prefetch="intent"
+                to={lineItemUrl}
+                onClick={() => {
+                  if (layout === 'aside') {
+                    close();
+                  }
+                }}
+                className="hover:underline"
+              >
+                {/* Title styling: text-lg font-normal */}
+                <p className="text-lg font-normal">
+                  {product.title}
+                </p>
+              </Link>
+            ) : (
               <p className="text-lg font-normal">
                 {product.title}
               </p>
-            </Link>
+            )}
             {/* Price styling: wrap ProductPrice in a div to apply className */}
             <div className="text-2xl font-bold">
               <ProductPrice price={line?.cost?.totalAmount} />

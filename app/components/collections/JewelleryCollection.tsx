@@ -3,9 +3,8 @@ import {Image, Money} from '@shopify/hydrogen';
 import {useState, useMemo, useEffect} from 'react';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import CloseIcon from '@mui/icons-material/Close';
+import {ClientOnly} from '~/components/ClientOnly';
+import {CloseIcon, FilterListIcon, KeyboardArrowDownIcon} from '~/components/icons';
 // Import Image type
 import type { Image as ImageType } from '@shopify/hydrogen/storefront-api-types';
 import type {ProductItemFragment} from 'storefrontapi.generated';
@@ -111,7 +110,9 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
             onClick={() => setShowMobileFilters(false)}
             aria-label="Close filters"
           >
-            <CloseIcon />
+            <ClientOnly fallback={<span>×</span>}>
+              {() => <CloseIcon />}
+            </ClientOnly>
           </button>
 
           {/* Sort By Section - Add margin-bottom */}
@@ -131,7 +132,9 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
                   ))}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                  <KeyboardArrowDownIcon className="h-5 w-5 text-gray-700" />
+                  <ClientOnly fallback={<span>▼</span>}>
+                    {() => <KeyboardArrowDownIcon className="h-5 w-5 text-gray-700" />}
+                  </ClientOnly>
                 </div>
               </div>
           </div>
@@ -156,20 +159,24 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
           {/* Price Filter */}
           <div className="filter-group">
             <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">Price</h3>
-            <Slider
-              range
-              min={0}
-              max={5000} // Adjust max price for jewellery if needed
-              value={filters.priceRange}
-              onChange={(value) => {
-                if (Array.isArray(value) && value.length === 2) {
-                  const [newMin, newMax] = value as [number, number];
-                  setFilters({...filters, priceRange: [newMin, newMax]});
-                }
-              }}
-              // Add relevant slider styles if needed via className or global CSS
-               className="rc-slider-custom" // Example class for potential custom styling
-            />
+            <ClientOnly fallback={<div className="h-8 bg-gray-200 rounded animate-pulse" />}>
+              {() => (
+                <Slider
+                  range
+                  min={0}
+                  max={5000} // Adjust max price for jewellery if needed
+                  value={filters.priceRange}
+                  onChange={(value) => {
+                    if (Array.isArray(value) && value.length === 2) {
+                      const [newMin, newMax] = value as [number, number];
+                      setFilters({...filters, priceRange: [newMin, newMax]});
+                    }
+                  }}
+                  // Add relevant slider styles if needed via className or global CSS
+                   className="rc-slider-custom" // Example class for potential custom styling
+                />
+              )}
+            </ClientOnly>
             <div className="flex justify-between items-center mt-4 gap-2 price-input-container">
               <div className="flex-1">
                 <label htmlFor="minPrice" className="block text-xs text-slate-700 mb-1">Min Price</label>
@@ -243,7 +250,9 @@ export function JewelleryCollection({collection}: JewelleryCollectionProps) { //
         onClick={() => setShowMobileFilters(true)}
         aria-label="Show filters"
       >
-        <FilterListIcon />
+        <ClientOnly fallback={<span>☰</span>}>
+          {() => <FilterListIcon />}
+        </ClientOnly>
       </button>
     </>
   );

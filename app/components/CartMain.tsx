@@ -24,6 +24,13 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
   const cartItemsRef = useRef<HTMLDivElement>(null);
   const prevQuantityRef = useRef<number>(0);
 
+  // Debug cart data
+  console.log('🛒 CartMain render - originalCart:', originalCart);
+  console.log('🛒 CartMain render - optimisticCart:', cart);
+  console.log('🛒 CartMain render - totalQuantity:', cart?.totalQuantity);
+  console.log('🛒 CartMain render - lines:', cart?.lines);
+  console.log('🛒 CartMain render - lines nodes length:', cart?.lines?.nodes?.length);
+
   // Determine if any fetcher is currently updating the cart lines
   const isCartUpdating = fetchers.some((fetcher) => {
     // Check if the fetcher is submitting to the cart route
@@ -106,12 +113,12 @@ function CartEmpty({
     <div hidden={hidden}>
       <br />
       <p>
-        Looks like you haven&rsquo;t added anything yet, let&rsquo;s get you
+        Looks like you haven't added anything yet, let's get you
         started!
       </p>
       <br />
       <Link to="/collections/engagement-rings" onClick={close} prefetch="viewport">
-        Continue shopping →
+        Continue shopping
       </Link>
     </div>
   );

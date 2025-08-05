@@ -37,8 +37,8 @@ export function getVariantUrl({
   const isLocalePathname = match && match.length > 0;
 
   const path = isLocalePathname
-    ? `${match![0]}products/${id}`
-    : `/products/${id}`;
+    ? `${match![0]}products/${handle}`
+    : `/products/${handle}`;
 
   selectedOptions?.forEach((option) => {
     searchParams.set(option.name, option.value);

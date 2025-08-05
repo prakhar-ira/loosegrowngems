@@ -15,6 +15,7 @@ import {
 } from '~/components/SearchFormPredictive';
 import {SearchResultsPredictive} from '~/components/SearchResultsPredictive';
 import { Breadcrumb } from './Breadcrumb';
+import {ClientOnly} from '~/components/ClientOnly';
 
 interface PageLayoutProps {
   cart: Promise<CartApiQueryFragment | null>;
@@ -46,8 +47,10 @@ export function PageLayout({
           publicStoreDomain={publicStoreDomain}
         />
       )}
-      <Breadcrumb />
-      <main>{children}</main>
+      <ClientOnly fallback={null}>
+        {() => <Breadcrumb />}
+      </ClientOnly>
+      <main suppressHydrationWarning>{children}</main>
       <Footer
         footer={footer}
         header={header}
@@ -72,7 +75,7 @@ function CartAside({cart}: {cart: PageLayoutProps['cart']}) {
 }
 
 function SearchAside() {
-  const queriesDatalistId = useId();
+  const queriesDatalistId = 'search-queries-datalist';
   return (
     <Aside type="search" heading="SEARCH">
       <div className="predictive-search">
@@ -89,7 +92,6 @@ function SearchAside() {
                 type="search"
                 list={queriesDatalistId}
               />
-              &nbsp;
               <button onClick={goToSearch}>Search</button>
             </>
           )}

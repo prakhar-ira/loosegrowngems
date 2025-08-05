@@ -15,8 +15,8 @@ export function NivodaImage({
   width,
   height,
 }: NivodaImageProps) {
-  const [imgSrc, setImgSrc] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [imgSrc, setImgSrc] = useState<string | null>(src || null);
+  const [loading, setLoading] = useState(!src);
   const [error, setError] = useState(false);
 
   useEffect(() => {

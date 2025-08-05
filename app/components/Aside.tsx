@@ -7,6 +7,7 @@ import {
   useCallback,
   useRef,
 } from 'react';
+import {CloseIcon} from '~/components/icons';
 
 type AsideType = 'search' | 'cart' | 'mobile' | 'closed';
 type AsideContextValue = {
@@ -75,7 +76,7 @@ export function Aside({
             onClick={handleClose}
             aria-label="Close"
           >
-            &times;
+            <CloseIcon className="w-5 h-5" />
           </button>
         </header>
         <main className="flex-1">{children}</main>
