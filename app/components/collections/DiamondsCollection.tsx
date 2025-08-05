@@ -1,14 +1,15 @@
-
-
+import {
+  CloseIcon,
+  FilterListIcon,
+  KeyboardArrowDownIcon,
+} from '~/components/icons';
 import {Image, Money} from '@shopify/hydrogen';
 import {Link, useLocation, useNavigate, useNavigation} from '@remix-run/react';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
 import {AddToCartButton} from '~/components/AddToCartButton';
 import {ClientOnly} from '~/components/ClientOnly';
-import {CloseIcon, FilterListIcon, KeyboardArrowDownIcon} from '~/components/icons';
 import type {ProductItemFragment} from 'storefrontapi.generated';
-
 import {Tag} from '~/components/Tag';
 import {useVariantUrl} from '~/lib/variants';
 
@@ -100,18 +101,18 @@ function parseProductAttributesFromHtml(
   const cutMatch = matchAttribute(
     /Cut[:\s]*(Excellent|Very\s*Good|Good|Fair|Poor|Ideal|EX|VG|G|F|P)\b/i,
   );
-  
+
   if (cutMatch) {
     // Map to Nivoda's expected format (abbreviations)
-    const cutMapping: { [key: string]: string } = {
-      'Excellent': 'EX',
+    const cutMapping: {[key: string]: string} = {
+      Excellent: 'EX',
       'Very Good': 'VG',
-      'Good': 'G',
-      'Fair': 'F',
-      'Poor': 'P',
-      'Ideal': 'EX', // Map Ideal to Excellent as they're often equivalent
+      Good: 'G',
+      Fair: 'F',
+      Poor: 'P',
+      Ideal: 'EX', // Map Ideal to Excellent as they're often equivalent
     };
-    
+
     attributes.cut = cutMapping[cutMatch] || cutMatch;
   }
 
@@ -271,7 +272,9 @@ export function DiamondsCollection({
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // State to store accumulated products - initialize with current products to prevent hydration mismatch
-  const [allProducts, setAllProducts] = useState<ProductWithDetails[]>(collection.products.nodes);
+  const [allProducts, setAllProducts] = useState<ProductWithDetails[]>(
+    collection.products.nodes,
+  );
 
   // Parse current filter parameters from the URL for initializing states
   const initialSearchParams = useMemo(
@@ -284,11 +287,14 @@ export function DiamondsCollection({
   const limit = parseInt(initialSearchParams.get('limit') || '50');
 
   // Build pagination URL helper for offset-based navigation
-  const buildPaginationURL = useCallback((newOffset: number) => {
-    const searchParams = new URLSearchParams(location.search);
-    searchParams.set('offset', newOffset.toString());
-    return `${location.pathname}?${searchParams.toString()}`;
-  }, [location.search, location.pathname]);
+  const buildPaginationURL = useCallback(
+    (newOffset: number) => {
+      const searchParams = new URLSearchParams(location.search);
+      searchParams.set('offset', newOffset.toString());
+      return `${location.pathname}?${searchParams.toString()}`;
+    },
+    [location.search, location.pathname],
+  );
 
   // Declare certificateSearch state here
   const [certificateSearch, setCertificateSearch] = useState(
@@ -311,13 +317,13 @@ export function DiamondsCollection({
 
   // Auto-scroll to top when products change (page navigation)
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({top: 0, behavior: 'smooth'});
   }, [collection.products.nodes]);
 
   // Auto-scroll to top immediately when navigation starts (button press)
   useEffect(() => {
     if (isNavigating) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({top: 0, behavior: 'smooth'});
     }
   }, [isNavigating]);
 
@@ -379,7 +385,7 @@ export function DiamondsCollection({
   const applyFilters = useCallback(
     (newFilters: FilterState, newSort?: string) => {
       setIsFiltering(true); // Start loading
-      
+
       const newParams = new URLSearchParams(); // Start with fresh params
 
       // Always reset offset to 0 when filters change
@@ -1008,7 +1014,7 @@ export function DiamondsCollection({
               {[
                 {value: 'EX', label: 'Excellent'},
                 {value: 'VG', label: 'Very Good'},
-                {value: 'G', label: 'Good'}
+                {value: 'G', label: 'Good'},
               ].map((cut) => (
                 <label
                   key={cut.value}
@@ -1074,7 +1080,7 @@ export function DiamondsCollection({
                 {value: '10000-25000', label: '$10,000 - $25,000'},
                 {value: '25000-50000', label: '$25,000 - $50,000'},
                 {value: '50000-100000', label: '$50,000 - $100,000'},
-                {value: '100000+', label: 'Over $100,000'}
+                {value: '100000+', label: 'Over $100,000'},
               ].map((priceRange) => (
                 <label
                   key={priceRange.value}
@@ -1092,7 +1098,9 @@ export function DiamondsCollection({
                     onChange={(e) => {
                       const newPriceRanges = e.target.checked
                         ? [...filters.priceRanges, priceRange.value]
-                        : filters.priceRanges.filter((p) => p !== priceRange.value);
+                        : filters.priceRanges.filter(
+                            (p) => p !== priceRange.value,
+                          );
                       applyFilters(
                         {...filters, priceRanges: newPriceRanges},
                         sortOption,
@@ -1102,7 +1110,9 @@ export function DiamondsCollection({
                   />
                   <div
                     className={`w-4 h-4 border border-black mr-3 flex items-center justify-center ${
-                      filters.priceRanges.includes(priceRange.value) ? 'bg-black' : 'bg-white'
+                      filters.priceRanges.includes(priceRange.value)
+                        ? 'bg-black'
+                        : 'bg-white'
                     } ${isFiltering ? 'opacity-50' : ''}`}
                   >
                     {filters.priceRanges.includes(priceRange.value) && (
@@ -1219,34 +1229,40 @@ export function DiamondsCollection({
           {(isFiltering || isNavigating) && (
             <div className="absolute inset-0 bg-white bg-opacity-75 z-10">
               <div className="products-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1 md:gap-2">
-                {Array.from({ length: 9 }).map((_, index) => (
-                  <div key={index} className="product-item-container border border-slate-200 rounded-md overflow-hidden flex flex-col">
+                {Array.from({length: 9}).map((_, index) => (
+                  <div
+                    key={`skeleton-${index}`}
+                    className="product-item-container border border-slate-200 rounded-md overflow-hidden flex flex-col"
+                  >
                     {/* Image skeleton */}
                     <div className="relative w-full h-64 bg-gray-200 animate-pulse">
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer"></div>
                     </div>
-                    
+
                     {/* Content skeleton */}
                     <div className="p-4 flex flex-col flex-grow">
                       {/* Title skeleton */}
                       <div className="h-4 bg-gray-200 rounded mb-2 animate-pulse">
                         <div className="bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer h-full"></div>
                       </div>
-                      
+
                       {/* Price skeleton */}
                       <div className="h-6 bg-gray-200 rounded mb-2 w-24 animate-pulse">
                         <div className="bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer h-full"></div>
                       </div>
-                      
+
                       {/* Tags skeleton */}
                       <div className="flex flex-wrap gap-1 mb-2">
-                        {Array.from({ length: 4 }).map((_, tagIndex) => (
-                          <div key={tagIndex} className="h-6 bg-gray-200 rounded px-2 py-1 animate-pulse w-16">
+                        {Array.from({length: 4}).map((_, tagIndex) => (
+                          <div
+                            key={`tag-skeleton-${tagIndex}`}
+                            className="h-6 bg-gray-200 rounded px-2 py-1 animate-pulse w-16"
+                          >
                             <div className="bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer h-full"></div>
                           </div>
                         ))}
                       </div>
-                      
+
                       {/* Certification tag skeleton */}
                       <div className="mt-auto pt-2">
                         <div className="h-6 bg-gray-200 rounded px-2 py-1 animate-pulse w-20">
@@ -1254,7 +1270,7 @@ export function DiamondsCollection({
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Button skeleton */}
                     <div className="p-4 pt-0">
                       <div className="h-10 bg-gray-200 rounded-md animate-pulse">
@@ -1266,7 +1282,7 @@ export function DiamondsCollection({
               </div>
             </div>
           )}
-          
+
           {/* Display Products */}
           <div className="products-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1 md:gap-2">
             {allProducts.length > 0 ? (
@@ -1293,8 +1309,8 @@ export function DiamondsCollection({
                 to={buildPaginationURL(Math.max(0, currentOffset - limit))}
                 prefetch="intent"
                 className={`w-24 inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium transition-colors ${
-                  isNavigating 
-                    ? 'text-slate-400 cursor-not-allowed bg-gray-100' 
+                  isNavigating
+                    ? 'text-slate-400 cursor-not-allowed bg-gray-100'
                     : 'text-slate-700 hover:bg-gray-50'
                 }`}
                 aria-disabled={isNavigating}
@@ -1304,15 +1320,19 @@ export function DiamondsCollection({
             )}
 
             <span className="text-sm text-gray-700">
-              {isNavigating ? 'Loading...' : `Showing ${currentOffset + 1}-${currentOffset + collection.products.nodes.length} items`}
+              {isNavigating
+                ? 'Loading...'
+                : `Showing ${currentOffset + 1}-${
+                    currentOffset + collection.products.nodes.length
+                  } items`}
             </span>
 
             <Link
               to={buildPaginationURL(currentOffset + limit)}
               prefetch="intent"
               className={`w-24 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium transition-colors ${
-                isNavigating 
-                  ? 'text-slate-400 cursor-not-allowed bg-gray-100' 
+                isNavigating
+                  ? 'text-slate-400 cursor-not-allowed bg-gray-100'
                   : 'text-slate-500 hover:bg-gray-50'
               }`}
               aria-disabled={isNavigating}
@@ -1338,6 +1358,26 @@ export function DiamondsCollection({
 
 // Update the ProductItem component to safely handle properties that might be null/undefined
 function ProductItem({product}: {product: ProductWithDetails}) {
+  // Extract the actual diamond ID from various possible formats
+  // For navigation, we want to use just the UUID part, not the full DIAMOND/UUID format
+  let actualDiamondId: string;
+
+  if (product.nivodaId?.value) {
+    // Extract just the UUID part from DIAMOND/uuid format
+    const nivodaId = product.nivodaId.value;
+    actualDiamondId = nivodaId.includes('/')
+      ? nivodaId.split('/')[1]
+      : nivodaId;
+  } else if (product.id.startsWith('nivoda-')) {
+    const cleanId = product.id.replace('nivoda-', '');
+    actualDiamondId = cleanId.includes('/') ? cleanId.split('/')[1] : cleanId;
+  } else {
+    actualDiamondId = product.id;
+  }
+
+  // Use the main diamond detail URL with just the UUID
+  const diamondUrl = `/diamonds/${actualDiamondId}`;
+
   const originalVariantUrl = useVariantUrl(product.handle);
   const variantUrl =
     product.existsInShopify && product.shopifyHandle
@@ -1464,9 +1504,15 @@ function ProductItem({product}: {product: ProductWithDetails}) {
 
             {/* Display diamond attributes */}
             <div className="product-attributes flex flex-wrap gap-1 mb-2">
-              {attributes.shape && <Tag label="Shape" value={attributes.shape} />}
-              {attributes.carat && <Tag label="Carat" value={attributes.carat} />}
-              {attributes.color && <Tag label="Color" value={attributes.color} />}
+              {attributes.shape && (
+                <Tag label="Shape" value={attributes.shape} />
+              )}
+              {attributes.carat && (
+                <Tag label="Carat" value={attributes.carat} />
+              )}
+              {attributes.color && (
+                <Tag label="Color" value={attributes.color} />
+              )}
               {attributes.clarity && (
                 <Tag label="Clarity" value={attributes.clarity} />
               )}
@@ -1502,7 +1548,12 @@ function ProductItem({product}: {product: ProductWithDetails}) {
           </div>
         </Link>
       ) : (
-        <div className="group flex flex-col flex-grow relative">
+        <Link
+          key={product.id}
+          prefetch="intent"
+          to={diamondUrl}
+          className="group flex flex-col flex-grow hover:!no-underline relative"
+        >
           <div className="relative w-full h-64 bg-gray-100">
             {imageUrl && !imageLoadFailed ? (
               <img
@@ -1544,9 +1595,15 @@ function ProductItem({product}: {product: ProductWithDetails}) {
 
             {/* Display diamond attributes */}
             <div className="product-attributes flex flex-wrap gap-1 mb-2">
-              {attributes.shape && <Tag label="Shape" value={attributes.shape} />}
-              {attributes.carat && <Tag label="Carat" value={attributes.carat} />}
-              {attributes.color && <Tag label="Color" value={attributes.color} />}
+              {attributes.shape && (
+                <Tag label="Shape" value={attributes.shape} />
+              )}
+              {attributes.carat && (
+                <Tag label="Carat" value={attributes.carat} />
+              )}
+              {attributes.color && (
+                <Tag label="Color" value={attributes.color} />
+              )}
               {attributes.clarity && (
                 <Tag label="Clarity" value={attributes.clarity} />
               )}
@@ -1580,7 +1637,7 @@ function ProductItem({product}: {product: ProductWithDetails}) {
               </div>
             )}
           </div>
-        </div>
+        </Link>
       )}
 
       {/* Add to Cart Button */}
@@ -1603,11 +1660,21 @@ function ProductItem({product}: {product: ProductWithDetails}) {
                 }ct`,
                 description: `
                   <h3>Diamond Specifications</h3>
-                  <p><strong>Shape:</strong> ${attributes.shape || 'Not specified'}</p>
-                  <p><strong>Carat:</strong> ${attributes.carat || 'Not specified'}</p>
-                  <p><strong>Color:</strong> ${attributes.color || 'Not specified'}</p>
-                  <p><strong>Clarity:</strong> ${attributes.clarity || 'Not specified'}</p>
-                  <p><strong>Cut:</strong> ${attributes.cut || 'Not specified'}</p>
+                  <p><strong>Shape:</strong> ${
+                    attributes.shape || 'Not specified'
+                  }</p>
+                  <p><strong>Carat:</strong> ${
+                    attributes.carat || 'Not specified'
+                  }</p>
+                  <p><strong>Color:</strong> ${
+                    attributes.color || 'Not specified'
+                  }</p>
+                  <p><strong>Clarity:</strong> ${
+                    attributes.clarity || 'Not specified'
+                  }</p>
+                  <p><strong>Cut:</strong> ${
+                    attributes.cut || 'Not specified'
+                  }</p>
                   ${
                     product.nivodaCertificateDetails?.certNumber
                       ? `<p><strong>Certificate:</strong> ${product.nivodaCertificateDetails.certNumber}</p>`
@@ -1620,7 +1687,7 @@ function ProductItem({product}: {product: ProductWithDetails}) {
                   attributes.shape || 'diamond',
                   attributes.color || 'color',
                   attributes.clarity || 'clarity',
-                  `${attributes.carat}ct` || 'carat',
+                  attributes.carat ? `${attributes.carat}ct` : 'carat',
                 ],
                 images: product.featuredImage?.url
                   ? [product.featuredImage.url]
@@ -1707,17 +1774,9 @@ function ProductItem({product}: {product: ProductWithDetails}) {
                 ],
                 variants: [
                   {
-                    price: parseFloat(
+                    price:
                       product.priceRange?.minVariantPrice?.amount || '1000',
-                    ),
-                    compareAtPrice: null,
-                    sku: `NIVODA-${product.id}`,
-                    inventoryQuantity: 1,
-                    inventoryPolicy: 'DENY',
-                    requiresShipping: true,
-                    taxable: true,
-                    weight: parseFloat(attributes.carat || '1'),
-                    weightUnit: 'GRAMS',
+                    compareAtPrice: undefined,
                   },
                 ],
               }}
