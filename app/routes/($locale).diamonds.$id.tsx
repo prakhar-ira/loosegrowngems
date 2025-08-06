@@ -449,7 +449,10 @@ export default function DiamondDetail() {
                     {diamond.title}
                   </h1>
                   <div className="flex items-center space-x-4">
-                    <p style={{fontSize: '2rem'}}  className="font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    <p
+                      style={{fontSize: '2rem'}}
+                      className="font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
+                    >
                       {formatPrice(diamond.price)}
                     </p>
                   </div>
@@ -468,7 +471,10 @@ export default function DiamondDetail() {
               </div>
 
               {diamond.supplierStockId && (
-                <p style={{ marginBottom: '2rem' }} className="text-sm text-gray-500 mb-6 bg-gray-50 px-3 py-2 rounded-lg inline-block">
+                <p
+                  style={{marginBottom: '2rem'}}
+                  className="text-sm text-gray-500 mb-6 bg-gray-50 px-3 py-2 rounded-lg inline-block"
+                >
                   Stock ID: {diamond.supplierStockId}
                 </p>
               )}

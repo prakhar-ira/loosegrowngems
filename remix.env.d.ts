@@ -6,15 +6,14 @@
 import type {CustomerAccount, HydrogenCart} from '@shopify/hydrogen';
 import type {AppSession} from '~/lib/session';
 
-
 declare global {
   /**
    * A global `process` object is only available during build to access NODE_ENV.
    */
   const process: {
     env: {
-      NODE_ENV: 'production' | 'development'
-    }
+      NODE_ENV: 'production' | 'development';
+    };
   };
 
   /**
@@ -56,4 +55,4 @@ declare module '@remix-run/server-runtime' {
 }
 
 // Needed to make this file a module.
-export {}; 
+export {};
