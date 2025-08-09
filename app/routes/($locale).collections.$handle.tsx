@@ -67,8 +67,8 @@ type NivodaResponse = {
 type NivodaAuthResponse = {
   data?: {
     authenticate?: {
-    username_and_password?: {
-      token?: string | null;
+      username_and_password?: {
+        token?: string | null;
         expires?: string | null;
       } | null;
     } | null;
@@ -226,7 +226,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
   const paginationArgsFromUrl = getPaginationVariables(request, {pageBy: 24}); // Default pageBy for Shopify path
 
   const url = new URL(request.url);
-  
+
   // Read all filter parameters from URL
   const certificateNumber = url.searchParams.get('certificateNumber');
   const minCarat = url.searchParams.get('minCarat');
@@ -238,11 +238,34 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
   const clarities = url.searchParams.getAll('clarity');
   const cuts = url.searchParams.getAll('cut');
   const certifications = url.searchParams.getAll('certification');
-  
+  const labGrownTypes = url.searchParams.getAll('labGrownType');
+
+  // Advanced filter parameters
+  const fluorescence = url.searchParams.getAll('fluorescence');
+  const minTable = url.searchParams.get('minTable');
+  const maxTable = url.searchParams.get('maxTable');
+  const minDepth = url.searchParams.get('minDepth');
+  const maxDepth = url.searchParams.get('maxDepth');
+  const polish = url.searchParams.getAll('polish');
+  const symmetry = url.searchParams.getAll('symmetry');
+  const minRatio = url.searchParams.get('minRatio');
+  const maxRatio = url.searchParams.get('maxRatio');
+  const minLength = url.searchParams.get('minLength');
+  const maxLength = url.searchParams.get('maxLength');
+  const minWidth = url.searchParams.get('minWidth');
+  const maxWidth = url.searchParams.get('maxWidth');
+  const minHeight = url.searchParams.get('minHeight');
+  const maxHeight = url.searchParams.get('maxHeight');
+  const minCrownAngle = url.searchParams.get('minCrownAngle');
+  const maxCrownAngle = url.searchParams.get('maxCrownAngle');
+  const minPavilionAngle = url.searchParams.get('minPavilionAngle');
+  const maxPavilionAngle = url.searchParams.get('maxPavilionAngle');
+  const girdleThickness = url.searchParams.getAll('girdleThickness');
+
   // Simple offset-based pagination
   const offset = parseInt(url.searchParams.get('offset') || '0');
   const limit = parseInt(url.searchParams.get('limit') || '20');
-  
+
   const sort = url.searchParams.get('sort') || 'price-asc';
 
   if (!handle) {
@@ -251,7 +274,7 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
 
   if (handle.toLowerCase() === 'diamonds') {
     console.log("[Loader] Handling 'diamonds' collection via Nivoda API");
-    console.log("[Loader] Filter parameters:", {
+    console.log('[Loader] Filter parameters:', {
       certificateNumber,
       minCarat,
       maxCarat,
@@ -262,11 +285,33 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
       clarities,
       cuts,
       certifications,
+      labGrownTypes,
+      // Advanced filters
+      fluorescence,
+      minTable,
+      maxTable,
+      minDepth,
+      maxDepth,
+      polish,
+      symmetry,
+      minRatio,
+      maxRatio,
+      minLength,
+      maxLength,
+      minWidth,
+      maxWidth,
+      minHeight,
+      maxHeight,
+      minCrownAngle,
+      maxCrownAngle,
+      minPavilionAngle,
+      maxPavilionAngle,
+      girdleThickness,
       offset,
       limit,
-      sort
+      sort,
     });
-    
+
     const nivodaEmail = env.NIVODA_USERNAME;
     const nivodaPassword = env.NIVODA_PASSWORD;
     const nivodaApiUrl = 'https://integrations.nivoda.net/api/diamonds';
@@ -499,55 +544,194 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
     // Build dynamic query based on URL parameters
     const buildDynamicQuery = () => {
       const queryFilters: string[] = [];
-      
+
       // Add shapes filter
       if (shapes.length > 0) {
-        const shapeValues = shapes.map(shape => `"${shape.toUpperCase()}"`).join(', ');
+        const shapeValues = shapes
+          .map((shape) => `"${shape.toUpperCase()}"`)
+          .join(', ');
         queryFilters.push(`              shapes: [${shapeValues}]`);
       }
 
-      // Add carat range filter
+      // Add carat range filter (using 'sizes' field as per Nivoda API)
       if (minCarat || maxCarat) {
         const from = minCarat ? parseFloat(minCarat) : 0;
         const to = maxCarat ? parseFloat(maxCarat) : 10;
-        queryFilters.push(`              carats: [{ from: ${from}, to: ${to} }]`);
+        queryFilters.push(
+          `              sizes: [{ from: ${from}, to: ${to} }]`,
+        );
       }
 
       // Add color filter
       if (colors.length > 0) {
-        const colorValues = colors.map(color => color.toUpperCase()).join(', ');
+        const colorValues = colors
+          .map((color) => color.toUpperCase())
+          .join(', ');
         queryFilters.push(`              color: [${colorValues}]`);
       }
 
       // Add clarity filter
       if (clarities.length > 0) {
-        const clarityValues = clarities.map(clarity => clarity.toUpperCase()).join(', ');
+        const clarityValues = clarities
+          .map((clarity) => clarity.toUpperCase())
+          .join(', ');
         queryFilters.push(`              clarity: [${clarityValues}]`);
       }
 
       // Add cut filter - try different field names
       if (cuts.length > 0) {
-        const cutValues = cuts.map(cut => cut.toUpperCase()).join(', ');
-         queryFilters.push(`              cut: [${cutValues}]`); 
+        const cutValues = cuts.map((cut) => cut.toUpperCase()).join(', ');
+        queryFilters.push(`              cut: [${cutValues}]`);
       }
 
       // Add certification filter
       if (certifications.length > 0) {
-        const certValues = certifications.map(cert => `"${cert}"`).join(', ');
-        queryFilters.push(`              lab: [${certValues}]`);
+        const certValues = certifications
+          .map((cert) => cert.toUpperCase())
+          .join(', ');
+        queryFilters.push(`              certificate_lab: [${certValues}]`);
+      }
+
+      // Add lab grown type filter
+      // Always filter for lab grown diamonds only
+      queryFilters.push(`              labgrown: true`);
+
+      if (labGrownTypes.length > 0) {
+        const labGrownTypeValues = labGrownTypes
+          .map((type) => `"${type.toUpperCase()}"`)
+          .join(', ');
+        queryFilters.push(
+          `              labgrown_type: [${labGrownTypeValues}]`,
+        );
       }
 
       // Add certificate number filter
       if (certificateNumber) {
         // Use the correct field name as suggested by the API error
-        queryFilters.push(`              certificate_numbers: ["${certificateNumber}"]`);
+        queryFilters.push(
+          `              certificate_numbers: ["${certificateNumber}"]`,
+        );
       }
 
       // Add price range filter
       if (minPrice || maxPrice) {
         const min = minPrice ? parseFloat(minPrice) : 0;
         const max = maxPrice ? parseFloat(maxPrice) : 100000;
-        queryFilters.push(`              price_range: { from: ${min}, to: ${max} }`);
+        queryFilters.push(
+          `              price_range: { from: ${min}, to: ${max} }`,
+        );
+      }
+
+      // Add fluorescence filter
+      if (fluorescence.length > 0) {
+        const fluorValues = fluorescence.map((fluor) => fluor).join(', ');
+        queryFilters.push(`              flouresence: [${fluorValues}]`);
+      }
+
+      // Add table percentage filter
+      if (minTable || maxTable) {
+        const min = minTable ? parseFloat(minTable) : 0;
+        const max = maxTable ? parseFloat(maxTable) : 100;
+        if (min > 0 || max < 100) {
+          queryFilters.push(
+            `              table_percentage: { from: ${min}, to: ${max} }`,
+          );
+        }
+      }
+
+      // Add depth percentage filter
+      if (minDepth || maxDepth) {
+        const min = minDepth ? parseFloat(minDepth) : 0;
+        const max = maxDepth ? parseFloat(maxDepth) : 100;
+        if (min > 0 || max < 100) {
+          queryFilters.push(
+            `              depth_percentage: { from: ${min}, to: ${max} }`,
+          );
+        }
+      }
+
+      // Add polish filter
+      if (polish.length > 0) {
+        const polishValues = polish.map((p) => p).join(', ');
+        queryFilters.push(`              polish: [${polishValues}]`);
+      }
+
+      // Add symmetry filter
+      if (symmetry.length > 0) {
+        const symmetryValues = symmetry.map((s) => s).join(', ');
+        queryFilters.push(`              symmetry: [${symmetryValues}]`);
+      }
+
+      // Add L/W ratio filter
+      if (minRatio || maxRatio) {
+        const min = minRatio ? parseFloat(minRatio) : 1;
+        const max = maxRatio ? parseFloat(maxRatio) : 2.75;
+        if (min > 1 || max < 2.75) {
+          queryFilters.push(
+            `              ratio: { from: ${min}, to: ${max} }`,
+          );
+        }
+      }
+
+      // Add length filter
+      if (minLength || maxLength) {
+        const min = minLength ? parseFloat(minLength) : 3;
+        const max = maxLength ? parseFloat(maxLength) : 20;
+        if (min > 3 || max < 20) {
+          queryFilters.push(
+            `              length_mm: { from: ${min}, to: ${max} }`,
+          );
+        }
+      }
+
+      // Add width filter
+      if (minWidth || maxWidth) {
+        const min = minWidth ? parseFloat(minWidth) : 3;
+        const max = maxWidth ? parseFloat(maxWidth) : 20;
+        if (min > 3 || max < 20) {
+          queryFilters.push(
+            `              width_mm: { from: ${min}, to: ${max} }`,
+          );
+        }
+      }
+
+      // Add height filter
+      if (minHeight || maxHeight) {
+        const min = minHeight ? parseFloat(minHeight) : 2;
+        const max = maxHeight ? parseFloat(maxHeight) : 12;
+        if (min > 2 || max < 12) {
+          queryFilters.push(
+            `              depth_mm: { from: ${min}, to: ${max} }`,
+          );
+        }
+      }
+
+      // Add crown angle filter
+      if (minCrownAngle || maxCrownAngle) {
+        const min = minCrownAngle ? parseFloat(minCrownAngle) : 23;
+        const max = maxCrownAngle ? parseFloat(maxCrownAngle) : 40;
+        if (min > 23 || max < 40) {
+          queryFilters.push(
+            `              crown_angle: { from: ${min}, to: ${max} }`,
+          );
+        }
+      }
+
+      // Add pavilion angle filter
+      if (minPavilionAngle || maxPavilionAngle) {
+        const min = minPavilionAngle ? parseFloat(minPavilionAngle) : 38;
+        const max = maxPavilionAngle ? parseFloat(maxPavilionAngle) : 43;
+        if (min > 38 || max < 43) {
+          queryFilters.push(
+            `              pav_angle: { from: ${min}, to: ${max} }`,
+          );
+        }
+      }
+
+      // Add girdle thickness filter
+      if (girdleThickness.length > 0) {
+        const girdleValues = girdleThickness.map((g) => g).join(', ');
+        queryFilters.push(`              girdle: [${girdleValues}]`);
       }
 
       // Add standard filters
@@ -563,7 +747,13 @@ ${queryFilters.join(',\n')}
             },
             offset: ${offset},
             limit: ${limit}, 
-            order: { type: ${sort === 'price-desc' ? 'price' : sort === 'price-asc' ? 'price' : 'price'}, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
+            order: { type: ${
+              sort === 'price-desc'
+                ? 'price'
+                : sort === 'price-asc'
+                ? 'price'
+                : 'price'
+            }, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
           ) {
             items {
               id
@@ -607,17 +797,24 @@ ${queryFilters.join(',\n')}
         }
       `;
 
-      return { query, queryFilters };
+      return {query, queryFilters};
     };
 
-    const { query: dynamicQuery, queryFilters } = buildDynamicQuery();
+    const {query: dynamicQuery, queryFilters} = buildDynamicQuery();
     console.log('Dynamic Nivoda query:', dynamicQuery);
 
     try {
       console.log('Fetching diamond list from Nivoda with dynamic query');
-      console.log('Request body:', JSON.stringify({
-        query: dynamicQuery,
-      }, null, 2));
+      console.log(
+        'Request body:',
+        JSON.stringify(
+          {
+            query: dynamicQuery,
+          },
+          null,
+          2,
+        ),
+      );
 
       const nivodaListApiResponse = await fetch(nivodaApiUrl, {
         method: 'POST',
@@ -631,7 +828,10 @@ ${queryFilters.join(',\n')}
       });
 
       console.log('Nivoda API response status:', nivodaListApiResponse.status);
-      console.log('Nivoda API response headers:', Object.fromEntries(nivodaListApiResponse.headers.entries()));
+      console.log(
+        'Nivoda API response headers:',
+        Object.fromEntries(nivodaListApiResponse.headers.entries()),
+      );
 
       let nivodaResult: NivodaDiamondListApiResponse;
       let nivodaItems: any[] = [];
@@ -643,13 +843,17 @@ ${queryFilters.join(',\n')}
           `Nivoda Diamond List API Error: ${nivodaListApiResponse.status} ${nivodaListApiResponse.statusText}`,
           errorBody,
         );
-        
+
         // If certificate number search failed, try without it
         if (certificateNumber && errorBody.includes('certificate_numbers')) {
-          console.log('Certificate number search failed, trying without certificate number filter...');
-          
+          console.log(
+            'Certificate number search failed, trying without certificate number filter...',
+          );
+
           // Build a simpler query without certificate number
-          const simpleQueryFilters = queryFilters.filter((filter: string) => !filter.includes('certificate_numbers'));
+          const simpleQueryFilters = queryFilters.filter(
+            (filter: string) => !filter.includes('certificate_numbers'),
+          );
           const simpleQuery = `
             query {
               diamonds_by_query(
@@ -658,7 +862,13 @@ ${simpleQueryFilters.join(',\n')}
                 },
                 offset: ${offset},
                 limit: ${limit}, 
-                order: { type: ${sort === 'price-desc' ? 'price' : sort === 'price-asc' ? 'price' : 'price'}, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
+                order: { type: ${
+                  sort === 'price-desc'
+                    ? 'price'
+                    : sort === 'price-asc'
+                    ? 'price'
+                    : 'price'
+                }, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
               ) {
                 items {
                   id
@@ -701,9 +911,9 @@ ${simpleQueryFilters.join(',\n')}
               }
             }
           `;
-          
+
           console.log('Trying simple query:', simpleQuery);
-          
+
           const simpleResponse = await fetch(nivodaApiUrl, {
             method: 'POST',
             headers: {
@@ -714,7 +924,7 @@ ${simpleQueryFilters.join(',\n')}
               query: simpleQuery,
             }),
           });
-          
+
           if (!simpleResponse.ok) {
             const simpleErrorBody = await simpleResponse.text();
             console.error('Simple query also failed:', simpleErrorBody);
@@ -722,38 +932,64 @@ ${simpleQueryFilters.join(',\n')}
               `Nivoda diamond list request failed: ${nivodaListApiResponse.status} - ${errorBody}`,
             );
           }
-          
+
           const simpleResponseText = await simpleResponse.text();
           console.log('Simple query response:', simpleResponseText);
-          
+
           try {
-            nivodaResult = JSON.parse(simpleResponseText) as NivodaDiamondListApiResponse;
+            nivodaResult = JSON.parse(
+              simpleResponseText,
+            ) as NivodaDiamondListApiResponse;
           } catch (parseError) {
-            console.error('Failed to parse simple query response as JSON:', parseError);
-            throw new Error(`Invalid JSON response from Nivoda API: ${simpleResponseText}`);
+            console.error(
+              'Failed to parse simple query response as JSON:',
+              parseError,
+            );
+            throw new Error(
+              `Invalid JSON response from Nivoda API: ${simpleResponseText}`,
+            );
           }
-          
+
           if (nivodaResult.errors) {
-            console.error('Simple query GraphQL errors:', JSON.stringify(nivodaResult.errors, null, 2));
-            throw new Error(`Nivoda API returned GraphQL errors: ${JSON.stringify(nivodaResult.errors)}`);
+            console.error(
+              'Simple query GraphQL errors:',
+              JSON.stringify(nivodaResult.errors, null, 2),
+            );
+            throw new Error(
+              `Nivoda API returned GraphQL errors: ${JSON.stringify(
+                nivodaResult.errors,
+              )}`,
+            );
           }
-          
+
           // Use the simple result
           nivodaItems = nivodaResult.data?.diamonds_by_query?.items || [];
           totalCount = nivodaResult.data?.diamonds_by_query?.total_count || 0;
-          
+
           console.log('Certificate Number Query Response Debug:', {
             itemsCount: nivodaItems.length,
             totalCount,
-            rawTotalCount: nivodaResult.data?.diamonds_by_query?.total_count
+            rawTotalCount: nivodaResult.data?.diamonds_by_query?.total_count,
           });
-          console.log(`Simple query returned ${nivodaItems.length} items, total available: ${totalCount}`);
-        } else if (certifications.length > 0 && errorBody.includes('lab')) {
-          // If certification filter failed, try without it
-          console.log('Certification filter failed, trying without certification filter...');
-          
-          // Build a simpler query without certification filter
-          const simpleQueryFilters = queryFilters.filter((filter: string) => !filter.includes('lab:'));
+          console.log(
+            `Simple query returned ${nivodaItems.length} items, total available: ${totalCount}`,
+          );
+        } else if (
+          fluorescence.length > 0 &&
+          (errorBody.includes('fluorescence') ||
+            errorBody.includes('flouresence'))
+        ) {
+          // If fluorescence filter failed, try without it
+          console.log(
+            'Fluorescence filter failed, trying without fluorescence filter...',
+          );
+
+          // Build a simpler query without fluorescence filter
+          const simpleQueryFilters = queryFilters.filter(
+            (filter: string) =>
+              !filter.includes('fluorescence:') &&
+              !filter.includes('flouresence:'),
+          );
           const simpleQuery = `
             query {
               diamonds_by_query(
@@ -762,7 +998,129 @@ ${simpleQueryFilters.join(',\n')}
                 },
                 offset: ${offset},
                 limit: ${limit}, 
-                order: { type: ${sort === 'price-desc' ? 'price' : sort === 'price-asc' ? 'price' : 'price'}, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
+                order: { type: ${
+                  sort === 'price-desc'
+                    ? 'price'
+                    : sort === 'price-asc'
+                    ? 'price'
+                    : 'price'
+                }, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
+              ) {
+                items {
+                  id
+                  diamond {
+                    id
+                    video
+                    image
+                    availability
+                    supplierStockId
+                    brown
+                    green
+                    milky
+                    eyeClean
+                    shape
+                    certNumber
+                    cut
+                    carats
+                    clarity
+                    polish
+                    symmetry
+                    color
+                    width
+                    length
+                    depth
+                    girdle
+                    floInt
+                    floCol
+                    depthPercentage
+                    table
+                  }
+                }
+                price
+                discount
+              }
+              total_count
+            }
+          }
+        `;
+
+          console.log('Trying query without fluorescence:', simpleQuery);
+
+          const simpleResponse = await fetch(nivodaApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              query: simpleQuery,
+            }),
+          });
+
+          const simpleResponseText = await simpleResponse.text();
+          console.log('Fluorescence fallback response:', simpleResponseText);
+
+          try {
+            nivodaResult = JSON.parse(
+              simpleResponseText,
+            ) as NivodaDiamondListApiResponse;
+            nivodaItems = nivodaResult.data?.diamonds_by_query?.items || [];
+            totalCount = nivodaResult.data?.diamonds_by_query?.total_count || 0;
+
+            console.log('Fluorescence Fallback Query Response Debug:', {
+              itemsLength: nivodaItems.length,
+              totalCount,
+              hasErrors: !!nivodaResult.errors,
+              errors: nivodaResult.errors,
+            });
+
+            if (nivodaResult.errors) {
+              console.error(
+                'GraphQL errors in fluorescence fallback:',
+                nivodaResult.errors,
+              );
+            }
+          } catch (parseError) {
+            console.error(
+              'Failed to parse fluorescence fallback response:',
+              parseError,
+            );
+            throw new Error(
+              'Failed to fetch diamond data after fluorescence fallback',
+            );
+          }
+
+          console.log(
+            `Fluorescence fallback query returned ${nivodaItems.length} items, total available: ${totalCount}`,
+          );
+        } else if (
+          certifications.length > 0 &&
+          errorBody.includes('certificate_lab')
+        ) {
+          // If certification filter failed, try without it
+          console.log(
+            'Certification filter failed, trying without certification filter...',
+          );
+
+          // Build a simpler query without certification filter
+          const simpleQueryFilters = queryFilters.filter(
+            (filter: string) => !filter.includes('certificate_lab:'),
+          );
+          const simpleQuery = `
+            query {
+              diamonds_by_query(
+                query: {
+${simpleQueryFilters.join(',\n')}
+                },
+                offset: ${offset},
+                limit: ${limit}, 
+                order: { type: ${
+                  sort === 'price-desc'
+                    ? 'price'
+                    : sort === 'price-asc'
+                    ? 'price'
+                    : 'price'
+                }, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
               ) {
                 items {
                   id
@@ -805,9 +1163,12 @@ ${simpleQueryFilters.join(',\n')}
               }
             }
           `;
-          
-          console.log('Trying query without certification filter:', simpleQuery);
-          
+
+          console.log(
+            'Trying query without certification filter:',
+            simpleQuery,
+          );
+
           const simpleResponse = await fetch(nivodaApiUrl, {
             method: 'POST',
             headers: {
@@ -818,40 +1179,182 @@ ${simpleQueryFilters.join(',\n')}
               query: simpleQuery,
             }),
           });
-          
+
           if (!simpleResponse.ok) {
             const simpleErrorBody = await simpleResponse.text();
-            console.error('Query without certification filter also failed:', simpleErrorBody);
+            console.error(
+              'Query without certification filter also failed:',
+              simpleErrorBody,
+            );
             throw new Error(
               `Nivoda diamond list request failed: ${nivodaListApiResponse.status} - ${errorBody}`,
             );
           }
-          
+
           const simpleResponseText = await simpleResponse.text();
-          console.log('Query without certification filter response:', simpleResponseText);
-          
+          console.log(
+            'Query without certification filter response:',
+            simpleResponseText,
+          );
+
           try {
-            nivodaResult = JSON.parse(simpleResponseText) as NivodaDiamondListApiResponse;
+            nivodaResult = JSON.parse(
+              simpleResponseText,
+            ) as NivodaDiamondListApiResponse;
           } catch (parseError) {
             console.error('Failed to parse response as JSON:', parseError);
-            throw new Error(`Invalid JSON response from Nivoda API: ${simpleResponseText}`);
+            throw new Error(
+              `Invalid JSON response from Nivoda API: ${simpleResponseText}`,
+            );
           }
-          
+
           if (nivodaResult.errors) {
-            console.error('GraphQL errors:', JSON.stringify(nivodaResult.errors, null, 2));
-            throw new Error(`Nivoda API returned GraphQL errors: ${JSON.stringify(nivodaResult.errors)}`);
+            console.error(
+              'GraphQL errors:',
+              JSON.stringify(nivodaResult.errors, null, 2),
+            );
+            throw new Error(
+              `Nivoda API returned GraphQL errors: ${JSON.stringify(
+                nivodaResult.errors,
+              )}`,
+            );
           }
-          
+
           // Use the simple result
           nivodaItems = nivodaResult.data?.diamonds_by_query?.items || [];
           totalCount = nivodaResult.data?.diamonds_by_query?.total_count || 0;
-          
+
           console.log('Certification Filter Query Response Debug:', {
             itemsCount: nivodaItems.length,
             totalCount,
-            rawTotalCount: nivodaResult.data?.diamonds_by_query?.total_count
+            rawTotalCount: nivodaResult.data?.diamonds_by_query?.total_count,
           });
-          console.log(`Query without certification filter returned ${nivodaItems.length} items, total available: ${totalCount}`);
+          console.log(
+            `Query without certification filter returned ${nivodaItems.length} items, total available: ${totalCount}`,
+          );
+        } else if (
+          (polish.length > 0 && errorBody.includes('polish')) ||
+          (symmetry.length > 0 && errorBody.includes('symmetry')) ||
+          (girdleThickness.length > 0 && errorBody.includes('girdle'))
+        ) {
+          // If advanced filters failed, try without them
+          console.log(
+            'Advanced filters (polish/symmetry/girdle) failed, trying without them...',
+          );
+
+          // Build a simpler query without problematic advanced filters
+          const simpleQueryFilters = queryFilters.filter(
+            (filter: string) =>
+              !filter.includes('polish:') &&
+              !filter.includes('symmetry:') &&
+              !filter.includes('girdle:'),
+          );
+          const simpleQuery = `
+            query {
+              diamonds_by_query(
+                query: {
+${simpleQueryFilters.join(',\n')}
+                },
+                offset: ${offset},
+                limit: ${limit}, 
+                order: { type: ${
+                  sort === 'price-desc'
+                    ? 'price'
+                    : sort === 'price-asc'
+                    ? 'price'
+                    : 'price'
+                }, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
+              ) {
+                items {
+                  id
+                  diamond {
+                    id
+                    video
+                    image
+                    availability
+                    supplierStockId
+                    brown
+                    green
+                    milky
+                    eyeClean
+                    shape
+                    certNumber
+                    cut
+                    carats
+                    clarity
+                    polish
+                    symmetry
+                    color
+                    width
+                    length
+                    depth
+                    girdle
+                    floInt
+                    floCol
+                    depthPercentage
+                    table
+                  }
+                }
+                price
+                discount
+              }
+              total_count
+            }
+          }
+        `;
+
+          console.log('Trying query without advanced filters:', simpleQuery);
+
+          const simpleResponse = await fetch(nivodaApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              query: simpleQuery,
+            }),
+          });
+
+          const simpleResponseText = await simpleResponse.text();
+          console.log(
+            'Advanced filters fallback response:',
+            simpleResponseText,
+          );
+
+          try {
+            nivodaResult = JSON.parse(
+              simpleResponseText,
+            ) as NivodaDiamondListApiResponse;
+            nivodaItems = nivodaResult.data?.diamonds_by_query?.items || [];
+            totalCount = nivodaResult.data?.diamonds_by_query?.total_count || 0;
+
+            console.log('Advanced Filters Fallback Query Response Debug:', {
+              itemsLength: nivodaItems.length,
+              totalCount,
+              hasErrors: !!nivodaResult.errors,
+              errors: nivodaResult.errors,
+            });
+
+            if (nivodaResult.errors) {
+              console.error(
+                'GraphQL errors in advanced filters fallback:',
+                nivodaResult.errors,
+              );
+            }
+          } catch (parseError) {
+            console.error(
+              'Failed to parse advanced filters fallback response:',
+              parseError,
+            );
+            throw new Error(
+              'Failed to fetch diamond data after advanced filters fallback',
+            );
+          }
+
+          console.log(
+            `Advanced filters fallback query returned ${nivodaItems.length} items, total available: ${totalCount}`,
+          );
         } else {
           throw new Error(
             `Nivoda diamond list request failed: ${nivodaListApiResponse.status} - ${errorBody}`,
@@ -863,10 +1366,17 @@ ${simpleQueryFilters.join(',\n')}
         console.log('Raw Nivoda API response:', responseText);
 
         try {
-          nivodaResult = JSON.parse(responseText) as NivodaDiamondListApiResponse;
+          nivodaResult = JSON.parse(
+            responseText,
+          ) as NivodaDiamondListApiResponse;
         } catch (parseError) {
-          console.error('Failed to parse Nivoda API response as JSON:', parseError);
-          throw new Error(`Invalid JSON response from Nivoda API: ${responseText}`);
+          console.error(
+            'Failed to parse Nivoda API response as JSON:',
+            parseError,
+          );
+          throw new Error(
+            `Invalid JSON response from Nivoda API: ${responseText}`,
+          );
         }
 
         if (nivodaResult.errors) {
@@ -875,18 +1385,20 @@ ${simpleQueryFilters.join(',\n')}
             JSON.stringify(nivodaResult.errors, null, 2),
           );
           throw new Error(
-            `Nivoda API returned GraphQL errors: ${JSON.stringify(nivodaResult.errors)}`,
+            `Nivoda API returned GraphQL errors: ${JSON.stringify(
+              nivodaResult.errors,
+            )}`,
           );
         }
 
         nivodaItems = nivodaResult.data?.diamonds_by_query?.items || [];
         totalCount = nivodaResult.data?.diamonds_by_query?.total_count || 0;
-        
+
         console.log('Nivoda API Response Debug:', {
           itemsCount: nivodaItems.length,
           totalCount,
           rawTotalCount: nivodaResult.data?.diamonds_by_query?.total_count,
-          fullResponse: nivodaResult.data?.diamonds_by_query
+          fullResponse: nivodaResult.data?.diamonds_by_query,
         });
       }
 
@@ -1103,14 +1615,13 @@ ${simpleQueryFilters.join(',\n')}
             existsInShopify: false,
             merchandiseId: `nivoda-variant-${item.id}`,
           };
-        },
-      )
+        })
         .filter((product) => product !== null) as ProductDataFromNivoda[];
 
       const currentOffsetVal = offset;
       const currentLimitVal = limit;
       // Calculate pagination info
-      const hasNextPage = (currentOffsetVal + currentLimitVal) < totalCount;
+      const hasNextPage = currentOffsetVal + currentLimitVal < totalCount;
       const hasPreviousPage = currentOffsetVal > 0;
 
       // Debug pagination calculation
@@ -1133,8 +1644,12 @@ ${simpleQueryFilters.join(',\n')}
           pageInfo: {
             hasPreviousPage,
             hasNextPage,
-            startCursor: hasPreviousPage ? `offset=${Math.max(0, currentOffsetVal - currentLimitVal)}` : null,
-            endCursor: hasNextPage ? `offset=${currentOffsetVal + currentLimitVal}` : null,
+            startCursor: hasPreviousPage
+              ? `offset=${Math.max(0, currentOffsetVal - currentLimitVal)}`
+              : null,
+            endCursor: hasNextPage
+              ? `offset=${currentOffsetVal + currentLimitVal}`
+              : null,
           },
         },
         seo: {
@@ -1177,7 +1692,7 @@ ${simpleQueryFilters.join(',\n')}
         'Collection page info:',
         JSON.stringify(nivodaSourcedCollection.products.pageInfo, null, 2),
       );
-      
+
       // Final debug log for pagination
       console.log('Final Pagination Summary:', {
         totalCount,
@@ -1187,7 +1702,7 @@ ${simpleQueryFilters.join(',\n')}
         hasNextPage,
         hasPreviousPage,
         endCursor: nivodaSourcedCollection.products.pageInfo.endCursor,
-        startCursor: nivodaSourcedCollection.products.pageInfo.startCursor
+        startCursor: nivodaSourcedCollection.products.pageInfo.startCursor,
       });
 
       return json({

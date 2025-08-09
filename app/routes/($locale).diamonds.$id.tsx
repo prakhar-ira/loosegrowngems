@@ -923,16 +923,6 @@ export default function DiamondDetail() {
                       </span>
                     </div>
                   )}
-                  {diamond.characteristics.mineOfOrigin && (
-                    <div className="flex justify-between items-center py-4 px-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
-                      <span className="text-lg font-semibold text-gray-700">
-                        Mine of Origin
-                      </span>
-                      <span className="text-lg font-bold text-gray-900 bg-white px-3 py-1 rounded-lg">
-                        {diamond.characteristics.mineOfOrigin}
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
             )}

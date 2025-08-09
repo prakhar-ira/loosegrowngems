@@ -47,6 +47,8 @@ type ParsedProductAttributes = {
   certification?: string | null;
   // Add type for Natural/Lab-Grown
   type?: 'Natural' | 'Lab-Grown' | null;
+  // Add lab grown type
+  labGrownType?: 'HPHT' | 'CVD' | 'IIA' | null;
 };
 
 // Helper function to parse attributes from HTML description
@@ -125,21 +127,43 @@ function parseProductAttributesFromHtml(
     attributes.carat = matchAttribute(/Carat[:\s]*(\d+\.?\d*)/i);
   }
 
-  // Shape (e.g., Shape: Round, Round Cut)
-  attributes.shape = matchAttribute(
-    /Shape[:\s]*(Round|Princess|Cushion|Oval|Pear|Emerald|Marquise|Asscher|Radiant|Heart)\b/i,
-  );
-  // Fallback if "Shape:" prefix is missing
+  // Shape - comprehensive pattern matching using pre-compiled regex
+  // Try with "Shape:" prefix first
+  attributes.shape = matchAttribute(shapeRegexWithPrefix);
+
+  // Fallback patterns without "Shape:" prefix
   if (!attributes.shape) {
-    attributes.shape = matchAttribute(
-      /\b(Round|Princess|Cushion|Oval|Pear|Emerald|Marquise|Asscher|Radiant|Heart)\s*(?:Cut|Shape|Diamond)/i,
-    );
+    attributes.shape = matchAttribute(shapeRegexWithSuffix);
   }
 
-  // Certification (e.g., Certificate: GIA, IGI Certified)
+  // Final fallback for simple shape mentions
+  if (!attributes.shape) {
+    attributes.shape = matchAttribute(shapeRegexSimple);
+  }
+
+  // Normalize shape to uppercase to match our API format
+  if (attributes.shape) {
+    attributes.shape = attributes.shape.toUpperCase();
+  }
+
+  // Certification (e.g., Certificate: GIA, IGI Certified, GCAL)
   attributes.certification = matchAttribute(
-    /(GIA|IGI)\s*(?:Certified|Certificate|Report)?\b/i,
+    /(GIA|IGI|GCAL)\s*(?:Certified|Certificate|Report)?\b/i,
   );
+
+  // Lab Grown Type (e.g., HPHT, CVD, IIA, Type IIA)
+  const labGrownTypeMatch = matchAttribute(/\b(HPHT|CVD|IIA|Type\s*IIA)\b/i);
+  // Normalize and validate lab grown type
+  if (labGrownTypeMatch) {
+    const normalizedType = labGrownTypeMatch.toUpperCase();
+    if (normalizedType === 'HPHT') {
+      attributes.labGrownType = 'HPHT';
+    } else if (normalizedType === 'CVD') {
+      attributes.labGrownType = 'CVD';
+    } else if (normalizedType === 'IIA' || normalizedType.includes('IIA')) {
+      attributes.labGrownType = 'IIA';
+    }
+  }
 
   // --- End Improved Parsing Logic ---
 
@@ -197,18 +221,152 @@ type ProductWithDetails = ProductItemFragment & {
 };
 
 // --- Define Shape Data ---
+// Organize shapes by popularity/commonality with icons for popular shapes
 const diamondShapes = [
-  {name: 'Round', iconUrl: '/figma/diamond-round.png'},
-  {name: 'Princess', iconUrl: '/figma/diamond-princess.png'},
-  {name: 'Cushion', iconUrl: '/figma/diamond-cushion.png'},
-  {name: 'Oval', iconUrl: '/figma/diamond-oval.png'},
-  {name: 'Pear', iconUrl: '/figma/diamond-pear.png'},
-  {name: 'Emerald', iconUrl: '/figma/diamond-emerald.png'},
-  {name: 'Heart', iconUrl: '/figma/diamond-heart.png'}, // Assuming this path exists
-  {name: 'Radiant', iconUrl: '/figma/diamond-radiant.png'}, // Assuming this path exists
-  // { name: 'Marquise', iconUrl: '/figma/diamond-marquise.png' }, // Add if needed
-  // { name: 'Asscher', iconUrl: '/figma/diamond-asscher.png' }, // Add if needed
+  // Most Popular Shapes (with icons)
+  {
+    name: 'ROUND',
+    displayName: 'Round',
+    iconUrl: '/figma/diamond-round.png',
+    category: 'popular',
+  },
+  {
+    name: 'PRINCESS',
+    displayName: 'Princess',
+    iconUrl: '/figma/diamond-princess.png',
+    category: 'popular',
+  },
+  {
+    name: 'CUSHION',
+    displayName: 'Cushion',
+    iconUrl: '/figma/diamond-cushion.png',
+    category: 'popular',
+  },
+  {
+    name: 'OVAL',
+    displayName: 'Oval',
+    iconUrl: '/figma/diamond-oval.png',
+    category: 'popular',
+  },
+  {
+    name: 'PEAR',
+    displayName: 'Pear',
+    iconUrl: '/figma/diamond-pear.png',
+    category: 'popular',
+  },
+  {
+    name: 'EMERALD',
+    displayName: 'Emerald',
+    iconUrl: '/figma/diamond-emerald.png',
+    category: 'popular',
+  },
+  {
+    name: 'HEART',
+    displayName: 'Heart',
+    iconUrl: '/figma/diamond-heart.png',
+    category: 'popular',
+  },
+  {
+    name: 'RADIANT',
+    displayName: 'Radiant',
+    iconUrl: '/figma/diamond-radiant.png',
+    category: 'popular',
+  },
+
+  // Common Shapes (no icons)
+  {name: 'MARQUISE', displayName: 'Marquise', category: 'common'},
+  {name: 'ASSCHER', displayName: 'Asscher', category: 'common'},
+  {name: 'ASCHER', displayName: 'Ascher', category: 'common'}, // Alternative spelling
+  {name: 'TRILLIANT', displayName: 'Trilliant', category: 'common'},
+  {name: 'BAGUETTE', displayName: 'Baguette', category: 'common'},
+
+  // Modified Cuts
+  {
+    name: 'ROUND MODIFIED BRILLIANT',
+    displayName: 'Round Modified Brilliant',
+    category: 'modified',
+  },
+  {
+    name: 'PEAR MODIFIED BRILLIANT',
+    displayName: 'Pear Modified Brilliant',
+    category: 'modified',
+  },
+  {
+    name: 'CUSHION MODIFIED',
+    displayName: 'Cushion Modified',
+    category: 'modified',
+  },
+  {
+    name: 'CUSHION BRILLIANT',
+    displayName: 'Cushion Brilliant',
+    category: 'modified',
+  },
+  {name: 'CUSHION B', displayName: 'Cushion B', category: 'modified'},
+  {name: 'OVAL MIXED CUT', displayName: 'Oval Mixed Cut', category: 'modified'},
+
+  // Square Variations
+  {name: 'SQUARE', displayName: 'Square', category: 'square'},
+  {name: 'SQUARE EMERALD', displayName: 'Square Emerald', category: 'square'},
+  {name: 'SQUARE RADIANT', displayName: 'Square Radiant', category: 'square'},
+
+  // Rectangular Shapes
+  {name: 'RECTANGLE', displayName: 'Rectangle', category: 'rectangular'},
+  {name: 'RECTANGULAR', displayName: 'Rectangular', category: 'rectangular'},
+  {
+    name: 'TAPERED BAGUETTE',
+    displayName: 'Tapered Baguette',
+    category: 'rectangular',
+  },
+
+  // Specialty Shapes
+  {name: 'TRIANGULAR', displayName: 'Triangular', category: 'specialty'},
+  {name: 'HEXAGONAL', displayName: 'Hexagonal', category: 'specialty'},
+  {name: 'PENTAGONAL', displayName: 'Pentagonal', category: 'specialty'},
+  {name: 'OCTAGONAL', displayName: 'Octagonal', category: 'specialty'},
+  {name: 'HEPTAGONAL', displayName: 'Heptagonal', category: 'specialty'},
+  {name: 'NONAGONAL', displayName: 'Nonagonal', category: 'specialty'},
+  {name: 'TETRAGONAL', displayName: 'Tetragonal', category: 'specialty'},
+
+  // Vintage/Antique Cuts
+  {name: 'OLD EUROPEAN', displayName: 'Old European', category: 'vintage'},
+  {name: 'OLD MINER', displayName: 'Old Miner', category: 'vintage'},
+  {name: 'EUROPEAN', displayName: 'European', category: 'vintage'},
+  {name: 'EUROPEAN CUT', displayName: 'European Cut', category: 'vintage'},
+  {name: 'ROSE', displayName: 'Rose', category: 'vintage'},
+
+  // Unique/Rare Shapes
+  {name: 'BRIOLETTE', displayName: 'Briolette', category: 'unique'},
+  {name: 'KITE', displayName: 'Kite', category: 'unique'},
+  {name: 'BULLET', displayName: 'Bullet', category: 'unique'},
+  {name: 'SHIELD', displayName: 'Shield', category: 'unique'},
+  {name: 'TRAPEZOID', displayName: 'Trapezoid', category: 'unique'},
+  {name: 'TRAPEZE', displayName: 'Trapeze', category: 'unique'},
+  {name: 'HALFMOON', displayName: 'Half Moon', category: 'unique'},
+  {name: 'HALF MOON', displayName: 'Half Moon', category: 'unique'}, // Alternative spelling
+  {name: 'FAN', displayName: 'Fan', category: 'unique'},
+  {name: 'LOZENGE', displayName: 'Lozenge', category: 'unique'},
+  {name: 'FLANDERS', displayName: 'Flanders', category: 'unique'},
+  {name: 'PRAD', displayName: 'Prad', category: 'unique'},
+
+  // Miscellaneous
+  {name: 'OTHER', displayName: 'Other', category: 'other'},
 ];
+
+// Pre-compile shape regex patterns for better performance
+const shapeNames = diamondShapes.map((shape) =>
+  shape.name.replace(/\s+/g, '\\s+'),
+);
+const shapePattern = shapeNames.join('|');
+const shapeRegexWithPrefix = new RegExp(
+  `Shape[:\\s]*(${shapePattern})\\b`,
+  'i',
+);
+const shapeRegexWithSuffix = new RegExp(
+  `\\b(${shapePattern})\\s*(?:Cut|Shape|Diamond)\\b`,
+  'i',
+);
+const shapeRegexSimple = new RegExp(`\\b(${shapePattern})\\b`, 'i');
+
 // --- End Shape Data ---
 
 // Update the DiamondsCollectionProps to support both Shopify and Nivoda data formats
@@ -239,6 +397,20 @@ interface FilterState {
   shape: string[];
   certification: string[];
   certificateNumber?: string;
+  labGrownType: string[];
+  // Advanced filters
+  fluorescence: string[];
+  tableRange: [number, number];
+  depthRange: [number, number];
+  polish: string[];
+  symmetry: string[];
+  ratioRange: [number, number];
+  lengthRange: [number, number];
+  widthRange: [number, number];
+  heightRange: [number, number];
+  crownAngleRange: [number, number];
+  pavilionAngleRange: [number, number];
+  girdleThickness: string[];
 }
 
 // --- Define Sort Options ---
@@ -259,7 +431,21 @@ const initialFilters: FilterState = {
   clarity: [],
   cut: [],
   shape: [],
-  certification: ['GIA', 'IGI'],
+  certification: ['GIA', 'IGI', 'GCAL'],
+  labGrownType: [],
+  // Advanced filter defaults
+  fluorescence: [],
+  tableRange: [0, 100],
+  depthRange: [0, 100],
+  polish: [],
+  symmetry: [],
+  ratioRange: [1, 2.75],
+  lengthRange: [3, 20],
+  widthRange: [3, 20],
+  heightRange: [2, 12],
+  crownAngleRange: [23, 40],
+  pavilionAngleRange: [38, 43],
+  girdleThickness: [],
 };
 
 export function DiamondsCollection({
@@ -310,22 +496,65 @@ export function DiamondsCollection({
   // Add loading state for navigation/pagination
   const isNavigating = navigation.state === 'loading';
 
+  // Local states for debouncing range filters
+  const [localCaratRange, setLocalCaratRange] = useState<[number, number]>([
+    0, 10,
+  ]);
+  const [localTableRange, setLocalTableRange] = useState<[number, number]>([
+    0, 100,
+  ]);
+  const [localDepthRange, setLocalDepthRange] = useState<[number, number]>([
+    0, 100,
+  ]);
+  const [localRatioRange, setLocalRatioRange] = useState<[number, number]>([
+    1, 2.75,
+  ]);
+  const [localLengthRange, setLocalLengthRange] = useState<[number, number]>([
+    3, 20,
+  ]);
+  const [localWidthRange, setLocalWidthRange] = useState<[number, number]>([
+    3, 20,
+  ]);
+  const [localHeightRange, setLocalHeightRange] = useState<[number, number]>([
+    2, 12,
+  ]);
+  const [localCrownAngleRange, setLocalCrownAngleRange] = useState<
+    [number, number]
+  >([23, 40]);
+  const [localPavilionAngleRange, setLocalPavilionAngleRange] = useState<
+    [number, number]
+  >([38, 43]);
+
+  // Debouncing states
+  const [isCaratDebouncing, setIsCaratDebouncing] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [isTableDebouncing, setIsTableDebouncing] = useState(false);
+  const [isDepthDebouncing, setIsDepthDebouncing] = useState(false);
+  const [isRatioDebouncing, setIsRatioDebouncing] = useState(false);
+  const [isLengthDebouncing, setIsLengthDebouncing] = useState(false);
+  const [isWidthDebouncing, setIsWidthDebouncing] = useState(false);
+  const [isHeightDebouncing, setIsHeightDebouncing] = useState(false);
+  const [isCrownAngleDebouncing, setIsCrownAngleDebouncing] = useState(false);
+  const [isPavilionAngleDebouncing, setIsPavilionAngleDebouncing] =
+    useState(false);
+
+  // Debounce refs
+  const caratDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const tableDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const depthDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const ratioDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const lengthDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const widthDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const heightDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const crownAngleDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const pavilionAngleDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
   // Simply use the current page's products - no accumulation needed for offset pagination
   useEffect(() => {
     setAllProducts([...collection.products.nodes]);
   }, [collection.products.nodes]);
 
-  // Auto-scroll to top when products change (page navigation)
-  useEffect(() => {
-    window.scrollTo({top: 0, behavior: 'smooth'});
-  }, [collection.products.nodes]);
-
-  // Auto-scroll to top immediately when navigation starts (button press)
-  useEffect(() => {
-    if (isNavigating) {
-      window.scrollTo({top: 0, behavior: 'smooth'});
-    }
-  }, [isNavigating]);
+  // Removed auto-scroll behaviors to prevent unwanted scrolling during filter changes
 
   // Debug pagination data on component mount
   // useEffect(() => {
@@ -360,8 +589,69 @@ export function DiamondsCollection({
       shape: currentSearchParams.getAll('shape'),
       certification: currentSearchParams.getAll('certification'),
       certificateNumber: currentSearchParams.get('certificateNumber') || '',
+      labGrownType: currentSearchParams.getAll('labGrownType'),
+      // Advanced filters
+      fluorescence: currentSearchParams.getAll('fluorescence'),
+      tableRange: [
+        parseFloat(currentSearchParams.get('minTable') || '0'),
+        parseFloat(currentSearchParams.get('maxTable') || '100'),
+      ] as [number, number],
+      depthRange: [
+        parseFloat(currentSearchParams.get('minDepth') || '0'),
+        parseFloat(currentSearchParams.get('maxDepth') || '100'),
+      ] as [number, number],
+      polish: currentSearchParams.getAll('polish'),
+      symmetry: currentSearchParams.getAll('symmetry'),
+      ratioRange: [
+        parseFloat(currentSearchParams.get('minRatio') || '1'),
+        parseFloat(currentSearchParams.get('maxRatio') || '2.75'),
+      ] as [number, number],
+      lengthRange: [
+        parseFloat(currentSearchParams.get('minLength') || '3'),
+        parseFloat(currentSearchParams.get('maxLength') || '20'),
+      ] as [number, number],
+      widthRange: [
+        parseFloat(currentSearchParams.get('minWidth') || '3'),
+        parseFloat(currentSearchParams.get('maxWidth') || '20'),
+      ] as [number, number],
+      heightRange: [
+        parseFloat(currentSearchParams.get('minHeight') || '2'),
+        parseFloat(currentSearchParams.get('maxHeight') || '12'),
+      ] as [number, number],
+      crownAngleRange: [
+        parseFloat(currentSearchParams.get('minCrownAngle') || '23'),
+        parseFloat(currentSearchParams.get('maxCrownAngle') || '40'),
+      ] as [number, number],
+      pavilionAngleRange: [
+        parseFloat(currentSearchParams.get('minPavilionAngle') || '38'),
+        parseFloat(currentSearchParams.get('maxPavilionAngle') || '43'),
+      ] as [number, number],
+      girdleThickness: currentSearchParams.getAll('girdleThickness'),
     };
   }, [location.search]);
+
+  // Sync local ranges with URL filters
+  useEffect(() => {
+    setLocalCaratRange(filters.caratRange);
+    setLocalTableRange(filters.tableRange);
+    setLocalDepthRange(filters.depthRange);
+    setLocalRatioRange(filters.ratioRange);
+    setLocalLengthRange(filters.lengthRange);
+    setLocalWidthRange(filters.widthRange);
+    setLocalHeightRange(filters.heightRange);
+    setLocalCrownAngleRange(filters.crownAngleRange);
+    setLocalPavilionAngleRange(filters.pavilionAngleRange);
+  }, [
+    filters.caratRange,
+    filters.tableRange,
+    filters.depthRange,
+    filters.ratioRange,
+    filters.lengthRange,
+    filters.widthRange,
+    filters.heightRange,
+    filters.crownAngleRange,
+    filters.pavilionAngleRange,
+  ]);
 
   // Extract sort option from URL
   const sortOption = useMemo(
@@ -402,6 +692,13 @@ export function DiamondsCollection({
       if (newFilters.certification && newFilters.certification.length > 0) {
         newFilters.certification.forEach((cert: string) => {
           newParams.append('certification', cert);
+        });
+      }
+
+      // Set lab grown type filters (multiple possible)
+      if (newFilters.labGrownType && newFilters.labGrownType.length > 0) {
+        newFilters.labGrownType.forEach((type: string) => {
+          newParams.append('labGrownType', type);
         });
       }
 
@@ -446,13 +743,118 @@ export function DiamondsCollection({
         newParams.set('maxCarat', newFilters.caratRange[1].toString());
       }
 
+      // Set advanced filter ranges
+      // Fluorescence filters
+      if (newFilters.fluorescence && newFilters.fluorescence.length > 0) {
+        newFilters.fluorescence.forEach((fluor: string) => {
+          newParams.append('fluorescence', fluor);
+        });
+      }
+
+      // Table range
+      if (newFilters.tableRange[0] > 0) {
+        newParams.set('minTable', newFilters.tableRange[0].toString());
+      }
+      if (newFilters.tableRange[1] < 100) {
+        newParams.set('maxTable', newFilters.tableRange[1].toString());
+      }
+
+      // Depth range
+      if (newFilters.depthRange[0] > 0) {
+        newParams.set('minDepth', newFilters.depthRange[0].toString());
+      }
+      if (newFilters.depthRange[1] < 100) {
+        newParams.set('maxDepth', newFilters.depthRange[1].toString());
+      }
+
+      // Polish filters
+      if (newFilters.polish && newFilters.polish.length > 0) {
+        newFilters.polish.forEach((polish: string) => {
+          newParams.append('polish', polish);
+        });
+      }
+
+      // Symmetry filters
+      if (newFilters.symmetry && newFilters.symmetry.length > 0) {
+        newFilters.symmetry.forEach((symmetry: string) => {
+          newParams.append('symmetry', symmetry);
+        });
+      }
+
+      // Ratio range
+      if (newFilters.ratioRange[0] > 1) {
+        newParams.set('minRatio', newFilters.ratioRange[0].toString());
+      }
+      if (newFilters.ratioRange[1] < 2.75) {
+        newParams.set('maxRatio', newFilters.ratioRange[1].toString());
+      }
+
+      // Length range
+      if (newFilters.lengthRange[0] > 3) {
+        newParams.set('minLength', newFilters.lengthRange[0].toString());
+      }
+      if (newFilters.lengthRange[1] < 20) {
+        newParams.set('maxLength', newFilters.lengthRange[1].toString());
+      }
+
+      // Width range
+      if (newFilters.widthRange[0] > 3) {
+        newParams.set('minWidth', newFilters.widthRange[0].toString());
+      }
+      if (newFilters.widthRange[1] < 20) {
+        newParams.set('maxWidth', newFilters.widthRange[1].toString());
+      }
+
+      // Height range
+      if (newFilters.heightRange[0] > 2) {
+        newParams.set('minHeight', newFilters.heightRange[0].toString());
+      }
+      if (newFilters.heightRange[1] < 12) {
+        newParams.set('maxHeight', newFilters.heightRange[1].toString());
+      }
+
+      // Crown angle range
+      if (newFilters.crownAngleRange[0] > 23) {
+        newParams.set(
+          'minCrownAngle',
+          newFilters.crownAngleRange[0].toString(),
+        );
+      }
+      if (newFilters.crownAngleRange[1] < 40) {
+        newParams.set(
+          'maxCrownAngle',
+          newFilters.crownAngleRange[1].toString(),
+        );
+      }
+
+      // Pavilion angle range
+      if (newFilters.pavilionAngleRange[0] > 38) {
+        newParams.set(
+          'minPavilionAngle',
+          newFilters.pavilionAngleRange[0].toString(),
+        );
+      }
+      if (newFilters.pavilionAngleRange[1] < 43) {
+        newParams.set(
+          'maxPavilionAngle',
+          newFilters.pavilionAngleRange[1].toString(),
+        );
+      }
+
+      // Girdle thickness filters
+      if (newFilters.girdleThickness && newFilters.girdleThickness.length > 0) {
+        newFilters.girdleThickness.forEach((thickness: string) => {
+          newParams.append('girdleThickness', thickness);
+        });
+      }
+
       // Set sort option if not default
       if (newSort && newSort !== 'featured') {
         newParams.set('sort', newSort);
       }
 
       const newUrl = `${location.pathname}?${newParams.toString()}`;
-      navigate(newUrl, {replace: true});
+      navigate(newUrl, {replace: true, preventScrollReset: true});
     },
     [location.pathname, navigate],
   );
@@ -496,7 +898,102 @@ export function DiamondsCollection({
   // Reset filtering loading state when URL changes (indicating new data has loaded)
   useEffect(() => {
     setIsFiltering(false);
+    setIsCaratDebouncing(false);
+    setIsTableDebouncing(false);
+    setIsDepthDebouncing(false);
+    setIsRatioDebouncing(false);
+    setIsLengthDebouncing(false);
+    setIsWidthDebouncing(false);
+    setIsHeightDebouncing(false);
+    setIsCrownAngleDebouncing(false);
+    setIsPavilionAngleDebouncing(false);
   }, [location.search]);
+
+  // Helper function to create debounced range filters
+  const createDebouncedRangeFilter = useCallback(
+    (
+      filterKey: keyof FilterState,
+      debounceRef: React.MutableRefObject<NodeJS.Timeout | null>,
+      setLoading: (loading: boolean) => void,
+    ) => {
+      return (newRange: [number, number]) => {
+        // Clear existing timeout
+        if (debounceRef.current) {
+          clearTimeout(debounceRef.current);
+        }
+
+        // Set loading state
+        setLoading(true);
+
+        // Set new timeout
+        debounceRef.current = setTimeout(() => {
+          applyFilters(
+            {
+              ...filters,
+              [filterKey]: newRange,
+            },
+            sortOption,
+          );
+        }, 800); // 800ms delay
+      };
+    },
+    [applyFilters, filters, sortOption],
+  );
+
+  // Debounced filter functions
+  const debouncedCaratRangeFilter = createDebouncedRangeFilter(
+    'caratRange',
+    caratDebounceRef,
+    setIsCaratDebouncing,
+  );
+
+  const debouncedTableRangeFilter = createDebouncedRangeFilter(
+    'tableRange',
+    tableDebounceRef,
+    setIsTableDebouncing,
+  );
+
+  const debouncedDepthRangeFilter = createDebouncedRangeFilter(
+    'depthRange',
+    depthDebounceRef,
+    setIsDepthDebouncing,
+  );
+
+  const debouncedRatioRangeFilter = createDebouncedRangeFilter(
+    'ratioRange',
+    ratioDebounceRef,
+    setIsRatioDebouncing,
+  );
+
+  const debouncedLengthRangeFilter = createDebouncedRangeFilter(
+    'lengthRange',
+    lengthDebounceRef,
+    setIsLengthDebouncing,
+  );
+
+  const debouncedWidthRangeFilter = createDebouncedRangeFilter(
+    'widthRange',
+    widthDebounceRef,
+    setIsWidthDebouncing,
+  );
+
+  const debouncedHeightRangeFilter = createDebouncedRangeFilter(
+    'heightRange',
+    heightDebounceRef,
+    setIsHeightDebouncing,
+  );
+
+  const debouncedCrownAngleRangeFilter = createDebouncedRangeFilter(
+    'crownAngleRange',
+    crownAngleDebounceRef,
+    setIsCrownAngleDebouncing,
+  );
+
+  const debouncedPavilionAngleRangeFilter = createDebouncedRangeFilter(
+    'pavilionAngleRange',
+    pavilionAngleDebounceRef,
+    setIsPavilionAngleDebouncing,
+  );
 
   // Filter display logic remains untouched
 
@@ -567,13 +1064,35 @@ export function DiamondsCollection({
               filters.cut.length > 0 ||
               filters.shape.length > 0 ||
               filters.certification.length > 0 ||
+              filters.labGrownType.length > 0 ||
               filters.priceRanges.length > 0 ||
               filters.caratRange[0] > 0 ||
-              filters.caratRange[1] < 10) && (
+              filters.caratRange[1] < 10 ||
+              // Advanced filters
+              filters.fluorescence.length > 0 ||
+              filters.tableRange[0] > 0 ||
+              filters.tableRange[1] < 100 ||
+              filters.depthRange[0] > 0 ||
+              filters.depthRange[1] < 100 ||
+              filters.polish.length > 0 ||
+              filters.symmetry.length > 0 ||
+              filters.ratioRange[0] > 1 ||
+              filters.ratioRange[1] < 2.75 ||
+              filters.lengthRange[0] > 3 ||
+              filters.lengthRange[1] < 20 ||
+              filters.widthRange[0] > 3 ||
+              filters.widthRange[1] < 20 ||
+              filters.heightRange[0] > 2 ||
+              filters.heightRange[1] < 12 ||
+              filters.crownAngleRange[0] > 23 ||
+              filters.crownAngleRange[1] < 40 ||
+              filters.pavilionAngleRange[0] > 38 ||
+              filters.pavilionAngleRange[1] < 43 ||
+              filters.girdleThickness.length > 0) && (
               <button
                 type="button"
                 onClick={() => {
-                  navigate(location.pathname);
+                  navigate(location.pathname, {preventScrollReset: true});
                 }}
                 className="text-sm text-gray-600 hover:text-black font-normal underline underline-offset-2"
                 disabled={isFiltering}
@@ -663,42 +1182,168 @@ export function DiamondsCollection({
             <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
               Shape
             </h3>
-            <div className="grid grid-cols-4 gap-1">
-              {diamondShapes.map((shape) => {
-                const isSelected = filters.shape.includes(shape.name);
-                return (
-                  <button
-                    key={shape.name}
-                    type="button"
-                    onClick={() =>
-                      applyFilters(
-                        {
-                          ...filters,
-                          shape: isSelected
-                            ? filters.shape.filter((s) => s !== shape.name)
-                            : ([...filters.shape, shape.name] as string[]),
-                        },
-                        sortOption,
-                      )
-                    }
-                    className={`flex flex-col items-center justify-between gap-2 p-3 border rounded ${
-                      isSelected
-                        ? 'border-black bg-gray-100'
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                    } transition-colors duration-150 aspect-square`}
-                  >
-                    <img
-                      src={shape.iconUrl}
-                      alt={shape.name}
-                      className="w-8 h-8 object-contain"
-                      loading="lazy"
-                    />
-                    <span className="text-xs text-center font-['SF_Pro'] font-normal text-black">
-                      {shape.name}
-                    </span>
-                  </button>
-                );
-              })}
+
+            {/* Popular Shapes with Icons */}
+            <div className="mb-4">
+              <h4 className="text-sm font-['SF_Pro'] font-medium text-gray-600 mb-2">
+                Popular Shapes
+              </h4>
+              <div className="grid grid-cols-4 gap-1">
+                {diamondShapes
+                  .filter((shape) => shape.category === 'popular')
+                  .map((shape) => {
+                    const isSelected = filters.shape.includes(shape.name);
+                    return (
+                      <button
+                        key={shape.name}
+                        type="button"
+                        onClick={() =>
+                          applyFilters(
+                            {
+                              ...filters,
+                              shape: isSelected
+                                ? filters.shape.filter((s) => s !== shape.name)
+                                : ([...filters.shape, shape.name] as string[]),
+                            },
+                            sortOption,
+                          )
+                        }
+                        className={`flex flex-col items-center justify-between gap-1 p-2 border rounded ${
+                          isSelected
+                            ? 'border-black bg-gray-100'
+                            : 'border-gray-300 bg-white hover:border-gray-400'
+                        } transition-colors duration-150 aspect-square`}
+                      >
+                        {shape.iconUrl && (
+                          <img
+                            src={shape.iconUrl}
+                            alt={shape.displayName}
+                            className="w-6 h-6 object-contain"
+                            loading="lazy"
+                          />
+                        )}
+                        <span className="text-xs text-center font-['SF_Pro'] font-normal text-black leading-tight">
+                          {shape.displayName}
+                        </span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* All Other Shapes in Dropdown/Expandable */}
+            <div className="mb-4">
+              <h4 className="text-sm font-['SF_Pro'] font-medium text-gray-600 mb-2">
+                All Shapes
+              </h4>
+              <div className="max-h-48 overflow-y-auto border border-gray-200 rounded">
+                {[
+                  'common',
+                  'modified',
+                  'square',
+                  'rectangular',
+                  'specialty',
+                  'vintage',
+                  'unique',
+                  'other',
+                ].map((category) => {
+                  const categoryShapes = diamondShapes.filter(
+                    (shape) => shape.category === category,
+                  );
+                  if (categoryShapes.length === 0) return null;
+
+                  const categoryLabels = {
+                    common: 'Common',
+                    modified: 'Modified Cuts',
+                    square: 'Square Variations',
+                    rectangular: 'Rectangular',
+                    specialty: 'Specialty',
+                    vintage: 'Vintage/Antique',
+                    unique: 'Unique/Rare',
+                    other: 'Other',
+                  };
+
+                  return (
+                    <div
+                      key={category}
+                      className="border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="bg-gray-50 px-3 py-1">
+                        <span className="text-xs font-medium text-gray-600 uppercase">
+                          {
+                            categoryLabels[
+                              category as keyof typeof categoryLabels
+                            ]
+                          }
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-1 p-2">
+                        {categoryShapes.map((shape) => {
+                          const isSelected = filters.shape.includes(shape.name);
+                          return (
+                            <label
+                              key={shape.name}
+                              className={`flex items-center p-2 rounded cursor-pointer transition-colors duration-150 ${
+                                isSelected
+                                  ? 'bg-black text-white'
+                                  : 'bg-white hover:bg-gray-50'
+                              } ${
+                                isFiltering
+                                  ? 'opacity-50 cursor-not-allowed'
+                                  : ''
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                value={shape.name}
+                                checked={isSelected}
+                                disabled={isFiltering}
+                                onChange={(e) => {
+                                  const newShape = e.target.checked
+                                    ? [...filters.shape, shape.name]
+                                    : filters.shape.filter(
+                                        (s) => s !== shape.name,
+                                      );
+                                  applyFilters(
+                                    {...filters, shape: newShape},
+                                    sortOption,
+                                  );
+                                }}
+                                className="opacity-0 absolute h-0 w-0"
+                              />
+                              <div
+                                className={`w-3 h-3 border mr-2 flex items-center justify-center ${
+                                  isSelected
+                                    ? 'border-white bg-white'
+                                    : 'border-gray-400 bg-white'
+                                }`}
+                              >
+                                {isSelected && (
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                    className="w-2 h-2 text-black"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                )}
+                              </div>
+                              <span className="text-sm font-['SF_Pro'] font-normal">
+                                {shape.displayName}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -708,7 +1353,7 @@ export function DiamondsCollection({
               Certification
             </h3>
             <div className="flex flex-row gap-2">
-              {['GIA', 'IGI'].map((cert) => (
+              {['GIA', 'IGI', 'GCAL'].map((cert) => (
                 <label
                   key={cert}
                   className={`flex-1 flex flex-col items-center justify-center p-3 border cursor-pointer transition-colors duration-150 ${
@@ -759,6 +1404,69 @@ export function DiamondsCollection({
                   </div>
                   <span className="text-sm font-['SF_Pro'] font-normal text-black">
                     {cert}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Lab Grown Type Filter */}
+          <div className="filter-group">
+            <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+              Lab Grown Type
+            </h3>
+            <div className="flex flex-col gap-2">
+              {['HPHT', 'CVD', 'IIA'].map((type) => (
+                <label
+                  key={type}
+                  className={`flex items-center p-2 border cursor-pointer transition-colors duration-150 ${
+                    filters.labGrownType.includes(type)
+                      ? 'border-black bg-white'
+                      : 'border-gray-300 bg-white hover:border-gray-500'
+                  } ${isFiltering ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    value={type}
+                    checked={filters.labGrownType.includes(type)}
+                    disabled={isFiltering}
+                    onChange={(e) => {
+                      const newLabGrownType = e.target.checked
+                        ? [...filters.labGrownType, type]
+                        : filters.labGrownType.filter((t) => t !== type);
+                      applyFilters(
+                        {...filters, labGrownType: newLabGrownType},
+                        sortOption,
+                      );
+                    }}
+                    className="opacity-0 absolute h-0 w-0"
+                  />
+                  <div
+                    className={`w-4 h-4 border border-black mr-3 flex items-center justify-center ${
+                      filters.labGrownType.includes(type)
+                        ? 'bg-black'
+                        : 'bg-white'
+                    } ${isFiltering ? 'opacity-50' : ''}`}
+                  >
+                    {filters.labGrownType.includes(type) && (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="w-3 h-3 text-white"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm font-['SF_Pro'] font-normal text-black">
+                    {type}
                   </span>
                 </label>
               ))}
@@ -1145,7 +1853,94 @@ export function DiamondsCollection({
             <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
               Carat
             </h3>
-            <div className="flex justify-between items-center mt-4 gap-2 carat-input-container">
+
+            {/* Range Slider */}
+            <div className="mb-4">
+              <div className="flex justify-between text-xs text-gray-500 mb-2">
+                <span>{localCaratRange[0].toFixed(2)} ct</span>
+                <span>{localCaratRange[1].toFixed(2)} ct</span>
+              </div>
+
+              {/* Custom Dual Range Slider */}
+              <div className="relative h-6">
+                {/* Slider Track */}
+                <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+
+                {/* Active Track */}
+                <div
+                  className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                  style={{
+                    left: `${(localCaratRange[0] / 10) * 100}%`,
+                    width: `${
+                      ((localCaratRange[1] - localCaratRange[0]) / 10) * 100
+                    }%`,
+                  }}
+                ></div>
+
+                {/* Min Range Input */}
+                <input
+                  type="range"
+                  min={0}
+                  max={10}
+                  step={0.01}
+                  value={localCaratRange[0]}
+                  disabled={isFiltering}
+                  onChange={(e) => {
+                    const newMin = parseFloat(e.target.value);
+                    const validatedMin = Math.min(
+                      newMin,
+                      localCaratRange[1] - 0.01,
+                    );
+                    const newRange: [number, number] = [
+                      validatedMin,
+                      localCaratRange[1],
+                    ];
+                    setLocalCaratRange(newRange);
+                    debouncedCaratRangeFilter(newRange);
+                  }}
+                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                />
+
+                {/* Max Range Input */}
+                <input
+                  type="range"
+                  min={0}
+                  max={10}
+                  step={0.01}
+                  value={localCaratRange[1]}
+                  disabled={isFiltering}
+                  onChange={(e) => {
+                    const newMax = parseFloat(e.target.value);
+                    const validatedMax = Math.max(
+                      newMax,
+                      localCaratRange[0] + 0.01,
+                    );
+                    const newRange: [number, number] = [
+                      localCaratRange[0],
+                      validatedMax,
+                    ];
+                    setLocalCaratRange(newRange);
+                    debouncedCaratRangeFilter(newRange);
+                  }}
+                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                />
+
+                {/* Min Handle */}
+                <div
+                  className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                  style={{left: `${(localCaratRange[0] / 10) * 100}%`}}
+                ></div>
+
+                {/* Max Handle */}
+                <div
+                  className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                  style={{left: `${(localCaratRange[1] / 10) * 100}%`}}
+                ></div>
+              </div>
+            </div>
+
+            {/* Number Inputs (Debounced) */}
+            <div className="flex justify-between items-end gap-2 carat-input-container">
               <div className="flex-1">
                 <label
                   htmlFor="minCarat"
@@ -1156,33 +1951,29 @@ export function DiamondsCollection({
                 <input
                   type="number"
                   id="minCarat"
-                  value={filters.caratRange[0]}
+                  value={localCaratRange[0]}
                   min={0}
-                  max={filters.caratRange[1]}
+                  max={localCaratRange[1]}
                   step={0.01}
+                  disabled={isFiltering}
                   onChange={(e) => {
                     const newMin = parseFloat(e.target.value);
                     if (!isNaN(newMin)) {
-                      const validatedMin = Math.min(
-                        newMin,
-                        filters.caratRange[1],
-                      );
-                      applyFilters(
-                        {
-                          ...filters,
-                          caratRange: [validatedMin, filters.caratRange[1]] as [
-                            number,
-                            number,
-                          ],
-                        },
-                        sortOption,
-                      );
+                      const validatedMin = Math.min(newMin, localCaratRange[1]);
+                      const newRange: [number, number] = [
+                        validatedMin,
+                        localCaratRange[1],
+                      ];
+                      setLocalCaratRange(newRange);
+                      debouncedCaratRangeFilter(newRange);
                     }
                   }}
-                  className="w-full p-1 border rounded text-sm"
+                  className={`w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black ${
+                    isFiltering ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 />
               </div>
-              <span className="text-gray-400">-</span>
+              <span className="text-gray-400 text-lg font-medium pb-2">-</span>
               <div className="flex-1">
                 <label
                   htmlFor="maxCarat"
@@ -1193,31 +1984,1385 @@ export function DiamondsCollection({
                 <input
                   type="number"
                   id="maxCarat"
-                  value={filters.caratRange[1]}
-                  min={filters.caratRange[0]}
+                  value={localCaratRange[1]}
+                  min={localCaratRange[0]}
                   max={10}
                   step={0.01}
+                  disabled={isFiltering}
                   onChange={(e) => {
                     const newMax = parseFloat(e.target.value);
                     if (!isNaN(newMax)) {
-                      const validatedMax = Math.max(
-                        newMax,
-                        filters.caratRange[0],
-                      );
-                      applyFilters(
-                        {
-                          ...filters,
-                          caratRange: [filters.caratRange[0], validatedMax] as [
-                            number,
-                            number,
-                          ],
-                        },
-                        sortOption,
-                      );
+                      const validatedMax = Math.max(newMax, localCaratRange[0]);
+                      const newRange: [number, number] = [
+                        localCaratRange[0],
+                        validatedMax,
+                      ];
+                      setLocalCaratRange(newRange);
+                      debouncedCaratRangeFilter(newRange);
                     }
                   }}
-                  className="w-full p-1 border rounded text-sm"
+                  className={`w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black ${
+                    isFiltering ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 />
+              </div>
+            </div>
+
+            {/* Loading Indicator */}
+            {isCaratDebouncing && (
+              <div className="filter-loading-indicator">
+                <div className="loading-spinner"></div>
+                Updating results...
+              </div>
+            )}
+          </div>
+
+          {/* Advanced Filters Toggle Button */}
+          <div className="mb-6">
+            <button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="flex items-center justify-between w-full p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors duration-200"
+            >
+              <span className="text-lg font-['SF_Pro'] font-medium text-black uppercase">
+                Advanced Diamond Filters
+              </span>
+              <svg
+                className={`w-6 h-6 text-gray-600 transform transition-transform duration-300 ${
+                  showAdvancedFilters ? 'rotate-180' : ''
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+          </div>
+
+          {/* Advanced Diamond Filters Section */}
+          <div
+            className={`advanced-filters-section transition-all duration-500 ease-in-out ${
+              showAdvancedFilters
+                ? 'max-h-[3000px] opacity-100'
+                : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className="space-y-6">
+              {/* Fluorescence Filter */}
+              <div className="filter-group">
+                <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                  Fluorescence
+                </h3>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {[
+                    {display: 'Very Slight', value: 'VSL'},
+                    {display: 'Slight', value: 'SLT'},
+                    {display: 'Faint', value: 'FNT'},
+                    {display: 'Medium', value: 'MED'},
+                    {display: 'Strong', value: 'STG'},
+                    {display: 'V-Strong', value: 'VST'},
+                  ].map((option) => {
+                    const isSelected = filters.fluorescence.includes(
+                      option.value,
+                    );
+                    return (
+                      <label
+                        key={option.value}
+                        className={`flex items-center p-2 rounded cursor-pointer transition-colors duration-150 ${
+                          isSelected
+                            ? 'bg-black text-white'
+                            : 'bg-white hover:bg-gray-50 border border-gray-200'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          value={option.value}
+                          checked={isSelected}
+                          onChange={(e) => {
+                            const newFluorescence = e.target.checked
+                              ? [...filters.fluorescence, option.value]
+                              : filters.fluorescence.filter(
+                                  (f) => f !== option.value,
+                                );
+                            applyFilters(
+                              {
+                                ...filters,
+                                fluorescence: newFluorescence,
+                              },
+                              sortOption,
+                            );
+                          }}
+                          className="opacity-0 absolute h-0 w-0"
+                        />
+                        <span className="text-sm font-medium">
+                          {option.display}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Table Percentage Filter */}
+              <div className="filter-group">
+                <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                  Table
+                </h3>
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs text-gray-500 mb-2">
+                    <span>{localTableRange[0].toFixed(0)}%</span>
+                    <span>{localTableRange[1].toFixed(0)}%</span>
+                  </div>
+
+                  <div className="relative h-6">
+                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      style={{
+                        left: `${(localTableRange[0] / 100) * 100}%`,
+                        width: `${
+                          ((localTableRange[1] - localTableRange[0]) / 100) *
+                          100
+                        }%`,
+                      }}
+                    ></div>
+
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={localTableRange[0]}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        const validatedMin = Math.min(
+                          newMin,
+                          localTableRange[1] - 1,
+                        );
+                        const newRange: [number, number] = [
+                          validatedMin,
+                          localTableRange[1],
+                        ];
+                        setLocalTableRange(newRange);
+                        debouncedTableRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                    />
+
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={localTableRange[1]}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        const validatedMax = Math.max(
+                          newMax,
+                          localTableRange[0] + 1,
+                        );
+                        const newRange: [number, number] = [
+                          localTableRange[0],
+                          validatedMax,
+                        ];
+                        setLocalTableRange(newRange);
+                        debouncedTableRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                    />
+
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{left: `${(localTableRange[0] / 100) * 100}%`}}
+                    ></div>
+
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{left: `${(localTableRange[1] / 100) * 100}%`}}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-end gap-2">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={localTableRange[0]}
+                      min={0}
+                      max={localTableRange[1]}
+                      step={1}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        if (!isNaN(newMin)) {
+                          const validatedMin = Math.min(
+                            newMin,
+                            localTableRange[1],
+                          );
+                          const newRange: [number, number] = [
+                            validatedMin,
+                            localTableRange[1],
+                          ];
+                          setLocalTableRange(newRange);
+                          debouncedTableRangeFilter(newRange);
+                        }
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="0%"
+                    />
+                  </div>
+                  <span className="text-gray-400 text-lg font-medium">-</span>
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={localTableRange[1]}
+                      min={localTableRange[0]}
+                      max={100}
+                      step={1}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        if (!isNaN(newMax)) {
+                          const validatedMax = Math.max(
+                            newMax,
+                            localTableRange[0],
+                          );
+                          const newRange: [number, number] = [
+                            localTableRange[0],
+                            validatedMax,
+                          ];
+                          setLocalTableRange(newRange);
+                          debouncedTableRangeFilter(newRange);
+                        }
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="100%"
+                    />
+                  </div>
+                </div>
+
+                {isTableDebouncing && (
+                  <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                    <div className="animate-spin h-3 w-3 border border-gray-400 border-t-black rounded-full"></div>
+                    Updating results...
+                  </div>
+                )}
+              </div>
+
+              {/* Depth Percentage Filter */}
+              <div className="filter-group">
+                <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                  Depth
+                </h3>
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs text-gray-500 mb-2">
+                    <span>{localDepthRange[0].toFixed(0)}%</span>
+                    <span>{localDepthRange[1].toFixed(0)}%</span>
+                  </div>
+
+                  <div className="relative h-6">
+                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      style={{
+                        left: `${(localDepthRange[0] / 100) * 100}%`,
+                        width: `${
+                          ((localDepthRange[1] - localDepthRange[0]) / 100) *
+                          100
+                        }%`,
+                      }}
+                    ></div>
+
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={localDepthRange[0]}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        const validatedMin = Math.min(
+                          newMin,
+                          localDepthRange[1] - 1,
+                        );
+                        const newRange: [number, number] = [
+                          validatedMin,
+                          localDepthRange[1],
+                        ];
+                        setLocalDepthRange(newRange);
+                        debouncedDepthRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                    />
+
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={localDepthRange[1]}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        const validatedMax = Math.max(
+                          newMax,
+                          localDepthRange[0] + 1,
+                        );
+                        const newRange: [number, number] = [
+                          localDepthRange[0],
+                          validatedMax,
+                        ];
+                        setLocalDepthRange(newRange);
+                        debouncedDepthRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                    />
+
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{left: `${(localDepthRange[0] / 100) * 100}%`}}
+                    ></div>
+
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{left: `${(localDepthRange[1] / 100) * 100}%`}}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-end gap-2">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={localDepthRange[0]}
+                      min={0}
+                      max={localDepthRange[1]}
+                      step={1}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        if (!isNaN(newMin)) {
+                          const validatedMin = Math.min(
+                            newMin,
+                            localDepthRange[1],
+                          );
+                          const newRange: [number, number] = [
+                            validatedMin,
+                            localDepthRange[1],
+                          ];
+                          setLocalDepthRange(newRange);
+                          debouncedDepthRangeFilter(newRange);
+                        }
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="0%"
+                    />
+                  </div>
+                  <span className="text-gray-400 text-lg font-medium">-</span>
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={localDepthRange[1]}
+                      min={localDepthRange[0]}
+                      max={100}
+                      step={1}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        if (!isNaN(newMax)) {
+                          const validatedMax = Math.max(
+                            newMax,
+                            localDepthRange[0],
+                          );
+                          const newRange: [number, number] = [
+                            localDepthRange[0],
+                            validatedMax,
+                          ];
+                          setLocalDepthRange(newRange);
+                          debouncedDepthRangeFilter(newRange);
+                        }
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="100%"
+                    />
+                  </div>
+                </div>
+
+                {isDepthDebouncing && (
+                  <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                    <div className="animate-spin h-3 w-3 border border-gray-400 border-t-black rounded-full"></div>
+                    Updating results...
+                  </div>
+                )}
+              </div>
+
+              {/* Polish Filter */}
+              <div className="filter-group">
+                <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                  Polish
+                </h3>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {[
+                    {display: 'Good', value: 'GD'},
+                    {display: 'Very Good', value: 'VG'},
+                    {display: 'Excellent', value: 'EX'},
+                  ].map((option) => {
+                    const isSelected = filters.polish.includes(option.value);
+                    return (
+                      <label
+                        key={option.value}
+                        className="flex items-center space-x-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          value={option.value}
+                          checked={isSelected}
+                          onChange={(e) => {
+                            const newPolish = e.target.checked
+                              ? [...filters.polish, option.value]
+                              : filters.polish.filter(
+                                  (p) => p !== option.value,
+                                );
+                            applyFilters(
+                              {
+                                ...filters,
+                                polish: newPolish,
+                              },
+                              sortOption,
+                            );
+                          }}
+                          className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                        />
+                        <span className="text-sm font-medium text-gray-700">
+                          {option.display}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Symmetry Filter */}
+              <div className="filter-group">
+                <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                  Symmetry
+                </h3>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {[
+                    {display: 'Good', value: 'GD'},
+                    {display: 'Very Good', value: 'VG'},
+                    {display: 'Excellent', value: 'EX'},
+                  ].map((option) => {
+                    const isSelected = filters.symmetry.includes(option.value);
+                    return (
+                      <label
+                        key={option.value}
+                        className="flex items-center space-x-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          value={option.value}
+                          checked={isSelected}
+                          onChange={(e) => {
+                            const newSymmetry = e.target.checked
+                              ? [...filters.symmetry, option.value]
+                              : filters.symmetry.filter(
+                                  (s) => s !== option.value,
+                                );
+                            applyFilters(
+                              {
+                                ...filters,
+                                symmetry: newSymmetry,
+                              },
+                              sortOption,
+                            );
+                          }}
+                          className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                        />
+                        <span className="text-sm font-medium text-gray-700">
+                          {option.display}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Advanced Measurements Grid */}
+              <div className="advanced-measurements-grid">
+                {/* L/W Ratio Filter */}
+                <div className="filter-group">
+                  <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                    L/W Ratio
+                  </h3>
+                  <div className="flex justify-between text-xs text-gray-500 mb-2">
+                    <span>{localRatioRange[0].toFixed(2)}</span>
+                    <span>{localRatioRange[1].toFixed(2)}</span>
+                  </div>
+                  <div className="relative h-6 mb-4">
+                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      style={{
+                        left: `${((localRatioRange[0] - 1) / 1.75) * 100}%`,
+                        width: `${
+                          ((localRatioRange[1] - localRatioRange[0]) / 1.75) *
+                          100
+                        }%`,
+                      }}
+                    ></div>
+                    <input
+                      type="range"
+                      min={1}
+                      max={2.75}
+                      step={0.01}
+                      value={localRatioRange[0]}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        const validatedMin = Math.min(
+                          newMin,
+                          localRatioRange[1] - 0.01,
+                        );
+                        const newRange: [number, number] = [
+                          validatedMin,
+                          localRatioRange[1],
+                        ];
+                        setLocalRatioRange(newRange);
+                        debouncedRatioRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                    />
+                    <input
+                      type="range"
+                      min={1}
+                      max={2.75}
+                      step={0.01}
+                      value={localRatioRange[1]}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        const validatedMax = Math.max(
+                          newMax,
+                          localRatioRange[0] + 0.01,
+                        );
+                        const newRange: [number, number] = [
+                          localRatioRange[0],
+                          validatedMax,
+                        ];
+                        setLocalRatioRange(newRange);
+                        debouncedRatioRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                    />
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${((localRatioRange[0] - 1) / 1.75) * 100}%`,
+                      }}
+                    ></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${((localRatioRange[1] - 1) / 1.75) * 100}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <div className="range-input-container">
+                    <input
+                      type="number"
+                      value={localRatioRange[0]}
+                      min={1}
+                      max={localRatioRange[1]}
+                      step={0.01}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        if (!isNaN(newMin)) {
+                          const validatedMin = Math.min(
+                            newMin,
+                            localRatioRange[1],
+                          );
+                          const newRange: [number, number] = [
+                            validatedMin,
+                            localRatioRange[1],
+                          ];
+                          setLocalRatioRange(newRange);
+                          debouncedRatioRangeFilter(newRange);
+                        }
+                      }}
+                      className="range-input"
+                    />
+                    <span className="range-separator">-</span>
+                    <input
+                      type="number"
+                      value={localRatioRange[1]}
+                      min={localRatioRange[0]}
+                      max={2.75}
+                      step={0.01}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        if (!isNaN(newMax)) {
+                          const validatedMax = Math.max(
+                            newMax,
+                            localRatioRange[0],
+                          );
+                          const newRange: [number, number] = [
+                            localRatioRange[0],
+                            validatedMax,
+                          ];
+                          setLocalRatioRange(newRange);
+                          debouncedRatioRangeFilter(newRange);
+                        }
+                      }}
+                      className="range-input"
+                    />
+                  </div>
+                  {isRatioDebouncing && (
+                    <div className="filter-loading-indicator">
+                      <div className="loading-spinner"></div>
+                      Updating...
+                    </div>
+                  )}
+                </div>
+
+                {/* Length Filter */}
+                <div className="filter-group">
+                  <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                    Length
+                  </h3>
+                  <div className="flex justify-between text-xs text-gray-500 mb-2">
+                    <span>{localLengthRange[0].toFixed(1)}mm</span>
+                    <span>{localLengthRange[1].toFixed(1)}mm</span>
+                  </div>
+                  <div className="relative h-6 mb-4">
+                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      style={{
+                        left: `${((localLengthRange[0] - 3) / 17) * 100}%`,
+                        width: `${
+                          ((localLengthRange[1] - localLengthRange[0]) / 17) *
+                          100
+                        }%`,
+                      }}
+                    ></div>
+                    <input
+                      type="range"
+                      min={3}
+                      max={20}
+                      step={0.1}
+                      value={localLengthRange[0]}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        const validatedMin = Math.min(
+                          newMin,
+                          localLengthRange[1] - 0.1,
+                        );
+                        const newRange: [number, number] = [
+                          validatedMin,
+                          localLengthRange[1],
+                        ];
+                        setLocalLengthRange(newRange);
+                        debouncedLengthRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                    />
+                    <input
+                      type="range"
+                      min={3}
+                      max={20}
+                      step={0.1}
+                      value={localLengthRange[1]}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        const validatedMax = Math.max(
+                          newMax,
+                          localLengthRange[0] + 0.1,
+                        );
+                        const newRange: [number, number] = [
+                          localLengthRange[0],
+                          validatedMax,
+                        ];
+                        setLocalLengthRange(newRange);
+                        debouncedLengthRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                    />
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${((localLengthRange[0] - 3) / 17) * 100}%`,
+                      }}
+                    ></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${((localLengthRange[1] - 3) / 17) * 100}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={localLengthRange[0]}
+                      min={3}
+                      max={localLengthRange[1]}
+                      step={0.1}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        if (!isNaN(newMin)) {
+                          const validatedMin = Math.min(
+                            newMin,
+                            localLengthRange[1],
+                          );
+                          const newRange: [number, number] = [
+                            validatedMin,
+                            localLengthRange[1],
+                          ];
+                          setLocalLengthRange(newRange);
+                          debouncedLengthRangeFilter(newRange);
+                        }
+                      }}
+                      className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="3mm"
+                    />
+                    <span className="text-gray-400 text-lg">-</span>
+                    <input
+                      type="number"
+                      value={localLengthRange[1]}
+                      min={localLengthRange[0]}
+                      max={20}
+                      step={0.1}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        if (!isNaN(newMax)) {
+                          const validatedMax = Math.max(
+                            newMax,
+                            localLengthRange[0],
+                          );
+                          const newRange: [number, number] = [
+                            localLengthRange[0],
+                            validatedMax,
+                          ];
+                          setLocalLengthRange(newRange);
+                          debouncedLengthRangeFilter(newRange);
+                        }
+                      }}
+                      className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="20mm"
+                    />
+                  </div>
+                  {isLengthDebouncing && (
+                    <div className="filter-loading-indicator">
+                      <div className="loading-spinner"></div>
+                      Updating...
+                    </div>
+                  )}
+                </div>
+
+                {/* Width Filter */}
+                <div className="filter-group">
+                  <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                    Width
+                  </h3>
+                  <div className="flex justify-between text-xs text-gray-500 mb-2">
+                    <span>{localWidthRange[0].toFixed(1)}mm</span>
+                    <span>{localWidthRange[1].toFixed(1)}mm</span>
+                  </div>
+                  <div className="relative h-6 mb-4">
+                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      style={{
+                        left: `${((localWidthRange[0] - 3) / 17) * 100}%`,
+                        width: `${
+                          ((localWidthRange[1] - localWidthRange[0]) / 17) * 100
+                        }%`,
+                      }}
+                    ></div>
+                    <input
+                      type="range"
+                      min={3}
+                      max={20}
+                      step={0.1}
+                      value={localWidthRange[0]}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        const validatedMin = Math.min(
+                          newMin,
+                          localWidthRange[1] - 0.1,
+                        );
+                        const newRange: [number, number] = [
+                          validatedMin,
+                          localWidthRange[1],
+                        ];
+                        setLocalWidthRange(newRange);
+                        debouncedWidthRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                    />
+                    <input
+                      type="range"
+                      min={3}
+                      max={20}
+                      step={0.1}
+                      value={localWidthRange[1]}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        const validatedMax = Math.max(
+                          newMax,
+                          localWidthRange[0] + 0.1,
+                        );
+                        const newRange: [number, number] = [
+                          localWidthRange[0],
+                          validatedMax,
+                        ];
+                        setLocalWidthRange(newRange);
+                        debouncedWidthRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                    />
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${((localWidthRange[0] - 3) / 17) * 100}%`,
+                      }}
+                    ></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${((localWidthRange[1] - 3) / 17) * 100}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={localWidthRange[0]}
+                      min={3}
+                      max={localWidthRange[1]}
+                      step={0.1}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        if (!isNaN(newMin)) {
+                          const validatedMin = Math.min(
+                            newMin,
+                            localWidthRange[1],
+                          );
+                          const newRange: [number, number] = [
+                            validatedMin,
+                            localWidthRange[1],
+                          ];
+                          setLocalWidthRange(newRange);
+                          debouncedWidthRangeFilter(newRange);
+                        }
+                      }}
+                      className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="3mm"
+                    />
+                    <span className="text-gray-400 text-lg">-</span>
+                    <input
+                      type="number"
+                      value={localWidthRange[1]}
+                      min={localWidthRange[0]}
+                      max={20}
+                      step={0.1}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        if (!isNaN(newMax)) {
+                          const validatedMax = Math.max(
+                            newMax,
+                            localWidthRange[0],
+                          );
+                          const newRange: [number, number] = [
+                            localWidthRange[0],
+                            validatedMax,
+                          ];
+                          setLocalWidthRange(newRange);
+                          debouncedWidthRangeFilter(newRange);
+                        }
+                      }}
+                      className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="20mm"
+                    />
+                  </div>
+                  {isWidthDebouncing && (
+                    <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                      <div className="animate-spin h-3 w-3 border border-gray-400 border-t-black rounded-full"></div>
+                      Updating...
+                    </div>
+                  )}
+                </div>
+
+                {/* Height Filter */}
+                <div className="filter-group">
+                  <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                    Height
+                  </h3>
+                  <div className="flex justify-between text-xs text-gray-500 mb-2">
+                    <span>{localHeightRange[0].toFixed(1)}mm</span>
+                    <span>{localHeightRange[1].toFixed(1)}mm</span>
+                  </div>
+                  <div className="relative h-6 mb-4">
+                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      style={{
+                        left: `${((localHeightRange[0] - 2) / 10) * 100}%`,
+                        width: `${
+                          ((localHeightRange[1] - localHeightRange[0]) / 10) *
+                          100
+                        }%`,
+                      }}
+                    ></div>
+                    <input
+                      type="range"
+                      min={2}
+                      max={12}
+                      step={0.1}
+                      value={localHeightRange[0]}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        const validatedMin = Math.min(
+                          newMin,
+                          localHeightRange[1] - 0.1,
+                        );
+                        const newRange: [number, number] = [
+                          validatedMin,
+                          localHeightRange[1],
+                        ];
+                        setLocalHeightRange(newRange);
+                        debouncedHeightRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                    />
+                    <input
+                      type="range"
+                      min={2}
+                      max={12}
+                      step={0.1}
+                      value={localHeightRange[1]}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        const validatedMax = Math.max(
+                          newMax,
+                          localHeightRange[0] + 0.1,
+                        );
+                        const newRange: [number, number] = [
+                          localHeightRange[0],
+                          validatedMax,
+                        ];
+                        setLocalHeightRange(newRange);
+                        debouncedHeightRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                    />
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${((localHeightRange[0] - 2) / 10) * 100}%`,
+                      }}
+                    ></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${((localHeightRange[1] - 2) / 10) * 100}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={localHeightRange[0]}
+                      min={2}
+                      max={localHeightRange[1]}
+                      step={0.1}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        if (!isNaN(newMin)) {
+                          const validatedMin = Math.min(
+                            newMin,
+                            localHeightRange[1],
+                          );
+                          const newRange: [number, number] = [
+                            validatedMin,
+                            localHeightRange[1],
+                          ];
+                          setLocalHeightRange(newRange);
+                          debouncedHeightRangeFilter(newRange);
+                        }
+                      }}
+                      className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="2mm"
+                    />
+                    <span className="text-gray-400 text-lg">-</span>
+                    <input
+                      type="number"
+                      value={localHeightRange[1]}
+                      min={localHeightRange[0]}
+                      max={12}
+                      step={0.1}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        if (!isNaN(newMax)) {
+                          const validatedMax = Math.max(
+                            newMax,
+                            localHeightRange[0],
+                          );
+                          const newRange: [number, number] = [
+                            localHeightRange[0],
+                            validatedMax,
+                          ];
+                          setLocalHeightRange(newRange);
+                          debouncedHeightRangeFilter(newRange);
+                        }
+                      }}
+                      className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="12mm"
+                    />
+                  </div>
+                  {isHeightDebouncing && (
+                    <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                      <div className="animate-spin h-3 w-3 border border-gray-400 border-t-black rounded-full"></div>
+                      Updating...
+                    </div>
+                  )}
+                </div>
+
+                {/* Crown Angle Filter */}
+                <div className="filter-group">
+                  <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                    Crown Angle
+                  </h3>
+                  <div className="flex justify-between text-xs text-gray-500 mb-2">
+                    <span>{localCrownAngleRange[0].toFixed(1)}°</span>
+                    <span>{localCrownAngleRange[1].toFixed(1)}°</span>
+                  </div>
+                  <div className="relative h-6 mb-4">
+                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      style={{
+                        left: `${((localCrownAngleRange[0] - 23) / 17) * 100}%`,
+                        width: `${
+                          ((localCrownAngleRange[1] - localCrownAngleRange[0]) /
+                            17) *
+                          100
+                        }%`,
+                      }}
+                    ></div>
+                    <input
+                      type="range"
+                      min={23}
+                      max={40}
+                      step={0.1}
+                      value={localCrownAngleRange[0]}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        const validatedMin = Math.min(
+                          newMin,
+                          localCrownAngleRange[1] - 0.1,
+                        );
+                        const newRange: [number, number] = [
+                          validatedMin,
+                          localCrownAngleRange[1],
+                        ];
+                        setLocalCrownAngleRange(newRange);
+                        debouncedCrownAngleRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                    />
+                    <input
+                      type="range"
+                      min={23}
+                      max={40}
+                      step={0.1}
+                      value={localCrownAngleRange[1]}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        const validatedMax = Math.max(
+                          newMax,
+                          localCrownAngleRange[0] + 0.1,
+                        );
+                        const newRange: [number, number] = [
+                          localCrownAngleRange[0],
+                          validatedMax,
+                        ];
+                        setLocalCrownAngleRange(newRange);
+                        debouncedCrownAngleRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                    />
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${((localCrownAngleRange[0] - 23) / 17) * 100}%`,
+                      }}
+                    ></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${((localCrownAngleRange[1] - 23) / 17) * 100}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={localCrownAngleRange[0]}
+                      min={23}
+                      max={localCrownAngleRange[1]}
+                      step={0.1}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        if (!isNaN(newMin)) {
+                          const validatedMin = Math.min(
+                            newMin,
+                            localCrownAngleRange[1],
+                          );
+                          const newRange: [number, number] = [
+                            validatedMin,
+                            localCrownAngleRange[1],
+                          ];
+                          setLocalCrownAngleRange(newRange);
+                          debouncedCrownAngleRangeFilter(newRange);
+                        }
+                      }}
+                      className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="23°"
+                    />
+                    <span className="text-gray-400 text-lg">-</span>
+                    <input
+                      type="number"
+                      value={localCrownAngleRange[1]}
+                      min={localCrownAngleRange[0]}
+                      max={40}
+                      step={0.1}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        if (!isNaN(newMax)) {
+                          const validatedMax = Math.max(
+                            newMax,
+                            localCrownAngleRange[0],
+                          );
+                          const newRange: [number, number] = [
+                            localCrownAngleRange[0],
+                            validatedMax,
+                          ];
+                          setLocalCrownAngleRange(newRange);
+                          debouncedCrownAngleRangeFilter(newRange);
+                        }
+                      }}
+                      className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="40°"
+                    />
+                  </div>
+                  {isCrownAngleDebouncing && (
+                    <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                      <div className="animate-spin h-3 w-3 border border-gray-400 border-t-black rounded-full"></div>
+                      Updating...
+                    </div>
+                  )}
+                </div>
+
+                {/* Pavilion Angle Filter */}
+                <div className="filter-group">
+                  <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                    Pavilion Angle
+                  </h3>
+                  <div className="flex justify-between text-xs text-gray-500 mb-2">
+                    <span>{localPavilionAngleRange[0].toFixed(1)}°</span>
+                    <span>{localPavilionAngleRange[1].toFixed(1)}°</span>
+                  </div>
+                  <div className="relative h-6 mb-4">
+                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      style={{
+                        left: `${
+                          ((localPavilionAngleRange[0] - 38) / 5) * 100
+                        }%`,
+                        width: `${
+                          ((localPavilionAngleRange[1] -
+                            localPavilionAngleRange[0]) /
+                            5) *
+                          100
+                        }%`,
+                      }}
+                    ></div>
+                    <input
+                      type="range"
+                      min={38}
+                      max={43}
+                      step={0.1}
+                      value={localPavilionAngleRange[0]}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        const validatedMin = Math.min(
+                          newMin,
+                          localPavilionAngleRange[1] - 0.1,
+                        );
+                        const newRange: [number, number] = [
+                          validatedMin,
+                          localPavilionAngleRange[1],
+                        ];
+                        setLocalPavilionAngleRange(newRange);
+                        debouncedPavilionAngleRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                    />
+                    <input
+                      type="range"
+                      min={38}
+                      max={43}
+                      step={0.1}
+                      value={localPavilionAngleRange[1]}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        const validatedMax = Math.max(
+                          newMax,
+                          localPavilionAngleRange[0] + 0.1,
+                        );
+                        const newRange: [number, number] = [
+                          localPavilionAngleRange[0],
+                          validatedMax,
+                        ];
+                        setLocalPavilionAngleRange(newRange);
+                        debouncedPavilionAngleRangeFilter(newRange);
+                      }}
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                    />
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${
+                          ((localPavilionAngleRange[0] - 38) / 5) * 100
+                        }%`,
+                      }}
+                    ></div>
+                    <div
+                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      style={{
+                        left: `${
+                          ((localPavilionAngleRange[1] - 38) / 5) * 100
+                        }%`,
+                      }}
+                    ></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={localPavilionAngleRange[0]}
+                      min={38}
+                      max={localPavilionAngleRange[1]}
+                      step={0.1}
+                      onChange={(e) => {
+                        const newMin = parseFloat(e.target.value);
+                        if (!isNaN(newMin)) {
+                          const validatedMin = Math.min(
+                            newMin,
+                            localPavilionAngleRange[1],
+                          );
+                          const newRange: [number, number] = [
+                            validatedMin,
+                            localPavilionAngleRange[1],
+                          ];
+                          setLocalPavilionAngleRange(newRange);
+                          debouncedPavilionAngleRangeFilter(newRange);
+                        }
+                      }}
+                      className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="38°"
+                    />
+                    <span className="text-gray-400 text-lg">-</span>
+                    <input
+                      type="number"
+                      value={localPavilionAngleRange[1]}
+                      min={localPavilionAngleRange[0]}
+                      max={43}
+                      step={0.1}
+                      onChange={(e) => {
+                        const newMax = parseFloat(e.target.value);
+                        if (!isNaN(newMax)) {
+                          const validatedMax = Math.max(
+                            newMax,
+                            localPavilionAngleRange[0],
+                          );
+                          const newRange: [number, number] = [
+                            localPavilionAngleRange[0],
+                            validatedMax,
+                          ];
+                          setLocalPavilionAngleRange(newRange);
+                          debouncedPavilionAngleRangeFilter(newRange);
+                        }
+                      }}
+                      className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      placeholder="43°"
+                    />
+                  </div>
+                  {isPavilionAngleDebouncing && (
+                    <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                      <div className="animate-spin h-3 w-3 border border-gray-400 border-t-black rounded-full"></div>
+                      Updating...
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Girdle Thickness Filter */}
+              <div className="filter-group mt-6">
+                <h3 className="text-lg font-['SF_Pro'] font-normal text-black mb-4 uppercase">
+                  Girdle Thickness
+                </h3>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {[
+                    {display: 'Extremely Thin', value: 'ETN'},
+                    {display: 'Very Thin', value: 'VTN'},
+                    {display: 'Thin', value: 'THN'},
+                    {display: 'Slightly Thin', value: 'STN'},
+                    {display: 'Medium', value: 'MED'},
+                    {display: 'Slightly Thick', value: 'STK'},
+                    {display: 'Thick', value: 'THK'},
+                    {display: 'Very Thick', value: 'VTK'},
+                    {display: 'Extremely Thick', value: 'ETK'},
+                  ].map((option) => {
+                    const isSelected = filters.girdleThickness.includes(
+                      option.value,
+                    );
+                    return (
+                      <label
+                        key={option.value}
+                        className={`flex items-center p-2 rounded cursor-pointer transition-colors duration-150 ${
+                          isSelected
+                            ? 'bg-black text-white'
+                            : 'bg-white hover:bg-gray-50 border border-gray-200'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          value={option.value}
+                          checked={isSelected}
+                          onChange={(e) => {
+                            const newGirdle = e.target.checked
+                              ? [...filters.girdleThickness, option.value]
+                              : filters.girdleThickness.filter(
+                                  (g) => g !== option.value,
+                                );
+                            applyFilters(
+                              {
+                                ...filters,
+                                girdleThickness: newGirdle,
+                              },
+                              sortOption,
+                            );
+                          }}
+                          className="opacity-0 absolute h-0 w-0"
+                        />
+                        <span className="text-sm font-medium">
+                          {option.display}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -1308,6 +3453,7 @@ export function DiamondsCollection({
               <Link
                 to={buildPaginationURL(Math.max(0, currentOffset - limit))}
                 prefetch="intent"
+                preventScrollReset={true}
                 className={`w-24 inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium transition-colors ${
                   isNavigating
                     ? 'text-slate-400 cursor-not-allowed bg-gray-100'
@@ -1330,6 +3476,7 @@ export function DiamondsCollection({
             <Link
               to={buildPaginationURL(currentOffset + limit)}
               prefetch="intent"
+              preventScrollReset={true}
               className={`w-24 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium transition-colors ${
                 isNavigating
                   ? 'text-slate-400 cursor-not-allowed bg-gray-100'

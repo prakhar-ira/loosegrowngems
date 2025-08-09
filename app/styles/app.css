@@ -883,6 +883,7 @@ button.reset:hover:not(:has(> *)) {
     align-items: center;
     width: 100%;
     margin-top: 20px;
+    margin-bottom: 32px;
     gap: 15px;
   }
 
@@ -1258,11 +1259,13 @@ button.reset:hover:not(:has(> *)) {
     background: var(--color-light); /* White background */
     z-index: 100; /* Above other content */
     overflow-y: auto; /* Allow scrolling */
-    padding: var(--header-height) 1.5rem 1.5rem; /* Add padding, account for header */
+    padding: var(--header-height) 1.5rem 2rem; /* Add more bottom padding */
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1); /* Optional shadow */
     border: none; /* Remove existing border */
     border-radius: 0; /* Remove existing border radius */
     box-sizing: border-box; /* Ensure padding is included */
+    /* Ensure smooth scrolling on mobile */
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Mobile filter toggle button */
@@ -1325,6 +1328,42 @@ button.reset:hover:not(:has(> *)) {
     fill: var(--color-dark); /* Use the dark color variable (black) */
     width: 24px; /* Match the font-size or set explicitly */
     height: 24px;
+  }
+
+  /* Mobile-specific improvements for carat filter */
+  @media (max-width: 768px) {
+    .filters-section.mobile-open .carat-input-container {
+      gap: 0.75rem; /* Increase gap between inputs */
+    }
+
+    .filters-section.mobile-open .carat-input-container input {
+      padding: 0.75rem; /* Increase padding for better touch targets */
+      font-size: 16px; /* Prevent zoom on iOS */
+      border: 2px solid #e5e7eb; /* Thicker border for better visibility */
+      border-radius: 0.375rem;
+    }
+
+    .filters-section.mobile-open .carat-input-container input:focus {
+      border-color: #000;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .filters-section.mobile-open .carat-input-container label {
+      font-size: 0.875rem; /* Slightly larger labels */
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Ensure filter groups have proper spacing on mobile */
+    .filters-section.mobile-open .filter-group {
+      margin-bottom: 2rem; /* More spacing between filter groups */
+    }
+
+    /* Ensure the last filter group has enough bottom space */
+    .filters-section.mobile-open .filter-group:last-child {
+      margin-bottom: 3rem; /* Extra space at bottom for scrolling */
+    }
   }
 }
 
@@ -1656,5 +1695,216 @@ main {
 @media screen and (max-width: 700px) {
   .popup {
     width: 70%;
+  }
+}
+
+/* Advanced Filters Styling */
+.advanced-filters-section {
+  transition: all 0.5s ease-in-out;
+}
+
+.advanced-filters-section.collapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.advanced-filters-section.expanded {
+  max-height: 3000px;
+  opacity: 1;
+}
+
+.filter-group {
+  margin-bottom: 2rem;
+}
+
+.filter-group:last-child {
+  margin-bottom: 0;
+}
+
+/* Advanced measurements grid for stacked layout */
+.advanced-measurements-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Range input containers */
+.range-input-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.range-input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  min-width: 0;
+}
+
+.range-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px #000000;
+  border-color: #000000;
+}
+
+.range-separator {
+  color: #9ca3af;
+  font-size: 1.125rem;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* Improved slider styling */
+.filter-slider-container {
+  position: relative;
+  height: 32px;
+  margin-bottom: 1rem;
+}
+
+.filter-slider-track {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 8px;
+  background-color: #e5e7eb;
+  border-radius: 4px;
+}
+
+.filter-slider-handle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  background-color: #000;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-slider-handle:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.filter-slider-active {
+  background-color: #000;
+  height: 8px;
+  border-radius: 4px;
+}
+
+/* Improved option button styling */
+.filter-option-button {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #d1d5db;
+}
+
+.filter-option-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.filter-option-button.selected {
+  background-color: #000;
+}
+
+.filter-option-label {
+  position: absolute;
+  top: 28px;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* Range input styling */
+.range-input-container {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.range-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.range-input:focus {
+  outline: none;
+  border-color: #000;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
+.range-separator {
+  color: #9ca3af;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+/* Grid layout improvements */
+
+/* Loading indicator improvements */
+.filter-loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d1d5db;
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mobile improvements */
+@media (max-width: 768px) {
+  .filters-section.mobile-open .filter-group {
+    margin-bottom: 2.5rem;
+  }
+
+  .filters-section.mobile-open .advanced-filters-section {
+    margin-top: 2.5rem;
+    padding-top: 2rem;
+  }
+
+  .filters-section.mobile-open .range-input-container {
+    gap: 0.5rem;
+  }
+
+  .filters-section.mobile-open .range-input {
+    padding: 0.875rem;
+    font-size: 16px; /* Prevent zoom on iOS */
   }
 }
