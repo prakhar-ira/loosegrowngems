@@ -1898,7 +1898,7 @@ export function DiamondsCollection({
                     setLocalCaratRange(newRange);
                     debouncedCaratRangeFilter(newRange);
                   }}
-                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                   style={{touchAction: 'pan-x'}}
                 />
 
@@ -1923,7 +1923,7 @@ export function DiamondsCollection({
                     setLocalCaratRange(newRange);
                     debouncedCaratRangeFilter(newRange);
                   }}
-                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                   style={{touchAction: 'pan-x'}}
                 />
 
@@ -2153,7 +2153,7 @@ export function DiamondsCollection({
                         setLocalTableRange(newRange);
                         debouncedTableRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
 
@@ -2176,7 +2176,7 @@ export function DiamondsCollection({
                         setLocalTableRange(newRange);
                         debouncedTableRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
 
@@ -2300,7 +2300,7 @@ export function DiamondsCollection({
                         setLocalDepthRange(newRange);
                         debouncedDepthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
 
@@ -2323,7 +2323,7 @@ export function DiamondsCollection({
                         setLocalDepthRange(newRange);
                         debouncedDepthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
 
@@ -2538,7 +2538,7 @@ export function DiamondsCollection({
                         setLocalRatioRange(newRange);
                         debouncedRatioRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <input
@@ -2560,7 +2560,7 @@ export function DiamondsCollection({
                         setLocalRatioRange(newRange);
                         debouncedRatioRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <div
@@ -2674,7 +2674,7 @@ export function DiamondsCollection({
                         setLocalLengthRange(newRange);
                         debouncedLengthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <input
@@ -2696,7 +2696,7 @@ export function DiamondsCollection({
                         setLocalLengthRange(newRange);
                         debouncedLengthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <div
@@ -2811,7 +2811,7 @@ export function DiamondsCollection({
                         setLocalWidthRange(newRange);
                         debouncedWidthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <input
@@ -2833,7 +2833,7 @@ export function DiamondsCollection({
                         setLocalWidthRange(newRange);
                         debouncedWidthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <div
@@ -2949,7 +2949,7 @@ export function DiamondsCollection({
                         setLocalHeightRange(newRange);
                         debouncedHeightRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <input
@@ -2971,7 +2971,7 @@ export function DiamondsCollection({
                         setLocalHeightRange(newRange);
                         debouncedHeightRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <div
@@ -3088,7 +3088,7 @@ export function DiamondsCollection({
                         setLocalCrownAngleRange(newRange);
                         debouncedCrownAngleRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <input
@@ -3110,7 +3110,7 @@ export function DiamondsCollection({
                         setLocalCrownAngleRange(newRange);
                         debouncedCrownAngleRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <div
@@ -3230,7 +3230,7 @@ export function DiamondsCollection({
                         setLocalPavilionAngleRange(newRange);
                         debouncedPavilionAngleRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <input
@@ -3252,7 +3252,7 @@ export function DiamondsCollection({
                         setLocalPavilionAngleRange(newRange);
                         debouncedPavilionAngleRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
                       style={{touchAction: 'pan-x'}}
                     />
                     <div
