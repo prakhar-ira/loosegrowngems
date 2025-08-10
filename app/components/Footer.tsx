@@ -48,79 +48,100 @@ function FooterMenu({
 }) {
   return (
     <nav className="footer-menu" role="navigation">
-      <section className="footer-logo-menu">
-        <div>
-          <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
-            <img src={Logo} alt={'Logo'} className="footer-logo" />
-          </NavLink>
-          <p className="footer-logo-text">
-            At Loose Grown Gems, we are redefining fine jewelry, ensuring that
-            every piece is a testament to beauty and devotion.
-          </p>
-        </div>
-        <div className="social-media-container">
-          <a
-            href="https://www.instagram.com/loosegrowngems?igsh=b3A3Y3c0YnN0ZnZ2"
-            target="_blank"
-            rel="noreferrer"
-            className="text-white hover:text-gray-300"
-          >
-            <img src={instagram} alt={'Instagram'} className="w-6 h-6" />
-          </a>
-          <a
-            href="https://www.tiktok.com/@loosegrowngems?_t=ZP-8w07GUpLFJ1&_r=1"
-            target="_blank"
-            rel="noreferrer"
-            className="text-white hover:text-gray-300"
-          >
-            <img src={tiktok} alt={'TikTok'} className="w-6 h-6" />
-          </a>
-          {/* <a
-            href="https://www.trustpilot.com/review/completecarat.com?utm_medium=trustbox&utm_source=TrustBoxReviewCollector"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <img src={star} alt={'TrustPilot'} />
-          </a> */}
+      {/* Contact Info Section - Centered at top */}
+      <section className="footer-contact-section">
+        <div className="footer-contact-info">
+          <h3 className="footer-contact-title">Get In Touch</h3>
+          <div className="footer-contact-items">
+            <a href="tel:+13132071095" className="footer-contact-item">
+              📞 313-207-1095
+            </a>
+            <a
+              href="mailto:info@loosegrowngems.com"
+              className="footer-contact-item"
+            >
+              ✉️ info@loosegrowngems.com
+            </a>
+          </div>
         </div>
       </section>
-      <section className="footer-link-menu">
-        {(menu || FALLBACK_FOOTER_MENU).items.map((item) => {
-          if (!item.url) return null;
-          // if the url is internal, we strip the domain
-          const url =
-            item.url.includes('myshopify.com') ||
-            item.url.includes(publicStoreDomain) ||
-            item.url.includes(primaryDomainUrl)
-              ? new URL(item.url).pathname
-              : item.url;
-          const isExternal = !url.startsWith('/');
-          return isExternal ? (
-            <a
-              href={url}
-              key={item.id}
-              rel="noopener noreferrer"
-              target="_blank"
-              className="relative block w-fit ml-auto hover:after:w-[100%] after:absolute after:bottom-0 after:left-0 after:h-[1px] after:w-0 after:bg-white after:transition-all after:duration-300 data-[active=true]:after:w-full"
-            >
-              {item.title}
-            </a>
-          ) : (
-            <NavLink
-              end
-              key={item.id}
-              prefetch="intent"
-              className={({isActive}) =>
-                `relative block w-fit ml-auto hover:after:w-[100%] after:absolute after:bottom-0 after:left-0 after:h-[1px] after:w-0 after:bg-white after:transition-all after:duration-300 ${
-                  isActive ? 'after:w-full' : ''
-                }`
-              }
-              to={url}
-            >
-              {item.title}
+
+      {/* Main Footer Content */}
+      <section className="footer-main-content">
+        <div className="footer-logo-menu">
+          <div>
+            <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
+              <img src={Logo} alt={'Logo'} className="footer-logo" />
             </NavLink>
-          );
-        })}
+            <p className="footer-logo-text">
+              At Loose Grown Gems, we are redefining fine jewelry, ensuring that
+              every piece is a testament to beauty and devotion.
+            </p>
+          </div>
+          <div className="social-media-container">
+            <a
+              href="https://www.instagram.com/loosegrowngems?igsh=b3A3Y3c0YnN0ZnZ2"
+              target="_blank"
+              rel="noreferrer"
+              className="text-white hover:text-gray-300"
+            >
+              <img src={instagram} alt={'Instagram'} className="w-6 h-6" />
+            </a>
+            <a
+              href="https://www.tiktok.com/@loosegrowngems?_t=ZP-8w07GUpLFJ1&_r=1"
+              target="_blank"
+              rel="noreferrer"
+              className="text-white hover:text-gray-300"
+            >
+              <img src={tiktok} alt={'TikTok'} className="w-6 h-6" />
+            </a>
+            {/* <a
+              href="https://www.trustpilot.com/review/completecarat.com?utm_medium=trustbox&utm_source=TrustBoxReviewCollector"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <img src={star} alt={'TrustPilot'} />
+            </a> */}
+          </div>
+        </div>
+        <div className="footer-link-menu">
+          {(menu || FALLBACK_FOOTER_MENU).items.map((item) => {
+            if (!item.url) return null;
+            // if the url is internal, we strip the domain
+            const url =
+              item.url.includes('myshopify.com') ||
+              item.url.includes(publicStoreDomain) ||
+              item.url.includes(primaryDomainUrl)
+                ? new URL(item.url).pathname
+                : item.url;
+            const isExternal = !url.startsWith('/');
+            return isExternal ? (
+              <a
+                href={url}
+                key={item.id}
+                rel="noopener noreferrer"
+                target="_blank"
+                className="relative block w-fit ml-auto hover:after:w-[100%] after:absolute after:bottom-0 after:left-0 after:h-[1px] after:w-0 after:bg-white after:transition-all after:duration-300 data-[active=true]:after:w-full"
+              >
+                {item.title}
+              </a>
+            ) : (
+              <NavLink
+                end
+                key={item.id}
+                prefetch="intent"
+                className={({isActive}) =>
+                  `relative block w-fit ml-auto hover:after:w-[100%] after:absolute after:bottom-0 after:left-0 after:h-[1px] after:w-0 after:bg-white after:transition-all after:duration-300 ${
+                    isActive ? 'after:w-full' : ''
+                  }`
+                }
+                to={url}
+              >
+                {item.title}
+              </NavLink>
+            );
+          })}
+        </div>
       </section>
     </nav>
   );

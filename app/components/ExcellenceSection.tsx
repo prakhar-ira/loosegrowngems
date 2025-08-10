@@ -16,9 +16,9 @@ export function ExcellenceSection() {
           <Link to="/collections/diamonds">
             <button>Shop Diamonds</button>
           </Link>
-          <Link   to="/pages/contact-us">
+          {/* <Link   to="/pages/contact-us">
             <button>Book 1:1 Appointment</button>
-          </Link>
+          </Link> */}
           {/* <NavLink 
             prefetch="intent" 
             to="/pages/contact-us" 
