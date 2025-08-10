@@ -1969,6 +1969,48 @@ main {
   }
 }
 
+/* Mobile range slider improvements */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+/* WebKit (Safari/Chrome) */
+input[type='range']::-webkit-slider-track {
+  background: transparent;
+  height: 24px;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  height: 24px;
+  width: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Firefox */
+input[type='range']::-moz-range-track {
+  background: transparent;
+  height: 24px;
+  border: none;
+}
+
+input[type='range']::-moz-range-thumb {
+  background: transparent;
+  border: none;
+  height: 24px;
+  width: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
 /* Mobile improvements */
 @media (max-width: 768px) {
   .filters-section.mobile-open .filter-group {
@@ -1987,5 +2029,44 @@ main {
   .filters-section.mobile-open .range-input {
     padding: 0.875rem;
     font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  /* Enhanced touch targets for mobile sliders */
+  input[type='range'] {
+    min-height: 44px; /* Apple's recommended touch target size */
+    width: 100%;
+  }
+
+  input[type='range']::-webkit-slider-thumb {
+    height: 44px;
+    width: 44px;
+  }
+
+  input[type='range']::-moz-range-thumb {
+    height: 44px;
+    width: 44px;
+  }
+
+  /* Improve touch area for slider containers */
+  .relative.h-6 {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Touch manipulation class for better mobile gestures */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  /* Ensure all filter containers allow touch scrolling */
+  .filters-section {
+    touch-action: pan-y;
+  }
+
+  /* Better touch targets for mobile filter interactions */
+  .filter-group input[type='range'] {
+    padding: 12px 0;
+    margin: 6px 0;
   }
 }

@@ -1862,7 +1862,7 @@ export function DiamondsCollection({
               </div>
 
               {/* Custom Dual Range Slider */}
-              <div className="relative h-6">
+              <div className="relative h-6 touch-manipulation">
                 {/* Slider Track */}
                 <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
 
@@ -1898,7 +1898,8 @@ export function DiamondsCollection({
                     setLocalCaratRange(newRange);
                     debouncedCaratRangeFilter(newRange);
                   }}
-                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                  style={{touchAction: 'pan-x'}}
                 />
 
                 {/* Max Range Input */}
@@ -1922,7 +1923,8 @@ export function DiamondsCollection({
                     setLocalCaratRange(newRange);
                     debouncedCaratRangeFilter(newRange);
                   }}
-                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                  style={{touchAction: 'pan-x'}}
                 />
 
                 {/* Min Handle */}
@@ -1939,8 +1941,8 @@ export function DiamondsCollection({
               </div>
             </div>
 
-            {/* Number Inputs (Debounced) */}
-            <div className="flex justify-between items-end gap-2 carat-input-container">
+            {/* Number Inputs (Debounced) - COMMENTED OUT */}
+            {/* <div className="flex justify-between items-end gap-2 carat-input-container">
               <div className="flex-1">
                 <label
                   htmlFor="minCarat"
@@ -2006,7 +2008,7 @@ export function DiamondsCollection({
                   }`}
                 />
               </div>
-            </div>
+            </div> */}
 
             {/* Loading Indicator */}
             {isCaratDebouncing && (
@@ -2119,7 +2121,7 @@ export function DiamondsCollection({
                     <span>{localTableRange[1].toFixed(0)}%</span>
                   </div>
 
-                  <div className="relative h-6">
+                  <div className="relative h-6 touch-manipulation">
                     <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
@@ -2151,7 +2153,8 @@ export function DiamondsCollection({
                         setLocalTableRange(newRange);
                         debouncedTableRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
 
                     <input
@@ -2173,7 +2176,8 @@ export function DiamondsCollection({
                         setLocalTableRange(newRange);
                         debouncedTableRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
 
                     <div
@@ -2188,7 +2192,8 @@ export function DiamondsCollection({
                   </div>
                 </div>
 
-                <div className="flex justify-between items-end gap-2">
+                {/* Table Number Inputs - COMMENTED OUT */}
+                {/* <div className="flex justify-between items-end gap-2">
                   <div className="flex-1">
                     <input
                       type="number"
@@ -2213,10 +2218,10 @@ export function DiamondsCollection({
                       }}
                       className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
                       placeholder="0%"
-                    />
-                  </div>
+                />
+              </div>
                   <span className="text-gray-400 text-lg font-medium">-</span>
-                  <div className="flex-1">
+              <div className="flex-1">
                     <input
                       type="number"
                       value={localTableRange[1]}
@@ -2242,7 +2247,7 @@ export function DiamondsCollection({
                       placeholder="100%"
                     />
                   </div>
-                </div>
+                </div> */}
 
                 {isTableDebouncing && (
                   <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
@@ -2263,7 +2268,7 @@ export function DiamondsCollection({
                     <span>{localDepthRange[1].toFixed(0)}%</span>
                   </div>
 
-                  <div className="relative h-6">
+                  <div className="relative h-6 touch-manipulation">
                     <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
@@ -2295,7 +2300,8 @@ export function DiamondsCollection({
                         setLocalDepthRange(newRange);
                         debouncedDepthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
 
                     <input
@@ -2317,7 +2323,8 @@ export function DiamondsCollection({
                         setLocalDepthRange(newRange);
                         debouncedDepthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
 
                     <div
@@ -2332,7 +2339,8 @@ export function DiamondsCollection({
                   </div>
                 </div>
 
-                <div className="flex justify-between items-end gap-2">
+                {/* Depth Number Inputs - COMMENTED OUT */}
+                {/* <div className="flex justify-between items-end gap-2">
                   <div className="flex-1">
                     <input
                       type="number"
@@ -2386,7 +2394,7 @@ export function DiamondsCollection({
                       placeholder="100%"
                     />
                   </div>
-                </div>
+                </div> */}
 
                 {isDepthDebouncing && (
                   <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
@@ -2499,7 +2507,7 @@ export function DiamondsCollection({
                     <span>{localRatioRange[0].toFixed(2)}</span>
                     <span>{localRatioRange[1].toFixed(2)}</span>
                   </div>
-                  <div className="relative h-6 mb-4">
+                  <div className="relative h-6 mb-4 touch-manipulation">
                     <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
@@ -2530,7 +2538,8 @@ export function DiamondsCollection({
                         setLocalRatioRange(newRange);
                         debouncedRatioRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <input
                       type="range"
@@ -2551,7 +2560,8 @@ export function DiamondsCollection({
                         setLocalRatioRange(newRange);
                         debouncedRatioRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
@@ -2566,9 +2576,10 @@ export function DiamondsCollection({
                       }}
                     ></div>
                   </div>
-                  <div className="range-input-container">
-                    <input
-                      type="number"
+                  {/* L/W Ratio Number Inputs - COMMENTED OUT */}
+                  {/* <div className="range-input-container">
+                <input
+                  type="number"
                       value={localRatioRange[0]}
                       min={1}
                       max={localRatioRange[1]}
@@ -2596,12 +2607,12 @@ export function DiamondsCollection({
                       value={localRatioRange[1]}
                       min={localRatioRange[0]}
                       max={2.75}
-                      step={0.01}
-                      onChange={(e) => {
-                        const newMax = parseFloat(e.target.value);
-                        if (!isNaN(newMax)) {
-                          const validatedMax = Math.max(
-                            newMax,
+                  step={0.01}
+                  onChange={(e) => {
+                    const newMax = parseFloat(e.target.value);
+                    if (!isNaN(newMax)) {
+                      const validatedMax = Math.max(
+                        newMax,
                             localRatioRange[0],
                           );
                           const newRange: [number, number] = [
@@ -2614,7 +2625,7 @@ export function DiamondsCollection({
                       }}
                       className="range-input"
                     />
-                  </div>
+                  </div> */}
                   {isRatioDebouncing && (
                     <div className="filter-loading-indicator">
                       <div className="loading-spinner"></div>
@@ -2632,7 +2643,7 @@ export function DiamondsCollection({
                     <span>{localLengthRange[0].toFixed(1)}mm</span>
                     <span>{localLengthRange[1].toFixed(1)}mm</span>
                   </div>
-                  <div className="relative h-6 mb-4">
+                  <div className="relative h-6 mb-4 touch-manipulation">
                     <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
@@ -2663,7 +2674,8 @@ export function DiamondsCollection({
                         setLocalLengthRange(newRange);
                         debouncedLengthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <input
                       type="range"
@@ -2684,7 +2696,8 @@ export function DiamondsCollection({
                         setLocalLengthRange(newRange);
                         debouncedLengthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
@@ -2699,7 +2712,8 @@ export function DiamondsCollection({
                       }}
                     ></div>
                   </div>
-                  <div className="flex gap-2">
+                  {/* Length Number Inputs - COMMENTED OUT */}
+                  {/* <div className="flex gap-2">
                     <input
                       type="number"
                       value={localLengthRange[0]}
@@ -2749,7 +2763,7 @@ export function DiamondsCollection({
                       className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
                       placeholder="20mm"
                     />
-                  </div>
+                  </div> */}
                   {isLengthDebouncing && (
                     <div className="filter-loading-indicator">
                       <div className="loading-spinner"></div>
@@ -2767,7 +2781,7 @@ export function DiamondsCollection({
                     <span>{localWidthRange[0].toFixed(1)}mm</span>
                     <span>{localWidthRange[1].toFixed(1)}mm</span>
                   </div>
-                  <div className="relative h-6 mb-4">
+                  <div className="relative h-6 mb-4 touch-manipulation">
                     <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
@@ -2797,7 +2811,8 @@ export function DiamondsCollection({
                         setLocalWidthRange(newRange);
                         debouncedWidthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <input
                       type="range"
@@ -2818,7 +2833,8 @@ export function DiamondsCollection({
                         setLocalWidthRange(newRange);
                         debouncedWidthRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
@@ -2833,7 +2849,8 @@ export function DiamondsCollection({
                       }}
                     ></div>
                   </div>
-                  <div className="flex gap-2">
+                  {/* Width Number Inputs - COMMENTED OUT */}
+                  {/* <div className="flex gap-2">
                     <input
                       type="number"
                       value={localWidthRange[0]}
@@ -2883,7 +2900,7 @@ export function DiamondsCollection({
                       className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
                       placeholder="20mm"
                     />
-                  </div>
+                  </div> */}
                   {isWidthDebouncing && (
                     <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
                       <div className="animate-spin h-3 w-3 border border-gray-400 border-t-black rounded-full"></div>
@@ -2901,7 +2918,7 @@ export function DiamondsCollection({
                     <span>{localHeightRange[0].toFixed(1)}mm</span>
                     <span>{localHeightRange[1].toFixed(1)}mm</span>
                   </div>
-                  <div className="relative h-6 mb-4">
+                  <div className="relative h-6 mb-4 touch-manipulation">
                     <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
@@ -2932,7 +2949,8 @@ export function DiamondsCollection({
                         setLocalHeightRange(newRange);
                         debouncedHeightRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <input
                       type="range"
@@ -2953,7 +2971,8 @@ export function DiamondsCollection({
                         setLocalHeightRange(newRange);
                         debouncedHeightRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
@@ -2968,7 +2987,8 @@ export function DiamondsCollection({
                       }}
                     ></div>
                   </div>
-                  <div className="flex gap-2">
+                  {/* Height Number Inputs - COMMENTED OUT */}
+                  {/* <div className="flex gap-2">
                     <input
                       type="number"
                       value={localHeightRange[0]}
@@ -3018,7 +3038,7 @@ export function DiamondsCollection({
                       className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
                       placeholder="12mm"
                     />
-                  </div>
+                  </div> */}
                   {isHeightDebouncing && (
                     <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
                       <div className="animate-spin h-3 w-3 border border-gray-400 border-t-black rounded-full"></div>
@@ -3036,7 +3056,7 @@ export function DiamondsCollection({
                     <span>{localCrownAngleRange[0].toFixed(1)}°</span>
                     <span>{localCrownAngleRange[1].toFixed(1)}°</span>
                   </div>
-                  <div className="relative h-6 mb-4">
+                  <div className="relative h-6 mb-4 touch-manipulation">
                     <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
@@ -3068,7 +3088,8 @@ export function DiamondsCollection({
                         setLocalCrownAngleRange(newRange);
                         debouncedCrownAngleRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <input
                       type="range"
@@ -3089,7 +3110,8 @@ export function DiamondsCollection({
                         setLocalCrownAngleRange(newRange);
                         debouncedCrownAngleRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
@@ -3104,7 +3126,8 @@ export function DiamondsCollection({
                       }}
                     ></div>
                   </div>
-                  <div className="flex gap-2">
+                  {/* Crown Angle Number Inputs - COMMENTED OUT */}
+                  {/* <div className="flex gap-2">
                     <input
                       type="number"
                       value={localCrownAngleRange[0]}
@@ -3154,7 +3177,7 @@ export function DiamondsCollection({
                       className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
                       placeholder="40°"
                     />
-                  </div>
+                  </div> */}
                   {isCrownAngleDebouncing && (
                     <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
                       <div className="animate-spin h-3 w-3 border border-gray-400 border-t-black rounded-full"></div>
@@ -3172,7 +3195,7 @@ export function DiamondsCollection({
                     <span>{localPavilionAngleRange[0].toFixed(1)}°</span>
                     <span>{localPavilionAngleRange[1].toFixed(1)}°</span>
                   </div>
-                  <div className="relative h-6 mb-4">
+                  <div className="relative h-6 mb-4 touch-manipulation">
                     <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
@@ -3207,7 +3230,8 @@ export function DiamondsCollection({
                         setLocalPavilionAngleRange(newRange);
                         debouncedPavilionAngleRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-10 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <input
                       type="range"
@@ -3228,7 +3252,8 @@ export function DiamondsCollection({
                         setLocalPavilionAngleRange(newRange);
                         debouncedPavilionAngleRangeFilter(newRange);
                       }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20"
+                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer z-20 touch-manipulation"
+                      style={{touchAction: 'pan-x'}}
                     />
                     <div
                       className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
@@ -3247,7 +3272,8 @@ export function DiamondsCollection({
                       }}
                     ></div>
                   </div>
-                  <div className="flex gap-2">
+                  {/* Pavilion Angle Number Inputs - COMMENTED OUT */}
+                  {/* <div className="flex gap-2">
                     <input
                       type="number"
                       value={localPavilionAngleRange[0]}
@@ -3297,7 +3323,7 @@ export function DiamondsCollection({
                       className="flex-1 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
                       placeholder="43°"
                     />
-                  </div>
+                  </div> */}
                   {isPavilionAngleDebouncing && (
                     <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
                       <div className="animate-spin h-3 w-3 border border-gray-400 border-t-black rounded-full"></div>
