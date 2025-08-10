@@ -10,6 +10,7 @@ import {
   ScrollRestoration,
   isRouteErrorResponse,
   type ShouldRevalidateFunction,
+  type MetaFunction,
   useLocation,
 } from '@remix-run/react';
 import {useEffect, useState} from 'react';
@@ -24,6 +25,39 @@ import {motion, AnimatePresence} from 'framer-motion';
 import {Aside} from '~/components/Aside';
 
 export type RootLoader = typeof loader;
+
+export const meta: MetaFunction<typeof loader> = ({data}) => {
+  const origin = data?.origin ?? '';
+  const currentUrl = data?.currentUrl ?? '';
+  const siteName = 'Loose Grown Gems';
+  const defaultTitle = 'Loose Grown Gems | Lab-Grown Diamonds & Fine Jewelry';
+  const defaultDescription =
+    'Discover exquisite lab-grown diamonds and fine jewelry at Loose Grown Gems. Exceptional quality, ethical sourcing, and stunning designs for every occasion.';
+  const ogImageUrl = origin ? `${origin}/figma/diamond-round.png` : '';
+
+  return [
+    {title: defaultTitle},
+    {name: 'description', content: defaultDescription},
+    {property: 'og:type', content: 'website'},
+    {property: 'og:site_name', content: siteName},
+    {property: 'og:title', content: defaultTitle},
+    {property: 'og:description', content: defaultDescription},
+    ...(currentUrl ? [{property: 'og:url', content: currentUrl}] : []),
+    {property: 'og:locale', content: 'en_US'},
+    ...(ogImageUrl
+      ? [
+          {property: 'og:image', content: ogImageUrl},
+          {property: 'og:image:alt', content: siteName},
+          {property: 'og:image:width', content: '1200'},
+          {property: 'og:image:height', content: '630'},
+        ]
+      : []),
+    {name: 'twitter:card', content: 'summary_large_image'},
+    {name: 'twitter:title', content: defaultTitle},
+    {name: 'twitter:description', content: defaultDescription},
+    ...(ogImageUrl ? [{name: 'twitter:image', content: ogImageUrl}] : []),
+  ];
+};
 
 /**
  * This is important to avoid re-fetching root queries on sub-navigations
@@ -79,11 +113,15 @@ export async function loader(args: LoaderFunctionArgs) {
   const criticalData = await loadCriticalData(args);
 
   const {storefront, env} = args.context;
+  const url = new URL(args.request.url);
+  const origin = url.origin;
 
   return {
     ...deferredData,
     ...criticalData,
     publicStoreDomain: env.PUBLIC_STORE_DOMAIN,
+    origin,
+    currentUrl: url.toString(),
     shop: getShopAnalytics({
       storefront,
       publicStorefrontId: env.PUBLIC_STOREFRONT_ID,
@@ -150,25 +188,40 @@ function loadDeferredData({context}: LoaderFunctionArgs) {
 export function Layout({children}: {children?: React.ReactNode}) {
   const nonce = useNonce();
   const data = useRouteLoaderData<RootLoader>('root');
-  const ogImageUrl = data?.publicStoreDomain
-    ? `${data.publicStoreDomain}/assets/logo-1.png`
-    : '';
+  const origin = data?.origin ?? '';
+  const currentUrl = data?.currentUrl ?? '';
+  // Use public images to avoid hashed asset URLs
+  const ogImageUrl = origin ? `${origin}/figma/diamond-round.png` : '';
   const siteName = 'Loose Grown Gems';
+  const defaultTitle = 'Loose Grown Gems | Lab-Grown Diamonds & Fine Jewelry';
+  const defaultDescription =
+    'Discover exquisite lab-grown diamonds and fine jewelry at Loose Grown Gems. Exceptional quality, ethical sourcing, and stunning designs for every occasion.';
 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width,initial-scale=1" />
-        {/* Default Open Graph / Twitter Card Tags */}
+        {/* Default SEO / Open Graph / Twitter Card Tags */}
+        <meta name="description" content={defaultDescription} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content={siteName} />
-        <meta property="og:image" content={ogImageUrl} />
+        <meta property="og:title" content={defaultTitle} />
+        <meta property="og:description" content={defaultDescription} />
+        {currentUrl ? <meta property="og:url" content={currentUrl} /> : null}
+        <meta property="og:locale" content="en_US" />
+        {ogImageUrl ? (
+          <>
+            <meta property="og:image" content={ogImageUrl} />
+            <meta property="og:image:alt" content={siteName} />
+            <meta property="og:image:width" content="1200" />
+            <meta property="og:image:height" content="630" />
+          </>
+        ) : null}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content={ogImageUrl} />
-        <meta name="twitter:site" content="@YourTwitterHandle" />
-        {/* Optional: Add your Twitter handle */}
-        <meta name="twitter:creator" content="@YourTwitterHandle" />
-        {/* Optional: Add your Twitter handle */}
+        <meta name="twitter:title" content={defaultTitle} />
+        <meta name="twitter:description" content={defaultDescription} />
+        {ogImageUrl ? <meta name="twitter:image" content={ogImageUrl} /> : null}
+        {currentUrl ? <link rel="canonical" href={currentUrl} /> : null}
         {/* --- End Defaults --- */}
         <link rel="stylesheet" href={tailwindCss}></link>
         <link rel="stylesheet" href={resetStyles}></link>
@@ -201,7 +254,8 @@ export function Layout({children}: {children?: React.ReactNode}) {
       <body suppressHydrationWarning>
         {data ? (
           <>
-            {typeof window !== 'undefined' && window.location.hostname === 'localhost' ? (
+            {typeof window !== 'undefined' &&
+            window.location.hostname === 'localhost' ? (
               // Disable analytics in development
               <Aside.Provider>
                 <PageLayout {...data}>{children}</PageLayout>
@@ -220,9 +274,7 @@ export function Layout({children}: {children?: React.ReactNode}) {
             )}
           </>
         ) : (
-          <Aside.Provider>
-            {children}
-          </Aside.Provider>
+          <Aside.Provider>{children}</Aside.Provider>
         )}
         <ScrollRestoration nonce={nonce} />
         <Scripts nonce={nonce} />
@@ -234,21 +286,21 @@ export function Layout({children}: {children?: React.ReactNode}) {
 export default function App() {
   const location = useLocation();
   const [mounted, setMounted] = useState(false);
-  
+
   useEffect(() => {
     setMounted(true);
   }, []);
-  
+
   return (
     <>
       {mounted ? (
         <AnimatePresence mode="wait">
           <motion.main
             key={location.pathname}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            initial={{opacity: 0}}
+            animate={{opacity: 1}}
+            exit={{opacity: 0}}
+            transition={{duration: 0.3}}
           >
             <Outlet />
           </motion.main>

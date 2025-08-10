@@ -14,7 +14,6 @@ const marqueeItems = [
   { icon: <StarIcon />, text: 'Expert Craftsmanship' },
   { icon: <StarIcon />, text: 'Free Insured Shipping Worldwide' },
   { icon: <StarIcon />, text: 'Lifetime Warranty Included' },
-  { icon: <StarIcon />, text: 'Natural & Lab-Grown Options' },
   { icon: <StarIcon />, text: '30-Day Returns' },
   { icon: <StarIcon />, text: 'Bespoke Custom Designs' },
 ];
