@@ -41,50 +41,61 @@ type AddToCartButtonProps = {
 };
 
 // Utility function to construct localized cart route
-function getLocalizedCartRoute(locale: string | undefined, pathname: string): string {
+function getLocalizedCartRoute(
+  locale: string | undefined,
+  pathname: string,
+): string {
   // If we have a locale param, use it
   if (locale) {
     const cartRoute = `/${locale}/cart`;
-    console.log('🔍 Route detection from params:', { locale, cartRoute });
+    console.log('🔍 Route detection from params:', {locale, cartRoute});
     return cartRoute;
   }
-  
+
   // Otherwise, try to detect from pathname
   const pathSegments = pathname.split('/').filter(Boolean);
   const possibleLocale = pathSegments[0];
-  
+
   // Check for common locale patterns
-  const isLocalized = possibleLocale && (
-    possibleLocale.length === 2 || // en, fr, es, etc.
-    possibleLocale.includes('-') || // en-US, fr-CA, etc.
-    possibleLocale === 'en' || possibleLocale === 'fr' || possibleLocale === 'es'
-  );
-  
+  const isLocalized =
+    possibleLocale &&
+    (possibleLocale.length === 2 || // en, fr, es, etc.
+      possibleLocale.includes('-') || // en-US, fr-CA, etc.
+      possibleLocale === 'en' ||
+      possibleLocale === 'fr' ||
+      possibleLocale === 'es');
+
   // If no locale detected, try common default locales
   if (!isLocalized) {
     // Try common default locales
     const defaultLocales = ['en', 'en-US', 'en-CA'];
     for (const defaultLocale of defaultLocales) {
       const testRoute = `/${defaultLocale}/cart`;
-      console.log('🔍 Trying default locale:', { defaultLocale, testRoute });
+      console.log('🔍 Trying default locale:', {defaultLocale, testRoute});
       // For now, let's try 'en' as the default
       return '/en/cart';
     }
   }
-  
+
   const cartRoute = isLocalized ? `/${possibleLocale}/cart` : '/en/cart';
-  console.log('🔍 Route detection from pathname:', { pathname, pathSegments, possibleLocale, isLocalized, cartRoute });
-  
+  console.log('🔍 Route detection from pathname:', {
+    pathname,
+    pathSegments,
+    possibleLocale,
+    isLocalized,
+    cartRoute,
+  });
+
   return cartRoute;
 }
 
 // Try multiple cart routes to find the correct one
 function tryCartRoutes(locale: string | undefined, pathname: string): string[] {
   const routes = [];
-  
+
   // Try the detected route first
   routes.push(getLocalizedCartRoute(locale, pathname));
-  
+
   // Try common fallbacks
   if (locale) {
     routes.push('/cart'); // Fallback to non-localized
@@ -93,15 +104,18 @@ function tryCartRoutes(locale: string | undefined, pathname: string): string[] {
     routes.push('/en/cart');
     routes.push('/en-US/cart');
   }
-  
+
   console.log('🔍 Trying cart routes:', routes);
   return routes;
 }
 
 // Utility function to validate product data
-function validateProductData(productData: any): {isValid: boolean; errors: string[]} {
+function validateProductData(productData: any): {
+  isValid: boolean;
+  errors: string[];
+} {
   const errors: string[] = [];
-  
+
   if (!productData) {
     errors.push('No product data provided');
   } else {
@@ -112,10 +126,10 @@ function validateProductData(productData: any): {isValid: boolean; errors: strin
       errors.push('Product description is required');
     }
   }
-  
+
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
@@ -133,15 +147,18 @@ export function AddToCartButton({
   const location = useLocation();
   const params = useParams();
   const createProductFetcher = useFetcher<ProductCreationResponse>();
-  
+
   // State management
-  const [createdMerchandiseId, setCreatedMerchandiseId] = useState<string | null>(null);
+  const [createdMerchandiseId, setCreatedMerchandiseId] = useState<
+    string | null
+  >(null);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Derived state
-  const isProcessing = isCreatingProduct || createProductFetcher.state === 'submitting';
+  const isProcessing =
+    isCreatingProduct || createProductFetcher.state === 'submitting';
   const cartRoute = getLocalizedCartRoute(params.locale, location.pathname);
 
   // Debug logging (can be removed in production)
@@ -155,17 +172,20 @@ export function AddToCartButton({
   useEffect(() => {
     if (createProductFetcher.data) {
       const response = createProductFetcher.data;
-      
+
       if (response.success && response.merchandiseId) {
         console.log('✅ Product created successfully:', {
           merchandiseId: response.merchandiseId,
-          productHandle: response.productHandle
+          productHandle: response.productHandle,
         });
         setCreatedMerchandiseId(response.merchandiseId);
         setError(null);
         setIsCreatingProduct(false);
       } else {
-        console.error('❌ Product creation failed:', response.error || response.errors);
+        console.error(
+          '❌ Product creation failed:',
+          response.error || response.errors,
+        );
         setError(response.error || 'Product creation failed');
         setIsCreatingProduct(false);
       }
@@ -174,7 +194,10 @@ export function AddToCartButton({
 
   // Handle product creation errors
   useEffect(() => {
-    if (createProductFetcher.state === 'idle' && createProductFetcher.data?.success === false) {
+    if (
+      createProductFetcher.state === 'idle' &&
+      createProductFetcher.data?.success === false
+    ) {
       setError(createProductFetcher.data.error || 'Failed to create product');
     }
   }, [createProductFetcher.state, createProductFetcher.data]);
@@ -202,25 +225,28 @@ export function AddToCartButton({
   }, [productData, createProductFetcher]);
 
   // Handle cart addition success
-  const handleCartSuccess = useCallback((cartData: any) => {
-    console.log('🛒 Item successfully added to cart:', {
-      totalQuantity: cartData.cart?.totalQuantity,
-      lines: cartData.cart?.lines?.length
-    });
-    
-    if (showSuccessMessage) {
-      setSuccessMessage(`${productData.title} added to cart!`);
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccessMessage(null), 3000);
-    }
-    
-    // Open cart drawer
-    open('cart');
-    
-    // Reset for future additions
-    setCreatedMerchandiseId(null);
-    setError(null);
-  }, [productData.title, showSuccessMessage, open]);
+  const handleCartSuccess = useCallback(
+    (cartData: any) => {
+      console.log('🛒 Item successfully added to cart:', {
+        totalQuantity: cartData.cart?.totalQuantity,
+        lines: cartData.cart?.lines?.length,
+      });
+
+      if (showSuccessMessage) {
+        setSuccessMessage(`${productData.title} added to cart!`);
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccessMessage(null), 3000);
+      }
+
+      // Open cart drawer
+      open('cart');
+
+      // Reset for future additions
+      setCreatedMerchandiseId(null);
+      setError(null);
+    },
+    [productData.title, showSuccessMessage, open],
+  );
 
   // Handle cart addition errors
   const handleCartError = useCallback((errors: any) => {
@@ -252,11 +278,7 @@ export function AddToCartButton({
   if (successMessage) {
     return (
       <div className="add-to-cart-success">
-        <button
-          type="button"
-          disabled
-          className={`${className} success`}
-        >
+        <button type="button" disabled className={`${className} success`}>
           ✓ Added to Cart
         </button>
         <p className="success-message">{successMessage}</p>
@@ -299,145 +321,118 @@ export function AddToCartButton({
       },
     ],
   };
-  
+
   console.log('🛒 CartForm inputs:', {
     route: cartRoute,
     inputs: cartFormInputs,
     action: CartForm.ACTIONS.LinesAdd,
-    merchandiseId: createdMerchandiseId
+    merchandiseId: createdMerchandiseId,
   });
-  
+
   return (
     <CartForm
       route={cartRoute}
       inputs={cartFormInputs}
       action={CartForm.ACTIONS.LinesAdd}
     >
-      {(fetcher) => {
-        const isAdding = fetcher.state === 'submitting';
-
-        // Handle cart form submission success
-        useEffect(() => {
-          if (fetcher.state === 'idle' && fetcher.data?.cart) {
-            handleCartSuccess(fetcher.data);
-          }
-        }, [fetcher.state, fetcher.data, handleCartSuccess]);
-
-        // Handle cart form submission errors
-        useEffect(() => {
-          if (fetcher.state === 'idle' && fetcher.data?.errors) {
-            handleCartError(fetcher.data.errors);
-          }
-        }, [fetcher.state, fetcher.data, handleCartError]);
-
-        // Debug cart form state changes
-        useEffect(() => {
-          console.log('🔄 Cart form state changed:', {
-            state: fetcher.state,
-            formAction: fetcher.formAction,
-            formMethod: fetcher.formMethod,
-            formData: fetcher.formData ? Array.from(fetcher.formData.entries()) : null,
-            data: fetcher.data,
-            route: cartRoute,
-            merchandiseId: createdMerchandiseId,
-            quantity
-          });
-          
-          // Check if form is actually submitting
-          if (fetcher.state === 'submitting') {
-            console.log('📤 FORM SUBMITTING:', {
-              action: fetcher.formAction,
-              method: fetcher.formMethod,
-              data: fetcher.formData ? Array.from(fetcher.formData.entries()) : 'No form data'
-            });
-          }
-          
-          // Check if form submission completed
-          if (fetcher.state === 'idle' && fetcher.data) {
-            console.log('📥 FORM RESPONSE:', {
-              action: fetcher.formAction,
-              method: fetcher.formMethod,
-              data: fetcher.data,
-              cart: fetcher.data.cart,
-              errors: fetcher.data.errors,
-              warnings: fetcher.data.warnings
-            });
-            
-            // Check if cart action was actually called
-            if (fetcher.data.cart) {
-              console.log('🛒 Cart action result:', {
-                cartId: fetcher.data.cart.id,
-                totalQuantity: fetcher.data.cart.totalQuantity,
-                linesCount: fetcher.data.cart.lines?.nodes?.length || 0,
-                lines: fetcher.data.cart.lines?.nodes || []
-              });
-            }
-          }
-        }, [fetcher.state, fetcher.formAction, fetcher.formMethod, fetcher.formData, fetcher.data, cartRoute, createdMerchandiseId, quantity]);
-
-        return (
-          <>
-            <input
-              name="analytics"
-              type="hidden"
-              value={JSON.stringify(analytics)}
-            />
-            <button
-              type="submit"
-              onClick={(e) => {
-                console.log('🔵 ADD TO CART button clicked');
-                console.log('🔵 Submitting merchandise ID:', createdMerchandiseId);
-                console.log('🔵 Form data before submit:', fetcher.formData ? Array.from(fetcher.formData.entries()) : 'No form data');
-                console.log('🔵 Form action:', fetcher.formAction);
-                console.log('🔵 Form method:', fetcher.formMethod);
-                
-                // Force form submission if needed
-                if (fetcher.state === 'idle') {
-                  console.log('🔵 Form is idle, should submit');
-                  
-                  // Manually trigger form submission
-                  const formData = new FormData();
-                  formData.append('action', CartForm.ACTIONS.LinesAdd);
-                  formData.append('lines', JSON.stringify([{
-                    merchandiseId: createdMerchandiseId,
-                    quantity: quantity
-                  }]));
-                  formData.append('analytics', JSON.stringify(analytics));
-                  
-                  console.log('🔵 Manually submitting form data:', Array.from(formData.entries()));
-                  
-                  fetcher.submit(formData, {
-                    method: 'POST',
-                    action: cartRoute
-                  });
-                } else {
-                  console.log('🔵 Form state:', fetcher.state);
-                }
-              }}
-              disabled={disabled || isAdding}
-              className={`${className} add-to-cart`}
-              aria-label={`Add ${productData.title} to cart`}
-            >
-              {isAdding ? (
-                <>
-                  <span className="loading-spinner" aria-hidden="true" />
-                  Adding to Cart...
-                </>
-              ) : (
-                'Add to Cart'
-              )}
-            </button>
-            
-            {/* Debug form submission */}
-            <div style={{display: 'none'}}>
-              <p>Form Action: {fetcher.formAction}</p>
-              <p>Form Method: {fetcher.formMethod}</p>
-              <p>Form State: {fetcher.state}</p>
-              <p>Form Data: {fetcher.formData ? Array.from(fetcher.formData.entries()).join(', ') : 'No data'}</p>
-            </div>
-          </>
-        );
-      }}
+      {(fetcher) => (
+        <CartSubmitSection
+          fetcher={fetcher}
+          disabled={disabled}
+          className={className}
+          productTitle={productData.title}
+          analytics={analytics}
+          onSuccess={handleCartSuccess}
+          onError={handleCartError}
+          autoSubmitOnMount
+          cartRoute={cartRoute}
+          lines={cartFormInputs.lines}
+        />
+      )}
     </CartForm>
+  );
+}
+
+type CartSubmitSectionProps = {
+  fetcher: any;
+  disabled?: boolean;
+  className?: string;
+  productTitle: string;
+  analytics?: unknown;
+  onSuccess: (cartData: any) => void;
+  onError: (errors: any) => void;
+  autoSubmitOnMount?: boolean;
+  cartRoute: string;
+  lines: Array<{merchandiseId: string; quantity: number}>;
+};
+
+function CartSubmitSection({
+  fetcher,
+  disabled,
+  className,
+  productTitle,
+  analytics,
+  onSuccess,
+  onError,
+  autoSubmitOnMount = false,
+  cartRoute,
+  lines,
+}: CartSubmitSectionProps) {
+  const isAdding = fetcher.state === 'submitting';
+
+  useEffect(() => {
+    if (fetcher.state === 'idle' && fetcher.data?.cart) {
+      onSuccess(fetcher.data);
+    }
+  }, [fetcher.state, fetcher.data, onSuccess]);
+
+  useEffect(() => {
+    if (fetcher.state === 'idle' && fetcher.data?.errors) {
+      onError(fetcher.data.errors);
+    }
+  }, [fetcher.state, fetcher.data, onError]);
+
+  // Auto-submit once on mount to complete the flow after product creation
+  useEffect(() => {
+    if (!autoSubmitOnMount) return;
+    if (fetcher.state !== 'idle') return;
+    try {
+      const formData = new FormData();
+      // CartForm.getFormInput expects 'cartAction'
+      formData.append('cartAction', CartForm.ACTIONS.LinesAdd);
+      // Provide both specific field and inputs JSON for maximum compatibility
+      formData.append('lines', JSON.stringify(lines));
+      formData.append('inputs', JSON.stringify({lines}));
+      if (analytics) {
+        formData.append('analytics', JSON.stringify(analytics));
+      }
+      fetcher.submit(formData, {method: 'POST', action: cartRoute});
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Auto-submit cart failed', e);
+    }
+    // run once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      <input name="analytics" type="hidden" value={JSON.stringify(analytics)} />
+      <button
+        type="submit"
+        disabled={disabled || isAdding}
+        className={`${className} add-to-cart`}
+        aria-label={`Add ${productTitle} to cart`}
+      >
+        {isAdding ? (
+          <>
+            <span className="loading-spinner" aria-hidden="true" />
+            Adding to Cart...
+          </>
+        ) : (
+          'Add to Cart'
+        )}
+      </button>
+    </>
   );
 }

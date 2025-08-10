@@ -2062,6 +2062,7 @@ export function DiamondsCollection({
                 </h3>
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {[
+                    {display: 'None', value: 'NON'},
                     {display: 'Very Slight', value: 'VSL'},
                     {display: 'Slight', value: 'SLT'},
                     {display: 'Faint', value: 'FNT'},

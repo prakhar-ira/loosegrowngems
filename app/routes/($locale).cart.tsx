@@ -18,16 +18,43 @@ export const headers: HeadersFunction = ({actionHeaders}) => actionHeaders;
 export async function action({request, context}: ActionFunctionArgs) {
   console.log('🚀 CART ACTION STARTED - request URL:', request.url);
   console.log('🚀 CART ACTION STARTED - request method:', request.method);
-  
+
   const {cart} = context;
 
   try {
     const formData = await request.formData();
-    console.log('Cart action - formData entries:', Array.from(formData.entries()));
+    console.log(
+      'Cart action - formData entries:',
+      Array.from(formData.entries()),
+    );
 
-    const {action, inputs} = CartForm.getFormInput(formData);
-    console.log('Cart action - action:', action);
-    console.log('Cart action - inputs:', inputs);
+    const parsed = CartForm.getFormInput(formData);
+    let action = parsed.action as string | undefined;
+    let inputs: any = parsed.inputs as any;
+    console.log('Cart action - parsed action:', action);
+    console.log('Cart action - parsed inputs:', inputs);
+
+    // Fallback support for manual submissions
+    if (!action) {
+      const manualAction = formData.get('cartAction') || formData.get('action');
+      action = typeof manualAction === 'string' ? manualAction : undefined;
+    }
+
+    // Build inputs from raw form fields if needed
+    if (!inputs) {
+      const linesRaw = formData.get('lines');
+      const inputsRaw = formData.get('inputs');
+      try {
+        if (typeof inputsRaw === 'string') {
+          inputs = JSON.parse(inputsRaw);
+        }
+        if (!inputs && typeof linesRaw === 'string') {
+          inputs = {lines: JSON.parse(linesRaw)};
+        }
+      } catch (e) {
+        console.warn('Cart action - failed to parse manual inputs');
+      }
+    }
 
     if (!action) {
       throw new Error('No action provided');
@@ -36,13 +63,45 @@ export async function action({request, context}: ActionFunctionArgs) {
     let status = 200;
     let result: CartQueryDataReturn;
 
+    // Normalize inputs to ensure expected shapes
+    try {
+      // If inputs came through as a JSON string, parse it
+      if (typeof inputs === 'string') {
+        inputs = JSON.parse(inputs);
+      }
+      // If lines are provided as a JSON string, parse them
+      if (inputs && typeof inputs.lines === 'string') {
+        inputs.lines = JSON.parse(inputs.lines);
+      }
+    } catch (e) {
+      console.warn('Cart action - failed to normalize inputs:', e);
+    }
+
+    // Coerce single line object into an array
+    if (inputs && inputs.lines && !Array.isArray(inputs.lines)) {
+      inputs.lines = [inputs.lines];
+    }
+
+    // Final validation for actions that require lines
+    if (
+      (action === CartForm.ACTIONS.LinesAdd ||
+        action === CartForm.ACTIONS.LinesUpdate) &&
+      !Array.isArray(inputs?.lines)
+    ) {
+      console.error('Cart action - invalid inputs.lines:', inputs?.lines);
+      throw new Error('Invalid cart inputs: lines must be an array');
+    }
+
     switch (action) {
       case CartForm.ACTIONS.LinesAdd:
         console.log('Cart action - adding lines:', inputs.lines);
         result = await cart.addLines(inputs.lines);
         console.log('Cart action - addLines result:', result);
         console.log('Cart action - result cart lines:', result.cart?.lines);
-        console.log('Cart action - result cart totalQuantity:', result.cart?.totalQuantity);
+        console.log(
+          'Cart action - result cart totalQuantity:',
+          result.cart?.totalQuantity,
+        );
         break;
       case CartForm.ACTIONS.LinesUpdate:
         result = await cart.updateLines(inputs.lines);
