@@ -95,8 +95,114 @@ export async function action({request, context}: ActionFunctionArgs) {
     switch (action) {
       case CartForm.ACTIONS.LinesAdd:
         console.log('Cart action - adding lines:', inputs.lines);
-        result = await cart.addLines(inputs.lines);
+        try {
+          const firstLine = Array.isArray(inputs.lines)
+            ? inputs.lines[0]
+            : null;
+          const varId = firstLine?.merchandiseId;
+          if (typeof varId === 'string') {
+            console.log('Cart action - first merchandiseId:', varId);
+            const isGid = varId.startsWith('gid://');
+            if (!isGid) {
+              console.warn(
+                'Cart action - merchandiseId is not a GID. Expected gid://shopify/ProductVariant/...',
+              );
+            }
+            // Verify variant visibility on Storefront
+            const VARIANT_CHECK = `#graphql
+              query VariantCheck($id: ID!) {
+                node(id: $id) {
+                  __typename
+                  ... on ProductVariant {
+                    id
+                    availableForSale
+                    title
+                    product { id title publishedAt onlineStoreUrl }
+                  }
+                }
+              }
+            `;
+            try {
+              // @ts-expect-error - storefront context type issue
+              const checkRes = await (context as any).storefront.query(
+                VARIANT_CHECK,
+                {variables: {id: varId}},
+              );
+              console.log(
+                'Cart action - variant check:',
+                JSON.stringify(checkRes, null, 2),
+              );
+            } catch (e) {
+              console.warn('Cart action - variant check failed:', e);
+            }
+          }
+        } catch (e) {
+          console.warn('Cart action - preflight variant check error:', e);
+        }
+        {
+          const lines = (inputs.lines || []).map((l: any) => ({
+            merchandiseId: l.merchandiseId,
+            quantity: Number(l.quantity) || 1,
+          }));
+          // Preflight: wait until the variant is visible to Storefront (node not null)
+          try {
+            const varId = lines[0]?.merchandiseId;
+            if (typeof varId === 'string') {
+              const VARIANT_CHECK = `#graphql\n                query VariantCheck($id: ID!) {\n                  node(id: $id) {\n                    __typename\n                    ... on ProductVariant { id availableForSale title product { id title publishedAt onlineStoreUrl } }\n                  }\n                }\n              `;
+              let attempts = 0;
+              while (attempts < 10) {
+                const checkRes = await (context as any).storefront.query(
+                  VARIANT_CHECK,
+                  {variables: {id: varId}},
+                );
+                const node = (checkRes as any)?.node;
+                if (node) break;
+                await new Promise((r) => setTimeout(r, 1000));
+                attempts += 1;
+              }
+            }
+          } catch (e) {
+            console.warn('Cart action - preflight wait failed:', e);
+          }
+          const maxAttempts = 3;
+          let attempt = 0;
+          let last: CartQueryDataReturn | undefined;
+          while (attempt < maxAttempts) {
+            last = await cart.addLines(lines);
+            const qty = last?.cart?.totalQuantity || 0;
+            const nodesLen = (last as any)?.cart?.lines?.nodes?.length || 0;
+            const hadErrors =
+              Array.isArray((last as any)?.errors) &&
+              (last as any).errors.length > 0;
+            if (qty > 0 || nodesLen > 0 || hadErrors) break;
+            await new Promise((r) => setTimeout(r, 700));
+            attempt += 1;
+          }
+          result = (last as CartQueryDataReturn)!;
+          // If still empty, try one hard refresh
+          if (
+            (!result?.cart?.totalQuantity || result.cart.totalQuantity === 0) &&
+            (!result?.cart?.lines ||
+              (result as any).cart?.lines?.nodes?.length === 0)
+          ) {
+            try {
+              const refreshed = await cart.get();
+              result = {cart: refreshed, errors: [], warnings: []} as any;
+            } catch (e) {
+              console.warn('Cart refresh after addLines failed:', e);
+            }
+          }
+        }
         console.log('Cart action - addLines result:', result);
+        try {
+          // Deep debug: print full response for diagnosis
+          console.log(
+            'Cart action - addLines result (json):',
+            JSON.stringify(result, null, 2),
+          );
+        } catch (_e) {
+          // Intentionally empty - logging errors are non-critical
+        }
         console.log('Cart action - result cart lines:', result.cart?.lines);
         console.log(
           'Cart action - result cart totalQuantity:',

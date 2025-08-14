@@ -133,9 +133,11 @@ type NivodaListedDiamondEntry = {
 // (NivodaDiamondListApiResponse remains largely the same, but references corrected NivodaListedDiamondEntry)
 type NivodaDiamondListApiResponse = {
   data?: {
-    diamonds_by_query?: {
-      items?: NivodaListedDiamondEntry[] | null;
-      total_count?: number;
+    as?: {
+      diamonds_by_query?: {
+        items?: NivodaListedDiamondEntry[] | null;
+        total_count?: number;
+      } | null;
     } | null;
   } | null;
   errors?: any[];
@@ -233,6 +235,20 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
   const maxCarat = url.searchParams.get('maxCarat');
   const minPrice = url.searchParams.get('minPrice');
   const maxPrice = url.searchParams.get('maxPrice');
+  const priceRanges = url.searchParams.getAll('priceRange');
+
+  // Always log price debugging to understand what's happening
+  console.log('=== UNIVERSAL PRICE DEBUG ===');
+  console.log('URL search params:', url.search);
+  console.log('minPrice:', minPrice);
+  console.log('maxPrice:', maxPrice);
+  console.log('priceRanges:', priceRanges);
+  console.log('priceRanges.length:', priceRanges.length);
+  console.log(
+    'Condition check:',
+    minPrice || maxPrice || priceRanges.length > 0,
+  );
+  console.log('=== END UNIVERSAL PRICE DEBUG ===');
   const shapes = url.searchParams.getAll('shape');
   const colors = url.searchParams.getAll('color');
   const clarities = url.searchParams.getAll('clarity');
@@ -613,12 +629,83 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
         );
       }
 
-      // Add price range filter
-      if (minPrice || maxPrice) {
-        const min = minPrice ? parseFloat(minPrice) : 0;
-        const max = maxPrice ? parseFloat(maxPrice) : 100000;
+      // Add price range filter using dollar_value
+      console.log('🔍 CHECKING PRICE FILTER CONDITION...');
+      console.log('minPrice:', minPrice);
+      console.log('maxPrice:', maxPrice);
+      console.log('priceRanges:', priceRanges);
+      console.log('priceRanges.length:', priceRanges.length);
+      console.log(
+        'Condition result:',
+        minPrice || maxPrice || priceRanges.length > 0,
+      );
+
+      // Store price range for use in query variables
+      let priceFromCents = null;
+      let priceToCents = null;
+
+      if (minPrice || maxPrice || priceRanges.length > 0) {
+        console.log('✅ PRICE FILTER CONDITION MET - PROCESSING PRICE RANGE');
+        let min = 0;
+        let max = 100000;
+
+        // If specific min/max prices are provided, use them
+        if (minPrice || maxPrice) {
+          min = minPrice ? parseInt(minPrice) : 0;
+          max = maxPrice ? parseInt(maxPrice) : 100000;
+        }
+        // Otherwise, process priceRanges array
+        else if (priceRanges.length > 0) {
+          const allMins: number[] = [];
+          const allMaxs: number[] = [];
+
+          priceRanges.forEach((range) => {
+            if (range === '100000+') {
+              allMins.push(100000);
+              allMaxs.push(1000000); // Set a high upper bound for "over $100k"
+            } else {
+              const [rangeMin, rangeMax] = range.split('-').map(Number);
+              if (!isNaN(rangeMin)) allMins.push(rangeMin);
+              if (!isNaN(rangeMax)) allMaxs.push(rangeMax);
+            }
+          });
+
+          // Note: Nivoda API only supports single price range, so we create a range
+          // that encompasses all selected ranges (this may include some unselected prices)
+          if (allMins.length > 0) min = Math.min(...allMins);
+          if (allMaxs.length > 0) max = Math.max(...allMaxs);
+        }
+
+        // Convert to cents for Nivoda API (multiply by 100)
+        priceFromCents = Math.floor(min * 100);
+        priceToCents = Math.floor(max * 100);
+
+        // 🧪 TEMPORARY DEBUG: Use the exact values from your working example
+        if (min >= 5000 && max <= 10000) {
+          console.log('🧪 TESTING: Using exact working example values...');
+          priceFromCents = 10000; // Your working example "from"
+          priceToCents = 20000; // Your working example "to"
+          console.log(
+            `🧪 Override: Using ${priceFromCents} - ${priceToCents} instead of ${
+              min * 100
+            } - ${max * 100}`,
+          );
+        }
+
+        console.log('=== PRICE FILTER APPLIED ===');
+        console.log(`Selected ranges: ${priceRanges.join(', ')}`);
+        console.log(`Using minPrice: ${minPrice}, maxPrice: ${maxPrice}`);
+        console.log(`Computed range in dollars: $${min} - $${max}`);
+        console.log(
+          `Computed range in cents: ${priceFromCents} - ${priceToCents}`,
+        );
+        console.log('=== END PRICE FILTER ===');
+
+        // Add search_on_preferred_currency and dollar_value to query filters
+        // These will be populated using variables in the GraphQL query
+        queryFilters.push('              search_on_preferred_currency: true');
         queryFilters.push(
-          `              price_range: { from: ${min}, to: ${max} }`,
+          '              dollar_value: { from: $from, to: $to }',
         );
       }
 
@@ -734,74 +821,90 @@ export async function loader({params, request, context}: LoaderFunctionArgs) {
         queryFilters.push(`              girdle: [${girdleValues}]`);
       }
 
-      // Add standard filters
-      queryFilters.push('              has_v360: true');
-      queryFilters.push('              has_image: true');
+      // Build the complete query with as(token: $token) structure and price variables
+      const hasPrice = priceFromCents !== null && priceToCents !== null;
+      const queryVariables = hasPrice
+        ? '($token: String!, $from: Int!, $to: Int!)'
+        : '($token: String!)';
 
-      // Build the complete query
       const query = `
-        query {
-          diamonds_by_query(
-            query: {
+        query ${queryVariables} {
+          as(token: $token) {
+            diamonds_by_query(
+              query: {
 ${queryFilters.join(',\n')}
-            },
-            offset: ${offset},
-            limit: ${limit}, 
-            order: { type: ${
-              sort === 'price-desc'
-                ? 'price'
-                : sort === 'price-asc'
-                ? 'price'
-                : 'price'
-            }, direction: ${sort === 'price-desc' ? 'DESC' : 'ASC'} }
-          ) {
-            items {
-              id
-              diamond {
+              },
+              offset: ${offset},
+              limit: ${limit}, 
+              order: { type: ${
+                sort === 'price-desc' || sort === 'price-asc'
+                  ? 'price'
+                  : sort === 'carat-desc' || sort === 'carat-asc'
+                  ? 'size'
+                  : 'price'
+              }, direction: ${
+        sort === 'price-desc' || sort === 'carat-desc' ? 'DESC' : 'ASC'
+      } }
+            ) {
+              items {
                 id
-                video
-                image
-                availability
-                supplierStockId
-                brown
-                green
-                milky
-                eyeClean
-                mine_of_origin
-                certificate {
+                diamond {
                   id
-                  lab
-                  shape
-                  certNumber
-                  cut
-                  carats
-                  clarity
-                  polish
-                  symmetry
-                  color
-                  width
-                  length
-                  depth
-                  girdle
-                  floInt
-                  floCol
-                  depthPercentage
-                  table
+                  video
+                  image
+                  availability
+                  supplierStockId
+                  brown
+                  green
+                  milky
+                  eyeClean
+                  mine_of_origin
+                  certificate {
+                    id
+                    lab
+                    shape
+                    certNumber
+                    cut
+                    carats
+                    clarity
+                    polish
+                    symmetry
+                    color
+                    width
+                    length
+                    depth
+                    girdle
+                    floInt
+                    floCol
+                    depthPercentage
+                    table
+                  }
                 }
+                price
+                discount
               }
-              price
-              discount
+              total_count
             }
-            total_count
           }
         }
       `;
 
-      return {query, queryFilters};
+      console.log('🚀 FINAL QUERY BEING SENT TO NIVODA:');
+      console.log(query);
+      console.log('🚀 QUERY FILTERS ARRAY:');
+      console.log(queryFilters);
+
+      return {query, queryFilters, priceFromCents, priceToCents};
     };
 
-    const {query: dynamicQuery, queryFilters} = buildDynamicQuery();
+    const {
+      query: dynamicQuery,
+      queryFilters,
+      priceFromCents,
+      priceToCents,
+    } = buildDynamicQuery();
     console.log('Dynamic Nivoda query:', dynamicQuery);
+    console.log('Price variables:', {priceFromCents, priceToCents});
 
     try {
       console.log('Fetching diamond list from Nivoda with dynamic query');
@@ -816,14 +919,27 @@ ${queryFilters.join(',\n')}
         ),
       );
 
+      // Build variables object for GraphQL query
+      const variables = {
+        token: authToken,
+      };
+
+      // Add price variables if price filter is applied
+      if (priceFromCents !== null && priceToCents !== null) {
+        variables.from = priceFromCents;
+        variables.to = priceToCents;
+      }
+
+      console.log('🚀 GraphQL Variables:', variables);
+
       const nivodaListApiResponse = await fetch(nivodaApiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           query: dynamicQuery,
+          variables: variables,
         }),
       });
 
@@ -1391,14 +1507,14 @@ ${simpleQueryFilters.join(',\n')}
           );
         }
 
-        nivodaItems = nivodaResult.data?.diamonds_by_query?.items || [];
-        totalCount = nivodaResult.data?.diamonds_by_query?.total_count || 0;
+        nivodaItems = nivodaResult.data?.as?.diamonds_by_query?.items || [];
+        totalCount = nivodaResult.data?.as?.diamonds_by_query?.total_count || 0;
 
         console.log('Nivoda API Response Debug:', {
           itemsCount: nivodaItems.length,
           totalCount,
-          rawTotalCount: nivodaResult.data?.diamonds_by_query?.total_count,
-          fullResponse: nivodaResult.data?.diamonds_by_query,
+          rawTotalCount: nivodaResult.data?.as?.diamonds_by_query?.total_count,
+          fullResponse: nivodaResult.data?.as?.diamonds_by_query,
         });
       }
 
@@ -1527,9 +1643,11 @@ ${simpleQueryFilters.join(',\n')}
               ).toFixed(2)
             : 'N/A';
 
-          // Format price with fallback
-          const price = item.price || 0;
-          const priceStr = price.toString();
+          // Convert price from cents to USD (decimal string)
+          const rawPriceCents = item.price ?? 0;
+          const priceUsd =
+            typeof rawPriceCents === 'number' ? rawPriceCents / 100 : 0;
+          const priceStr = priceUsd.toString();
 
           // Create a more detailed description
           const descHtml = certificateDetailsForProduct

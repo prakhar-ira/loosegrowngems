@@ -22,6 +22,12 @@ const scrollbarHideStyle = `
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
   }
+  /* Prevent anchor-based scroll jumps globally and within key containers */
+  html, body { overflow-anchor: none; }
+  html, body { overscroll-behavior: none; }
+  .filters-section { overflow-anchor: none; }
+  .products-grid { overflow-anchor: none; }
+  .diamonds-collection { overflow-anchor: none; }
   
   @keyframes shimmer {
     0% {
@@ -456,6 +462,44 @@ export function DiamondsCollection({
   const location = useLocation();
   const navigation = useNavigation();
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const filtersSectionRef = useRef<HTMLDivElement | null>(null);
+  const scrollRestoreRef = useRef<{windowY: number; filtersY: number}>({
+    windowY: 0,
+    filtersY: 0,
+  });
+  const shouldRestoreScrollRef = useRef(false);
+  const restoreLoopRafRef = useRef<number | null>(null);
+
+  // Ensure browser does not auto-restore scroll on history updates
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      try {
+        window.history.scrollRestoration = 'manual';
+      } catch (_e) {
+        // intentionally ignore if not supported
+      }
+    }
+    return () => {
+      if (restoreLoopRafRef.current) {
+        cancelAnimationFrame(restoreLoopRafRef.current);
+      }
+    };
+  }, []);
+
+  const scheduleScrollRestore = useCallback(() => {
+    if (!shouldRestoreScrollRef.current) return;
+    const savedWindowY = scrollRestoreRef.current.windowY;
+    const savedFiltersY = scrollRestoreRef.current.filtersY;
+    if (restoreLoopRafRef.current != null) return;
+    restoreLoopRafRef.current = requestAnimationFrame(() => {
+      window.scrollTo(0, savedWindowY);
+      if (filtersSectionRef.current) {
+        filtersSectionRef.current.scrollTop = savedFiltersY;
+      }
+      shouldRestoreScrollRef.current = false;
+      restoreLoopRafRef.current = null;
+    });
+  }, []);
 
   // State to store accumulated products - initialize with current products to prevent hydration mismatch
   const [allProducts, setAllProducts] = useState<ProductWithDetails[]>(
@@ -853,11 +897,35 @@ export function DiamondsCollection({
         newParams.set('sort', newSort);
       }
 
+      // Capture current scroll positions (window + filters sidebar) before navigation
+      scrollRestoreRef.current = {
+        windowY: window.scrollY || window.pageYOffset || 0,
+        filtersY: filtersSectionRef.current?.scrollTop || 0,
+      };
+      // Blur active element to avoid browser auto-scrolling it into view on re-render
+      const active = document.activeElement as HTMLElement | null;
+      if (active && typeof active.blur === 'function') {
+        active.blur();
+      }
+      shouldRestoreScrollRef.current = true;
+
       const newUrl = `${location.pathname}?${newParams.toString()}`;
       navigate(newUrl, {replace: true, preventScrollReset: true});
     },
     [location.pathname, navigate],
   );
+
+  // Restore scroll positions after the URL/search params change triggers a re-render
+  useEffect(() => {
+    scheduleScrollRestore();
+  }, [location.search, scheduleScrollRestore]);
+
+  // Also run restoration once navigation completes, to catch late reflows
+  useEffect(() => {
+    if (navigation.state === 'idle') {
+      scheduleScrollRestore();
+    }
+  }, [navigation.state, scheduleScrollRestore]);
 
   // Handle certificate number search submission (e.g., on button click or enter)
   const handleCertificateSearch = useCallback(() => {
@@ -1006,6 +1074,7 @@ export function DiamondsCollection({
           className={`filters-section w-full md:w-72 lg:w-80 flex-shrink-0 p-4 border rounded-lg shadow-sm md:p-6 md:border-r md:border-gray-200 md:rounded-none md:shadow-none flex flex-col gap-6 md:gap-8 overflow-y-auto hide-scrollbar ${
             showMobileFilters ? 'mobile-open' : ''
           }`}
+          ref={filtersSectionRef}
         >
           {/* Add Close button for mobile view */}
           <button
@@ -1861,14 +1930,105 @@ export function DiamondsCollection({
                 <span>{localCaratRange[1].toFixed(2)} ct</span>
               </div>
 
-              {/* Custom Dual Range Slider */}
-              <div className="relative h-6 touch-manipulation">
-                {/* Slider Track */}
-                <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+              {/* Working Carat Slider */}
+              <div
+                className="new-carat-slider"
+                role="slider"
+                tabIndex={0}
+                aria-label="Carat range slider"
+                aria-valuenow={localCaratRange[0]}
+                aria-valuemin={0}
+                aria-valuemax={10}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                    e.preventDefault();
+                  }
+                }}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  const percentage = Math.max(
+                    0,
+                    Math.min(100, (x / rect.width) * 100),
+                  );
+                  const newValue = (percentage / 100) * 10;
 
-                {/* Active Track */}
+                  // Determine which handle is closer and update that one
+                  const distToMin = Math.abs(newValue - localCaratRange[0]);
+                  const distToMax = Math.abs(newValue - localCaratRange[1]);
+
+                  if (distToMin <= distToMax) {
+                    // Update minimum
+                    const validatedMin = Math.min(
+                      newValue,
+                      localCaratRange[1] - 0.01,
+                    );
+                    setLocalCaratRange([validatedMin, localCaratRange[1]]);
+                    debouncedCaratRangeFilter([
+                      validatedMin,
+                      localCaratRange[1],
+                    ]);
+                  } else {
+                    // Update maximum
+                    const validatedMax = Math.max(
+                      newValue,
+                      localCaratRange[0] + 0.01,
+                    );
+                    setLocalCaratRange([localCaratRange[0], validatedMax]);
+                    debouncedCaratRangeFilter([
+                      localCaratRange[0],
+                      validatedMax,
+                    ]);
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  // Mobile tap-to-position functionality
+                  if (e.changedTouches.length === 1) {
+                    const touch = e.changedTouches[0];
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = touch.clientX - rect.left;
+                    const percentage = Math.max(
+                      0,
+                      Math.min(100, (x / rect.width) * 100),
+                    );
+                    const newValue = (percentage / 100) * 10;
+
+                    // Determine which handle is closer and update that one
+                    const distToMin = Math.abs(newValue - localCaratRange[0]);
+                    const distToMax = Math.abs(newValue - localCaratRange[1]);
+
+                    if (distToMin <= distToMax) {
+                      // Update minimum
+                      const validatedMin = Math.min(
+                        newValue,
+                        localCaratRange[1] - 0.01,
+                      );
+                      setLocalCaratRange([validatedMin, localCaratRange[1]]);
+                      debouncedCaratRangeFilter([
+                        validatedMin,
+                        localCaratRange[1],
+                      ]);
+                    } else {
+                      // Update maximum
+                      const validatedMax = Math.max(
+                        newValue,
+                        localCaratRange[0] + 0.01,
+                      );
+                      setLocalCaratRange([localCaratRange[0], validatedMax]);
+                      debouncedCaratRangeFilter([
+                        localCaratRange[0],
+                        validatedMax,
+                      ]);
+                    }
+                  }
+                }}
+              >
+                {/* Track */}
+                <div className="new-slider-track"></div>
+
+                {/* Active range */}
                 <div
-                  className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                  className="new-slider-active"
                   style={{
                     left: `${(localCaratRange[0] / 10) * 100}%`,
                     width: `${
@@ -1877,66 +2037,176 @@ export function DiamondsCollection({
                   }}
                 ></div>
 
-                {/* Min Range Input */}
-                <input
-                  type="range"
-                  min={0}
-                  max={10}
-                  step={0.01}
-                  value={localCaratRange[0]}
-                  disabled={isFiltering}
-                  onChange={(e) => {
-                    const newMin = parseFloat(e.target.value);
-                    const validatedMin = Math.min(
-                      newMin,
-                      localCaratRange[1] - 0.01,
-                    );
-                    const newRange: [number, number] = [
-                      validatedMin,
-                      localCaratRange[1],
-                    ];
-                    setLocalCaratRange(newRange);
-                    debouncedCaratRangeFilter(newRange);
-                  }}
-                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                  style={{touchAction: 'pan-x'}}
-                />
-
-                {/* Max Range Input */}
-                <input
-                  type="range"
-                  min={0}
-                  max={10}
-                  step={0.01}
-                  value={localCaratRange[1]}
-                  disabled={isFiltering}
-                  onChange={(e) => {
-                    const newMax = parseFloat(e.target.value);
-                    const validatedMax = Math.max(
-                      newMax,
-                      localCaratRange[0] + 0.01,
-                    );
-                    const newRange: [number, number] = [
-                      localCaratRange[0],
-                      validatedMax,
-                    ];
-                    setLocalCaratRange(newRange);
-                    debouncedCaratRangeFilter(newRange);
-                  }}
-                  className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                  style={{touchAction: 'pan-x'}}
-                />
-
-                {/* Min Handle */}
+                {/* Min handle */}
                 <div
-                  className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                  className="new-slider-handle"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Minimum carat handle"
                   style={{left: `${(localCaratRange[0] / 10) * 100}%`}}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                      e.preventDefault();
+                    }
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    const startX = e.clientX;
+                    const startValue = localCaratRange[0];
+                    const rect =
+                      e.currentTarget.parentElement!.getBoundingClientRect();
+
+                    const handleMouseMove = (e: MouseEvent) => {
+                      const deltaX = e.clientX - startX;
+                      const deltaPercentage = (deltaX / rect.width) * 100;
+                      const deltaValue = (deltaPercentage / 100) * 10;
+                      const newValue = Math.max(
+                        0,
+                        Math.min(
+                          localCaratRange[1] - 0.01,
+                          startValue + deltaValue,
+                        ),
+                      );
+                      setLocalCaratRange([newValue, localCaratRange[1]]);
+                    };
+
+                    const handleMouseUp = () => {
+                      document.removeEventListener(
+                        'mousemove',
+                        handleMouseMove,
+                      );
+                      document.removeEventListener('mouseup', handleMouseUp);
+                      debouncedCaratRangeFilter([
+                        localCaratRange[0],
+                        localCaratRange[1],
+                      ]);
+                    };
+
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    const startX = e.touches[0].clientX;
+                    const startValue = localCaratRange[0];
+                    const rect =
+                      e.currentTarget.parentElement!.getBoundingClientRect();
+
+                    const handleTouchMove = (e: TouchEvent) => {
+                      e.preventDefault();
+                      const deltaX = e.touches[0].clientX - startX;
+                      const deltaPercentage = (deltaX / rect.width) * 100;
+                      const deltaValue = (deltaPercentage / 100) * 10;
+                      const newValue = Math.max(
+                        0,
+                        Math.min(
+                          localCaratRange[1] - 0.01,
+                          startValue + deltaValue,
+                        ),
+                      );
+                      setLocalCaratRange([newValue, localCaratRange[1]]);
+                    };
+
+                    const handleTouchEnd = () => {
+                      document.removeEventListener(
+                        'touchmove',
+                        handleTouchMove,
+                      );
+                      document.removeEventListener('touchend', handleTouchEnd);
+                      debouncedCaratRangeFilter([
+                        localCaratRange[0],
+                        localCaratRange[1],
+                      ]);
+                    };
+
+                    document.addEventListener('touchmove', handleTouchMove, {
+                      passive: false,
+                    });
+                    document.addEventListener('touchend', handleTouchEnd);
+                  }}
                 ></div>
 
-                {/* Max Handle */}
+                {/* Max handle */}
                 <div
-                  className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                  className="new-slider-handle"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Maximum carat handle"
                   style={{left: `${(localCaratRange[1] / 10) * 100}%`}}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                      e.preventDefault();
+                    }
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    const startX = e.clientX;
+                    const startValue = localCaratRange[1];
+                    const rect =
+                      e.currentTarget.parentElement!.getBoundingClientRect();
+
+                    const handleMouseMove = (e: MouseEvent) => {
+                      const deltaX = e.clientX - startX;
+                      const deltaPercentage = (deltaX / rect.width) * 100;
+                      const deltaValue = (deltaPercentage / 100) * 10;
+                      const newValue = Math.max(
+                        localCaratRange[0] + 0.01,
+                        Math.min(10, startValue + deltaValue),
+                      );
+                      setLocalCaratRange([localCaratRange[0], newValue]);
+                    };
+
+                    const handleMouseUp = () => {
+                      document.removeEventListener(
+                        'mousemove',
+                        handleMouseMove,
+                      );
+                      document.removeEventListener('mouseup', handleMouseUp);
+                      debouncedCaratRangeFilter([
+                        localCaratRange[0],
+                        localCaratRange[1],
+                      ]);
+                    };
+
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    const startX = e.touches[0].clientX;
+                    const startValue = localCaratRange[1];
+                    const rect =
+                      e.currentTarget.parentElement!.getBoundingClientRect();
+
+                    const handleTouchMove = (e: TouchEvent) => {
+                      e.preventDefault();
+                      const deltaX = e.touches[0].clientX - startX;
+                      const deltaPercentage = (deltaX / rect.width) * 100;
+                      const deltaValue = (deltaPercentage / 100) * 10;
+                      const newValue = Math.max(
+                        localCaratRange[0] + 0.01,
+                        Math.min(10, startValue + deltaValue),
+                      );
+                      setLocalCaratRange([localCaratRange[0], newValue]);
+                    };
+
+                    const handleTouchEnd = () => {
+                      document.removeEventListener(
+                        'touchmove',
+                        handleTouchMove,
+                      );
+                      document.removeEventListener('touchend', handleTouchEnd);
+                      debouncedCaratRangeFilter([
+                        localCaratRange[0],
+                        localCaratRange[1],
+                      ]);
+                    };
+
+                    document.addEventListener('touchmove', handleTouchMove, {
+                      passive: false,
+                    });
+                    document.addEventListener('touchend', handleTouchEnd);
+                  }}
                 ></div>
               </div>
             </div>
@@ -2122,10 +2392,115 @@ export function DiamondsCollection({
                     <span>{localTableRange[1].toFixed(0)}%</span>
                   </div>
 
-                  <div className="relative h-6 touch-manipulation">
-                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                  {/* Working Table Slider - Same Logic as Carat */}
+                  <div
+                    className="new-carat-slider"
+                    role="slider"
+                    tabIndex={0}
+                    aria-label="Table percentage range slider"
+                    aria-valuenow={localTableRange[0]}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                        e.preventDefault();
+                      }
+                    }}
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = Math.max(
+                        0,
+                        Math.min(100, (x / rect.width) * 100),
+                      );
+                      const newValue = percentage;
+
+                      // Determine which handle is closer and update that one
+                      const distToMin = Math.abs(newValue - localTableRange[0]);
+                      const distToMax = Math.abs(newValue - localTableRange[1]);
+
+                      if (distToMin <= distToMax) {
+                        // Update minimum
+                        const validatedMin = Math.min(
+                          newValue,
+                          localTableRange[1] - 1,
+                        );
+                        setLocalTableRange([validatedMin, localTableRange[1]]);
+                        debouncedTableRangeFilter([
+                          validatedMin,
+                          localTableRange[1],
+                        ]);
+                      } else {
+                        // Update maximum
+                        const validatedMax = Math.max(
+                          newValue,
+                          localTableRange[0] + 1,
+                        );
+                        setLocalTableRange([localTableRange[0], validatedMax]);
+                        debouncedTableRangeFilter([
+                          localTableRange[0],
+                          validatedMax,
+                        ]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      // Mobile tap-to-position functionality
+                      if (e.changedTouches.length === 1) {
+                        const touch = e.changedTouches[0];
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = touch.clientX - rect.left;
+                        const percentage = Math.max(
+                          0,
+                          Math.min(100, (x / rect.width) * 100),
+                        );
+                        const newValue = percentage;
+
+                        // Determine which handle is closer and update that one
+                        const distToMin = Math.abs(
+                          newValue - localTableRange[0],
+                        );
+                        const distToMax = Math.abs(
+                          newValue - localTableRange[1],
+                        );
+
+                        if (distToMin <= distToMax) {
+                          // Update minimum
+                          const validatedMin = Math.min(
+                            newValue,
+                            localTableRange[1] - 1,
+                          );
+                          setLocalTableRange([
+                            validatedMin,
+                            localTableRange[1],
+                          ]);
+                          debouncedTableRangeFilter([
+                            validatedMin,
+                            localTableRange[1],
+                          ]);
+                        } else {
+                          // Update maximum
+                          const validatedMax = Math.max(
+                            newValue,
+                            localTableRange[0] + 1,
+                          );
+                          setLocalTableRange([
+                            localTableRange[0],
+                            validatedMax,
+                          ]);
+                          debouncedTableRangeFilter([
+                            localTableRange[0],
+                            validatedMax,
+                          ]);
+                        }
+                      }
+                    }}
+                  >
+                    {/* Track */}
+                    <div className="new-slider-track"></div>
+
+                    {/* Active range */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      className="new-slider-active"
                       style={{
                         left: `${(localTableRange[0] / 100) * 100}%`,
                         width: `${
@@ -2135,60 +2510,192 @@ export function DiamondsCollection({
                       }}
                     ></div>
 
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={localTableRange[0]}
-                      onChange={(e) => {
-                        const newMin = parseFloat(e.target.value);
-                        const validatedMin = Math.min(
-                          newMin,
-                          localTableRange[1] - 1,
-                        );
-                        const newRange: [number, number] = [
-                          validatedMin,
-                          localTableRange[1],
-                        ];
-                        setLocalTableRange(newRange);
-                        debouncedTableRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
-
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={localTableRange[1]}
-                      onChange={(e) => {
-                        const newMax = parseFloat(e.target.value);
-                        const validatedMax = Math.max(
-                          newMax,
-                          localTableRange[0] + 1,
-                        );
-                        const newRange: [number, number] = [
-                          localTableRange[0],
-                          validatedMax,
-                        ];
-                        setLocalTableRange(newRange);
-                        debouncedTableRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
-
+                    {/* Min handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Minimum table percentage handle"
                       style={{left: `${(localTableRange[0] / 100) * 100}%`}}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                          e.preventDefault();
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localTableRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const newValue = Math.max(
+                            0,
+                            Math.min(
+                              localTableRange[1] - 1,
+                              startValue + deltaPercentage,
+                            ),
+                          );
+                          setLocalTableRange([newValue, localTableRange[1]]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedTableRangeFilter([
+                            localTableRange[0],
+                            localTableRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localTableRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const newValue = Math.max(
+                            0,
+                            Math.min(
+                              localTableRange[1] - 1,
+                              startValue + deltaPercentage,
+                            ),
+                          );
+                          setLocalTableRange([newValue, localTableRange[1]]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedTableRangeFilter([
+                            localTableRange[0],
+                            localTableRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
+                      }}
                     ></div>
 
+                    {/* Max handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Maximum table percentage handle"
                       style={{left: `${(localTableRange[1] / 100) * 100}%`}}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                          e.preventDefault();
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localTableRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const newValue = Math.max(
+                            localTableRange[0] + 1,
+                            Math.min(100, startValue + deltaPercentage),
+                          );
+                          setLocalTableRange([localTableRange[0], newValue]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedTableRangeFilter([
+                            localTableRange[0],
+                            localTableRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localTableRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const newValue = Math.max(
+                            localTableRange[0] + 1,
+                            Math.min(100, startValue + deltaPercentage),
+                          );
+                          setLocalTableRange([localTableRange[0], newValue]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedTableRangeFilter([
+                            localTableRange[0],
+                            localTableRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
+                      }}
                     ></div>
                   </div>
                 </div>
@@ -2269,10 +2776,115 @@ export function DiamondsCollection({
                     <span>{localDepthRange[1].toFixed(0)}%</span>
                   </div>
 
-                  <div className="relative h-6 touch-manipulation">
-                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                  {/* Working Depth Slider - Same Logic as Carat & Table */}
+                  <div
+                    className="new-carat-slider"
+                    role="slider"
+                    tabIndex={0}
+                    aria-label="Depth percentage range slider"
+                    aria-valuenow={localDepthRange[0]}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                        e.preventDefault();
+                      }
+                    }}
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = Math.max(
+                        0,
+                        Math.min(100, (x / rect.width) * 100),
+                      );
+                      const newValue = percentage;
+
+                      // Determine which handle is closer and update that one
+                      const distToMin = Math.abs(newValue - localDepthRange[0]);
+                      const distToMax = Math.abs(newValue - localDepthRange[1]);
+
+                      if (distToMin <= distToMax) {
+                        // Update minimum
+                        const validatedMin = Math.min(
+                          newValue,
+                          localDepthRange[1] - 1,
+                        );
+                        setLocalDepthRange([validatedMin, localDepthRange[1]]);
+                        debouncedDepthRangeFilter([
+                          validatedMin,
+                          localDepthRange[1],
+                        ]);
+                      } else {
+                        // Update maximum
+                        const validatedMax = Math.max(
+                          newValue,
+                          localDepthRange[0] + 1,
+                        );
+                        setLocalDepthRange([localDepthRange[0], validatedMax]);
+                        debouncedDepthRangeFilter([
+                          localDepthRange[0],
+                          validatedMax,
+                        ]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      // Mobile tap-to-position functionality
+                      if (e.changedTouches.length === 1) {
+                        const touch = e.changedTouches[0];
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = touch.clientX - rect.left;
+                        const percentage = Math.max(
+                          0,
+                          Math.min(100, (x / rect.width) * 100),
+                        );
+                        const newValue = percentage;
+
+                        // Determine which handle is closer and update that one
+                        const distToMin = Math.abs(
+                          newValue - localDepthRange[0],
+                        );
+                        const distToMax = Math.abs(
+                          newValue - localDepthRange[1],
+                        );
+
+                        if (distToMin <= distToMax) {
+                          // Update minimum
+                          const validatedMin = Math.min(
+                            newValue,
+                            localDepthRange[1] - 1,
+                          );
+                          setLocalDepthRange([
+                            validatedMin,
+                            localDepthRange[1],
+                          ]);
+                          debouncedDepthRangeFilter([
+                            validatedMin,
+                            localDepthRange[1],
+                          ]);
+                        } else {
+                          // Update maximum
+                          const validatedMax = Math.max(
+                            newValue,
+                            localDepthRange[0] + 1,
+                          );
+                          setLocalDepthRange([
+                            localDepthRange[0],
+                            validatedMax,
+                          ]);
+                          debouncedDepthRangeFilter([
+                            localDepthRange[0],
+                            validatedMax,
+                          ]);
+                        }
+                      }
+                    }}
+                  >
+                    {/* Track */}
+                    <div className="new-slider-track"></div>
+
+                    {/* Active range */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      className="new-slider-active"
                       style={{
                         left: `${(localDepthRange[0] / 100) * 100}%`,
                         width: `${
@@ -2282,60 +2894,176 @@ export function DiamondsCollection({
                       }}
                     ></div>
 
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={localDepthRange[0]}
-                      onChange={(e) => {
-                        const newMin = parseFloat(e.target.value);
-                        const validatedMin = Math.min(
-                          newMin,
-                          localDepthRange[1] - 1,
-                        );
-                        const newRange: [number, number] = [
-                          validatedMin,
-                          localDepthRange[1],
-                        ];
-                        setLocalDepthRange(newRange);
-                        debouncedDepthRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
-
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={localDepthRange[1]}
-                      onChange={(e) => {
-                        const newMax = parseFloat(e.target.value);
-                        const validatedMax = Math.max(
-                          newMax,
-                          localDepthRange[0] + 1,
-                        );
-                        const newRange: [number, number] = [
-                          localDepthRange[0],
-                          validatedMax,
-                        ];
-                        setLocalDepthRange(newRange);
-                        debouncedDepthRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
-
+                    {/* Min handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{left: `${(localDepthRange[0] / 100) * 100}%`}}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localDepthRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const newValue = Math.max(
+                            0,
+                            Math.min(
+                              localDepthRange[1] - 1,
+                              startValue + deltaPercentage,
+                            ),
+                          );
+                          setLocalDepthRange([newValue, localDepthRange[1]]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedDepthRangeFilter([
+                            localDepthRange[0],
+                            localDepthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localDepthRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const newValue = Math.max(
+                            0,
+                            Math.min(
+                              localDepthRange[1] - 1,
+                              startValue + deltaPercentage,
+                            ),
+                          );
+                          setLocalDepthRange([newValue, localDepthRange[1]]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedDepthRangeFilter([
+                            localDepthRange[0],
+                            localDepthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
+                      }}
                     ></div>
 
+                    {/* Max handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{left: `${(localDepthRange[1] / 100) * 100}%`}}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localDepthRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const newValue = Math.max(
+                            localDepthRange[0] + 1,
+                            Math.min(100, startValue + deltaPercentage),
+                          );
+                          setLocalDepthRange([localDepthRange[0], newValue]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedDepthRangeFilter([
+                            localDepthRange[0],
+                            localDepthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localDepthRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const newValue = Math.max(
+                            localDepthRange[0] + 1,
+                            Math.min(100, startValue + deltaPercentage),
+                          );
+                          setLocalDepthRange([localDepthRange[0], newValue]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedDepthRangeFilter([
+                            localDepthRange[0],
+                            localDepthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
+                      }}
                     ></div>
                   </div>
                 </div>
@@ -2508,10 +3236,104 @@ export function DiamondsCollection({
                     <span>{localRatioRange[0].toFixed(2)}</span>
                     <span>{localRatioRange[1].toFixed(2)}</span>
                   </div>
-                  <div className="relative h-6 mb-4 touch-manipulation">
-                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                  {/* Working L/W Ratio Slider - Same Logic as Carat */}
+                  <div
+                    className="new-carat-slider"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = Math.max(
+                        0,
+                        Math.min(100, (x / rect.width) * 100),
+                      );
+                      const newValue = 1 + (percentage / 100) * 1.75; // Convert to 1-2.75 range
+
+                      // Determine which handle is closer and update that one
+                      const distToMin = Math.abs(newValue - localRatioRange[0]);
+                      const distToMax = Math.abs(newValue - localRatioRange[1]);
+
+                      if (distToMin <= distToMax) {
+                        // Update minimum
+                        const validatedMin = Math.min(
+                          newValue,
+                          localRatioRange[1] - 0.01,
+                        );
+                        setLocalRatioRange([validatedMin, localRatioRange[1]]);
+                        debouncedRatioRangeFilter([
+                          validatedMin,
+                          localRatioRange[1],
+                        ]);
+                      } else {
+                        // Update maximum
+                        const validatedMax = Math.max(
+                          newValue,
+                          localRatioRange[0] + 0.01,
+                        );
+                        setLocalRatioRange([localRatioRange[0], validatedMax]);
+                        debouncedRatioRangeFilter([
+                          localRatioRange[0],
+                          validatedMax,
+                        ]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      // Mobile tap-to-position functionality
+                      if (e.changedTouches.length === 1) {
+                        const touch = e.changedTouches[0];
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = touch.clientX - rect.left;
+                        const percentage = Math.max(
+                          0,
+                          Math.min(100, (x / rect.width) * 100),
+                        );
+                        const newValue = 1 + (percentage / 100) * 1.75; // Convert to 1-2.75 range
+
+                        // Determine which handle is closer and update that one
+                        const distToMin = Math.abs(
+                          newValue - localRatioRange[0],
+                        );
+                        const distToMax = Math.abs(
+                          newValue - localRatioRange[1],
+                        );
+
+                        if (distToMin <= distToMax) {
+                          // Update minimum
+                          const validatedMin = Math.min(
+                            newValue,
+                            localRatioRange[1] - 0.01,
+                          );
+                          setLocalRatioRange([
+                            validatedMin,
+                            localRatioRange[1],
+                          ]);
+                          debouncedRatioRangeFilter([
+                            validatedMin,
+                            localRatioRange[1],
+                          ]);
+                        } else {
+                          // Update maximum
+                          const validatedMax = Math.max(
+                            newValue,
+                            localRatioRange[0] + 0.01,
+                          );
+                          setLocalRatioRange([
+                            localRatioRange[0],
+                            validatedMax,
+                          ]);
+                          debouncedRatioRangeFilter([
+                            localRatioRange[0],
+                            validatedMax,
+                          ]);
+                        }
+                      }
+                    }}
+                  >
+                    {/* Track */}
+                    <div className="new-slider-track"></div>
+
+                    {/* Active range */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      className="new-slider-active"
                       style={{
                         left: `${((localRatioRange[0] - 1) / 1.75) * 100}%`,
                         width: `${
@@ -2520,60 +3342,184 @@ export function DiamondsCollection({
                         }%`,
                       }}
                     ></div>
-                    <input
-                      type="range"
-                      min={1}
-                      max={2.75}
-                      step={0.01}
-                      value={localRatioRange[0]}
-                      onChange={(e) => {
-                        const newMin = parseFloat(e.target.value);
-                        const validatedMin = Math.min(
-                          newMin,
-                          localRatioRange[1] - 0.01,
-                        );
-                        const newRange: [number, number] = [
-                          validatedMin,
-                          localRatioRange[1],
-                        ];
-                        setLocalRatioRange(newRange);
-                        debouncedRatioRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
-                    <input
-                      type="range"
-                      min={1}
-                      max={2.75}
-                      step={0.01}
-                      value={localRatioRange[1]}
-                      onChange={(e) => {
-                        const newMax = parseFloat(e.target.value);
-                        const validatedMax = Math.max(
-                          newMax,
-                          localRatioRange[0] + 0.01,
-                        );
-                        const newRange: [number, number] = [
-                          localRatioRange[0],
-                          validatedMax,
-                        ];
-                        setLocalRatioRange(newRange);
-                        debouncedRatioRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
+
+                    {/* Min handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${((localRatioRange[0] - 1) / 1.75) * 100}%`,
                       }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localRatioRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 1.75;
+                          const newValue = Math.max(
+                            1,
+                            Math.min(
+                              localRatioRange[1] - 0.01,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalRatioRange([newValue, localRatioRange[1]]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedRatioRangeFilter([
+                            localRatioRange[0],
+                            localRatioRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localRatioRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 1.75;
+                          const newValue = Math.max(
+                            1,
+                            Math.min(
+                              localRatioRange[1] - 0.01,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalRatioRange([newValue, localRatioRange[1]]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedRatioRangeFilter([
+                            localRatioRange[0],
+                            localRatioRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
+                      }}
                     ></div>
+
+                    {/* Max handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${((localRatioRange[1] - 1) / 1.75) * 100}%`,
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localRatioRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 1.75;
+                          const newValue = Math.max(
+                            localRatioRange[0] + 0.01,
+                            Math.min(2.75, startValue + deltaValue),
+                          );
+                          setLocalRatioRange([localRatioRange[0], newValue]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedRatioRangeFilter([
+                            localRatioRange[0],
+                            localRatioRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localRatioRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 1.75;
+                          const newValue = Math.max(
+                            localRatioRange[0] + 0.01,
+                            Math.min(2.75, startValue + deltaValue),
+                          );
+                          setLocalRatioRange([localRatioRange[0], newValue]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedRatioRangeFilter([
+                            localRatioRange[0],
+                            localRatioRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
                       }}
                     ></div>
                   </div>
@@ -2644,10 +3590,114 @@ export function DiamondsCollection({
                     <span>{localLengthRange[0].toFixed(1)}mm</span>
                     <span>{localLengthRange[1].toFixed(1)}mm</span>
                   </div>
-                  <div className="relative h-6 mb-4 touch-manipulation">
-                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                  {/* Working Length Slider - Same Logic as Carat */}
+                  <div
+                    className="new-carat-slider"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = Math.max(
+                        0,
+                        Math.min(100, (x / rect.width) * 100),
+                      );
+                      const newValue = 3 + (percentage / 100) * 17; // Convert to 3-20 range
+
+                      // Determine which handle is closer and update that one
+                      const distToMin = Math.abs(
+                        newValue - localLengthRange[0],
+                      );
+                      const distToMax = Math.abs(
+                        newValue - localLengthRange[1],
+                      );
+
+                      if (distToMin <= distToMax) {
+                        // Update minimum
+                        const validatedMin = Math.min(
+                          newValue,
+                          localLengthRange[1] - 0.1,
+                        );
+                        setLocalLengthRange([
+                          validatedMin,
+                          localLengthRange[1],
+                        ]);
+                        debouncedLengthRangeFilter([
+                          validatedMin,
+                          localLengthRange[1],
+                        ]);
+                      } else {
+                        // Update maximum
+                        const validatedMax = Math.max(
+                          newValue,
+                          localLengthRange[0] + 0.1,
+                        );
+                        setLocalLengthRange([
+                          localLengthRange[0],
+                          validatedMax,
+                        ]);
+                        debouncedLengthRangeFilter([
+                          localLengthRange[0],
+                          validatedMax,
+                        ]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      // Mobile tap-to-position functionality
+                      if (e.changedTouches.length === 1) {
+                        const touch = e.changedTouches[0];
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = touch.clientX - rect.left;
+                        const percentage = Math.max(
+                          0,
+                          Math.min(100, (x / rect.width) * 100),
+                        );
+                        const newValue = 3 + (percentage / 100) * 17; // Convert to 3-20 range
+
+                        // Determine which handle is closer and update that one
+                        const distToMin = Math.abs(
+                          newValue - localLengthRange[0],
+                        );
+                        const distToMax = Math.abs(
+                          newValue - localLengthRange[1],
+                        );
+
+                        if (distToMin <= distToMax) {
+                          // Update minimum
+                          const validatedMin = Math.min(
+                            newValue,
+                            localLengthRange[1] - 0.1,
+                          );
+                          setLocalLengthRange([
+                            validatedMin,
+                            localLengthRange[1],
+                          ]);
+                          debouncedLengthRangeFilter([
+                            validatedMin,
+                            localLengthRange[1],
+                          ]);
+                        } else {
+                          // Update maximum
+                          const validatedMax = Math.max(
+                            newValue,
+                            localLengthRange[0] + 0.1,
+                          );
+                          setLocalLengthRange([
+                            localLengthRange[0],
+                            validatedMax,
+                          ]);
+                          debouncedLengthRangeFilter([
+                            localLengthRange[0],
+                            validatedMax,
+                          ]);
+                        }
+                      }
+                    }}
+                  >
+                    {/* Track */}
+                    <div className="new-slider-track"></div>
+
+                    {/* Active range */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      className="new-slider-active"
                       style={{
                         left: `${((localLengthRange[0] - 3) / 17) * 100}%`,
                         width: `${
@@ -2656,60 +3706,184 @@ export function DiamondsCollection({
                         }%`,
                       }}
                     ></div>
-                    <input
-                      type="range"
-                      min={3}
-                      max={20}
-                      step={0.1}
-                      value={localLengthRange[0]}
-                      onChange={(e) => {
-                        const newMin = parseFloat(e.target.value);
-                        const validatedMin = Math.min(
-                          newMin,
-                          localLengthRange[1] - 0.1,
-                        );
-                        const newRange: [number, number] = [
-                          validatedMin,
-                          localLengthRange[1],
-                        ];
-                        setLocalLengthRange(newRange);
-                        debouncedLengthRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
-                    <input
-                      type="range"
-                      min={3}
-                      max={20}
-                      step={0.1}
-                      value={localLengthRange[1]}
-                      onChange={(e) => {
-                        const newMax = parseFloat(e.target.value);
-                        const validatedMax = Math.max(
-                          newMax,
-                          localLengthRange[0] + 0.1,
-                        );
-                        const newRange: [number, number] = [
-                          localLengthRange[0],
-                          validatedMax,
-                        ];
-                        setLocalLengthRange(newRange);
-                        debouncedLengthRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
+
+                    {/* Min handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${((localLengthRange[0] - 3) / 17) * 100}%`,
                       }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localLengthRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            3,
+                            Math.min(
+                              localLengthRange[1] - 0.1,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalLengthRange([newValue, localLengthRange[1]]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedLengthRangeFilter([
+                            localLengthRange[0],
+                            localLengthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localLengthRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            3,
+                            Math.min(
+                              localLengthRange[1] - 0.1,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalLengthRange([newValue, localLengthRange[1]]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedLengthRangeFilter([
+                            localLengthRange[0],
+                            localLengthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
+                      }}
                     ></div>
+
+                    {/* Max handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${((localLengthRange[1] - 3) / 17) * 100}%`,
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localLengthRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            localLengthRange[0] + 0.1,
+                            Math.min(20, startValue + deltaValue),
+                          );
+                          setLocalLengthRange([localLengthRange[0], newValue]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedLengthRangeFilter([
+                            localLengthRange[0],
+                            localLengthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localLengthRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            localLengthRange[0] + 0.1,
+                            Math.min(20, startValue + deltaValue),
+                          );
+                          setLocalLengthRange([localLengthRange[0], newValue]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedLengthRangeFilter([
+                            localLengthRange[0],
+                            localLengthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
                       }}
                     ></div>
                   </div>
@@ -2782,10 +3956,104 @@ export function DiamondsCollection({
                     <span>{localWidthRange[0].toFixed(1)}mm</span>
                     <span>{localWidthRange[1].toFixed(1)}mm</span>
                   </div>
-                  <div className="relative h-6 mb-4 touch-manipulation">
-                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                  {/* Working Width Slider - Same Logic as Carat */}
+                  <div
+                    className="new-carat-slider"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = Math.max(
+                        0,
+                        Math.min(100, (x / rect.width) * 100),
+                      );
+                      const newValue = 3 + (percentage / 100) * 17; // Convert to 3-20 range
+
+                      // Determine which handle is closer and update that one
+                      const distToMin = Math.abs(newValue - localWidthRange[0]);
+                      const distToMax = Math.abs(newValue - localWidthRange[1]);
+
+                      if (distToMin <= distToMax) {
+                        // Update minimum
+                        const validatedMin = Math.min(
+                          newValue,
+                          localWidthRange[1] - 0.1,
+                        );
+                        setLocalWidthRange([validatedMin, localWidthRange[1]]);
+                        debouncedWidthRangeFilter([
+                          validatedMin,
+                          localWidthRange[1],
+                        ]);
+                      } else {
+                        // Update maximum
+                        const validatedMax = Math.max(
+                          newValue,
+                          localWidthRange[0] + 0.1,
+                        );
+                        setLocalWidthRange([localWidthRange[0], validatedMax]);
+                        debouncedWidthRangeFilter([
+                          localWidthRange[0],
+                          validatedMax,
+                        ]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      // Mobile tap-to-position functionality
+                      if (e.changedTouches.length === 1) {
+                        const touch = e.changedTouches[0];
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = touch.clientX - rect.left;
+                        const percentage = Math.max(
+                          0,
+                          Math.min(100, (x / rect.width) * 100),
+                        );
+                        const newValue = 3 + (percentage / 100) * 17; // Convert to 3-20 range
+
+                        // Determine which handle is closer and update that one
+                        const distToMin = Math.abs(
+                          newValue - localWidthRange[0],
+                        );
+                        const distToMax = Math.abs(
+                          newValue - localWidthRange[1],
+                        );
+
+                        if (distToMin <= distToMax) {
+                          // Update minimum
+                          const validatedMin = Math.min(
+                            newValue,
+                            localWidthRange[1] - 0.1,
+                          );
+                          setLocalWidthRange([
+                            validatedMin,
+                            localWidthRange[1],
+                          ]);
+                          debouncedWidthRangeFilter([
+                            validatedMin,
+                            localWidthRange[1],
+                          ]);
+                        } else {
+                          // Update maximum
+                          const validatedMax = Math.max(
+                            newValue,
+                            localWidthRange[0] + 0.1,
+                          );
+                          setLocalWidthRange([
+                            localWidthRange[0],
+                            validatedMax,
+                          ]);
+                          debouncedWidthRangeFilter([
+                            localWidthRange[0],
+                            validatedMax,
+                          ]);
+                        }
+                      }
+                    }}
+                  >
+                    {/* Track */}
+                    <div className="new-slider-track"></div>
+
+                    {/* Active range */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      className="new-slider-active"
                       style={{
                         left: `${((localWidthRange[0] - 3) / 17) * 100}%`,
                         width: `${
@@ -2793,60 +4061,184 @@ export function DiamondsCollection({
                         }%`,
                       }}
                     ></div>
-                    <input
-                      type="range"
-                      min={3}
-                      max={20}
-                      step={0.1}
-                      value={localWidthRange[0]}
-                      onChange={(e) => {
-                        const newMin = parseFloat(e.target.value);
-                        const validatedMin = Math.min(
-                          newMin,
-                          localWidthRange[1] - 0.1,
-                        );
-                        const newRange: [number, number] = [
-                          validatedMin,
-                          localWidthRange[1],
-                        ];
-                        setLocalWidthRange(newRange);
-                        debouncedWidthRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
-                    <input
-                      type="range"
-                      min={3}
-                      max={20}
-                      step={0.1}
-                      value={localWidthRange[1]}
-                      onChange={(e) => {
-                        const newMax = parseFloat(e.target.value);
-                        const validatedMax = Math.max(
-                          newMax,
-                          localWidthRange[0] + 0.1,
-                        );
-                        const newRange: [number, number] = [
-                          localWidthRange[0],
-                          validatedMax,
-                        ];
-                        setLocalWidthRange(newRange);
-                        debouncedWidthRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
+
+                    {/* Min handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${((localWidthRange[0] - 3) / 17) * 100}%`,
                       }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localWidthRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            3,
+                            Math.min(
+                              localWidthRange[1] - 0.1,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalWidthRange([newValue, localWidthRange[1]]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedWidthRangeFilter([
+                            localWidthRange[0],
+                            localWidthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localWidthRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            3,
+                            Math.min(
+                              localWidthRange[1] - 0.1,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalWidthRange([newValue, localWidthRange[1]]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedWidthRangeFilter([
+                            localWidthRange[0],
+                            localWidthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
+                      }}
                     ></div>
+
+                    {/* Max handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${((localWidthRange[1] - 3) / 17) * 100}%`,
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localWidthRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            localWidthRange[0] + 0.1,
+                            Math.min(20, startValue + deltaValue),
+                          );
+                          setLocalWidthRange([localWidthRange[0], newValue]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedWidthRangeFilter([
+                            localWidthRange[0],
+                            localWidthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localWidthRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            localWidthRange[0] + 0.1,
+                            Math.min(20, startValue + deltaValue),
+                          );
+                          setLocalWidthRange([localWidthRange[0], newValue]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedWidthRangeFilter([
+                            localWidthRange[0],
+                            localWidthRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
                       }}
                     ></div>
                   </div>
@@ -2919,10 +4311,114 @@ export function DiamondsCollection({
                     <span>{localHeightRange[0].toFixed(1)}mm</span>
                     <span>{localHeightRange[1].toFixed(1)}mm</span>
                   </div>
-                  <div className="relative h-6 mb-4 touch-manipulation">
-                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                  {/* Working Height Slider - Same Logic as Carat */}
+                  <div
+                    className="new-carat-slider"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = Math.max(
+                        0,
+                        Math.min(100, (x / rect.width) * 100),
+                      );
+                      const newValue = 2 + (percentage / 100) * 10; // Convert to 2-12 range
+
+                      // Determine which handle is closer and update that one
+                      const distToMin = Math.abs(
+                        newValue - localHeightRange[0],
+                      );
+                      const distToMax = Math.abs(
+                        newValue - localHeightRange[1],
+                      );
+
+                      if (distToMin <= distToMax) {
+                        // Update minimum
+                        const validatedMin = Math.min(
+                          newValue,
+                          localHeightRange[1] - 0.1,
+                        );
+                        setLocalHeightRange([
+                          validatedMin,
+                          localHeightRange[1],
+                        ]);
+                        debouncedHeightRangeFilter([
+                          validatedMin,
+                          localHeightRange[1],
+                        ]);
+                      } else {
+                        // Update maximum
+                        const validatedMax = Math.max(
+                          newValue,
+                          localHeightRange[0] + 0.1,
+                        );
+                        setLocalHeightRange([
+                          localHeightRange[0],
+                          validatedMax,
+                        ]);
+                        debouncedHeightRangeFilter([
+                          localHeightRange[0],
+                          validatedMax,
+                        ]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      // Mobile tap-to-position functionality
+                      if (e.changedTouches.length === 1) {
+                        const touch = e.changedTouches[0];
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = touch.clientX - rect.left;
+                        const percentage = Math.max(
+                          0,
+                          Math.min(100, (x / rect.width) * 100),
+                        );
+                        const newValue = 2 + (percentage / 100) * 10; // Convert to 2-12 range
+
+                        // Determine which handle is closer and update that one
+                        const distToMin = Math.abs(
+                          newValue - localHeightRange[0],
+                        );
+                        const distToMax = Math.abs(
+                          newValue - localHeightRange[1],
+                        );
+
+                        if (distToMin <= distToMax) {
+                          // Update minimum
+                          const validatedMin = Math.min(
+                            newValue,
+                            localHeightRange[1] - 0.1,
+                          );
+                          setLocalHeightRange([
+                            validatedMin,
+                            localHeightRange[1],
+                          ]);
+                          debouncedHeightRangeFilter([
+                            validatedMin,
+                            localHeightRange[1],
+                          ]);
+                        } else {
+                          // Update maximum
+                          const validatedMax = Math.max(
+                            newValue,
+                            localHeightRange[0] + 0.1,
+                          );
+                          setLocalHeightRange([
+                            localHeightRange[0],
+                            validatedMax,
+                          ]);
+                          debouncedHeightRangeFilter([
+                            localHeightRange[0],
+                            validatedMax,
+                          ]);
+                        }
+                      }
+                    }}
+                  >
+                    {/* Track */}
+                    <div className="new-slider-track"></div>
+
+                    {/* Active range */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      className="new-slider-active"
                       style={{
                         left: `${((localHeightRange[0] - 2) / 10) * 100}%`,
                         width: `${
@@ -2931,60 +4427,184 @@ export function DiamondsCollection({
                         }%`,
                       }}
                     ></div>
-                    <input
-                      type="range"
-                      min={2}
-                      max={12}
-                      step={0.1}
-                      value={localHeightRange[0]}
-                      onChange={(e) => {
-                        const newMin = parseFloat(e.target.value);
-                        const validatedMin = Math.min(
-                          newMin,
-                          localHeightRange[1] - 0.1,
-                        );
-                        const newRange: [number, number] = [
-                          validatedMin,
-                          localHeightRange[1],
-                        ];
-                        setLocalHeightRange(newRange);
-                        debouncedHeightRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
-                    <input
-                      type="range"
-                      min={2}
-                      max={12}
-                      step={0.1}
-                      value={localHeightRange[1]}
-                      onChange={(e) => {
-                        const newMax = parseFloat(e.target.value);
-                        const validatedMax = Math.max(
-                          newMax,
-                          localHeightRange[0] + 0.1,
-                        );
-                        const newRange: [number, number] = [
-                          localHeightRange[0],
-                          validatedMax,
-                        ];
-                        setLocalHeightRange(newRange);
-                        debouncedHeightRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
+
+                    {/* Min handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${((localHeightRange[0] - 2) / 10) * 100}%`,
                       }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localHeightRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 10;
+                          const newValue = Math.max(
+                            2,
+                            Math.min(
+                              localHeightRange[1] - 0.1,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalHeightRange([newValue, localHeightRange[1]]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedHeightRangeFilter([
+                            localHeightRange[0],
+                            localHeightRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localHeightRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 10;
+                          const newValue = Math.max(
+                            2,
+                            Math.min(
+                              localHeightRange[1] - 0.1,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalHeightRange([newValue, localHeightRange[1]]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedHeightRangeFilter([
+                            localHeightRange[0],
+                            localHeightRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
+                      }}
                     ></div>
+
+                    {/* Max handle */}
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${((localHeightRange[1] - 2) / 10) * 100}%`,
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localHeightRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 10;
+                          const newValue = Math.max(
+                            localHeightRange[0] + 0.1,
+                            Math.min(12, startValue + deltaValue),
+                          );
+                          setLocalHeightRange([localHeightRange[0], newValue]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedHeightRangeFilter([
+                            localHeightRange[0],
+                            localHeightRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localHeightRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 10;
+                          const newValue = Math.max(
+                            localHeightRange[0] + 0.1,
+                            Math.min(12, startValue + deltaValue),
+                          );
+                          setLocalHeightRange([localHeightRange[0], newValue]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedHeightRangeFilter([
+                            localHeightRange[0],
+                            localHeightRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {
+                            passive: false,
+                          },
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
                       }}
                     ></div>
                   </div>
@@ -3057,10 +4677,104 @@ export function DiamondsCollection({
                     <span>{localCrownAngleRange[0].toFixed(1)}°</span>
                     <span>{localCrownAngleRange[1].toFixed(1)}°</span>
                   </div>
-                  <div className="relative h-6 mb-4 touch-manipulation">
-                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                  {/* Working Crown Angle Slider - Same Logic as Carat */}
+                  <div
+                    className="new-carat-slider"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = Math.max(
+                        0,
+                        Math.min(100, (x / rect.width) * 100),
+                      );
+                      const newValue = 23 + (percentage / 100) * 17; // Convert to 23-40 range
+
+                      const distToMin = Math.abs(
+                        newValue - localCrownAngleRange[0],
+                      );
+                      const distToMax = Math.abs(
+                        newValue - localCrownAngleRange[1],
+                      );
+
+                      if (distToMin <= distToMax) {
+                        const validatedMin = Math.min(
+                          newValue,
+                          localCrownAngleRange[1] - 0.1,
+                        );
+                        setLocalCrownAngleRange([
+                          validatedMin,
+                          localCrownAngleRange[1],
+                        ]);
+                        debouncedCrownAngleRangeFilter([
+                          validatedMin,
+                          localCrownAngleRange[1],
+                        ]);
+                      } else {
+                        const validatedMax = Math.max(
+                          newValue,
+                          localCrownAngleRange[0] + 0.1,
+                        );
+                        setLocalCrownAngleRange([
+                          localCrownAngleRange[0],
+                          validatedMax,
+                        ]);
+                        debouncedCrownAngleRangeFilter([
+                          localCrownAngleRange[0],
+                          validatedMax,
+                        ]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      if (e.changedTouches.length === 1) {
+                        const touch = e.changedTouches[0];
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = touch.clientX - rect.left;
+                        const percentage = Math.max(
+                          0,
+                          Math.min(100, (x / rect.width) * 100),
+                        );
+                        const newValue = 23 + (percentage / 100) * 17;
+
+                        const distToMin = Math.abs(
+                          newValue - localCrownAngleRange[0],
+                        );
+                        const distToMax = Math.abs(
+                          newValue - localCrownAngleRange[1],
+                        );
+
+                        if (distToMin <= distToMax) {
+                          const validatedMin = Math.min(
+                            newValue,
+                            localCrownAngleRange[1] - 0.1,
+                          );
+                          setLocalCrownAngleRange([
+                            validatedMin,
+                            localCrownAngleRange[1],
+                          ]);
+                          debouncedCrownAngleRangeFilter([
+                            validatedMin,
+                            localCrownAngleRange[1],
+                          ]);
+                        } else {
+                          const validatedMax = Math.max(
+                            newValue,
+                            localCrownAngleRange[0] + 0.1,
+                          );
+                          setLocalCrownAngleRange([
+                            localCrownAngleRange[0],
+                            validatedMax,
+                          ]);
+                          debouncedCrownAngleRangeFilter([
+                            localCrownAngleRange[0],
+                            validatedMax,
+                          ]);
+                        }
+                      }
+                    }}
+                  >
+                    <div className="new-slider-track"></div>
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      className="new-slider-active"
                       style={{
                         left: `${((localCrownAngleRange[0] - 23) / 17) * 100}%`,
                         width: `${
@@ -3070,60 +4784,190 @@ export function DiamondsCollection({
                         }%`,
                       }}
                     ></div>
-                    <input
-                      type="range"
-                      min={23}
-                      max={40}
-                      step={0.1}
-                      value={localCrownAngleRange[0]}
-                      onChange={(e) => {
-                        const newMin = parseFloat(e.target.value);
-                        const validatedMin = Math.min(
-                          newMin,
-                          localCrownAngleRange[1] - 0.1,
-                        );
-                        const newRange: [number, number] = [
-                          validatedMin,
-                          localCrownAngleRange[1],
-                        ];
-                        setLocalCrownAngleRange(newRange);
-                        debouncedCrownAngleRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
-                    <input
-                      type="range"
-                      min={23}
-                      max={40}
-                      step={0.1}
-                      value={localCrownAngleRange[1]}
-                      onChange={(e) => {
-                        const newMax = parseFloat(e.target.value);
-                        const validatedMax = Math.max(
-                          newMax,
-                          localCrownAngleRange[0] + 0.1,
-                        );
-                        const newRange: [number, number] = [
-                          localCrownAngleRange[0],
-                          validatedMax,
-                        ];
-                        setLocalCrownAngleRange(newRange);
-                        debouncedCrownAngleRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
+
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${((localCrownAngleRange[0] - 23) / 17) * 100}%`,
                       }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localCrownAngleRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            23,
+                            Math.min(
+                              localCrownAngleRange[1] - 0.1,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalCrownAngleRange([
+                            newValue,
+                            localCrownAngleRange[1],
+                          ]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedCrownAngleRangeFilter([
+                            localCrownAngleRange[0],
+                            localCrownAngleRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localCrownAngleRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            23,
+                            Math.min(
+                              localCrownAngleRange[1] - 0.1,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalCrownAngleRange([
+                            newValue,
+                            localCrownAngleRange[1],
+                          ]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedCrownAngleRangeFilter([
+                            localCrownAngleRange[0],
+                            localCrownAngleRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {passive: false},
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
+                      }}
                     ></div>
+
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${((localCrownAngleRange[1] - 23) / 17) * 100}%`,
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localCrownAngleRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            localCrownAngleRange[0] + 0.1,
+                            Math.min(40, startValue + deltaValue),
+                          );
+                          setLocalCrownAngleRange([
+                            localCrownAngleRange[0],
+                            newValue,
+                          ]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedCrownAngleRangeFilter([
+                            localCrownAngleRange[0],
+                            localCrownAngleRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localCrownAngleRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 17;
+                          const newValue = Math.max(
+                            localCrownAngleRange[0] + 0.1,
+                            Math.min(40, startValue + deltaValue),
+                          );
+                          setLocalCrownAngleRange([
+                            localCrownAngleRange[0],
+                            newValue,
+                          ]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedCrownAngleRangeFilter([
+                            localCrownAngleRange[0],
+                            localCrownAngleRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {passive: false},
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
                       }}
                     ></div>
                   </div>
@@ -3196,10 +5040,104 @@ export function DiamondsCollection({
                     <span>{localPavilionAngleRange[0].toFixed(1)}°</span>
                     <span>{localPavilionAngleRange[1].toFixed(1)}°</span>
                   </div>
-                  <div className="relative h-6 mb-4 touch-manipulation">
-                    <div className="absolute top-1/2 transform -translate-y-1/2 w-full h-2 bg-gray-200 rounded"></div>
+                  {/* Working Pavilion Angle Slider - Same Logic as Carat */}
+                  <div
+                    className="new-carat-slider"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const percentage = Math.max(
+                        0,
+                        Math.min(100, (x / rect.width) * 100),
+                      );
+                      const newValue = 38 + (percentage / 100) * 5; // Convert to 38-43 range
+
+                      const distToMin = Math.abs(
+                        newValue - localPavilionAngleRange[0],
+                      );
+                      const distToMax = Math.abs(
+                        newValue - localPavilionAngleRange[1],
+                      );
+
+                      if (distToMin <= distToMax) {
+                        const validatedMin = Math.min(
+                          newValue,
+                          localPavilionAngleRange[1] - 0.1,
+                        );
+                        setLocalPavilionAngleRange([
+                          validatedMin,
+                          localPavilionAngleRange[1],
+                        ]);
+                        debouncedPavilionAngleRangeFilter([
+                          validatedMin,
+                          localPavilionAngleRange[1],
+                        ]);
+                      } else {
+                        const validatedMax = Math.max(
+                          newValue,
+                          localPavilionAngleRange[0] + 0.1,
+                        );
+                        setLocalPavilionAngleRange([
+                          localPavilionAngleRange[0],
+                          validatedMax,
+                        ]);
+                        debouncedPavilionAngleRangeFilter([
+                          localPavilionAngleRange[0],
+                          validatedMax,
+                        ]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      if (e.changedTouches.length === 1) {
+                        const touch = e.changedTouches[0];
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = touch.clientX - rect.left;
+                        const percentage = Math.max(
+                          0,
+                          Math.min(100, (x / rect.width) * 100),
+                        );
+                        const newValue = 38 + (percentage / 100) * 5;
+
+                        const distToMin = Math.abs(
+                          newValue - localPavilionAngleRange[0],
+                        );
+                        const distToMax = Math.abs(
+                          newValue - localPavilionAngleRange[1],
+                        );
+
+                        if (distToMin <= distToMax) {
+                          const validatedMin = Math.min(
+                            newValue,
+                            localPavilionAngleRange[1] - 0.1,
+                          );
+                          setLocalPavilionAngleRange([
+                            validatedMin,
+                            localPavilionAngleRange[1],
+                          ]);
+                          debouncedPavilionAngleRangeFilter([
+                            validatedMin,
+                            localPavilionAngleRange[1],
+                          ]);
+                        } else {
+                          const validatedMax = Math.max(
+                            newValue,
+                            localPavilionAngleRange[0] + 0.1,
+                          );
+                          setLocalPavilionAngleRange([
+                            localPavilionAngleRange[0],
+                            validatedMax,
+                          ]);
+                          debouncedPavilionAngleRangeFilter([
+                            localPavilionAngleRange[0],
+                            validatedMax,
+                          ]);
+                        }
+                      }
+                    }}
+                  >
+                    <div className="new-slider-track"></div>
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 h-2 bg-black rounded"
+                      className="new-slider-active"
                       style={{
                         left: `${
                           ((localPavilionAngleRange[0] - 38) / 5) * 100
@@ -3212,64 +5150,194 @@ export function DiamondsCollection({
                         }%`,
                       }}
                     ></div>
-                    <input
-                      type="range"
-                      min={38}
-                      max={43}
-                      step={0.1}
-                      value={localPavilionAngleRange[0]}
-                      onChange={(e) => {
-                        const newMin = parseFloat(e.target.value);
-                        const validatedMin = Math.min(
-                          newMin,
-                          localPavilionAngleRange[1] - 0.1,
-                        );
-                        const newRange: [number, number] = [
-                          validatedMin,
-                          localPavilionAngleRange[1],
-                        ];
-                        setLocalPavilionAngleRange(newRange);
-                        debouncedPavilionAngleRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
-                    <input
-                      type="range"
-                      min={38}
-                      max={43}
-                      step={0.1}
-                      value={localPavilionAngleRange[1]}
-                      onChange={(e) => {
-                        const newMax = parseFloat(e.target.value);
-                        const validatedMax = Math.max(
-                          newMax,
-                          localPavilionAngleRange[0] + 0.1,
-                        );
-                        const newRange: [number, number] = [
-                          localPavilionAngleRange[0],
-                          validatedMax,
-                        ];
-                        setLocalPavilionAngleRange(newRange);
-                        debouncedPavilionAngleRangeFilter(newRange);
-                      }}
-                      className="absolute top-1/2 transform -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer touch-manipulation"
-                      style={{touchAction: 'pan-x'}}
-                    />
+
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${
                           ((localPavilionAngleRange[0] - 38) / 5) * 100
                         }%`,
                       }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localPavilionAngleRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 5;
+                          const newValue = Math.max(
+                            38,
+                            Math.min(
+                              localPavilionAngleRange[1] - 0.1,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalPavilionAngleRange([
+                            newValue,
+                            localPavilionAngleRange[1],
+                          ]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedPavilionAngleRangeFilter([
+                            localPavilionAngleRange[0],
+                            localPavilionAngleRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localPavilionAngleRange[0];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 5;
+                          const newValue = Math.max(
+                            38,
+                            Math.min(
+                              localPavilionAngleRange[1] - 0.1,
+                              startValue + deltaValue,
+                            ),
+                          );
+                          setLocalPavilionAngleRange([
+                            newValue,
+                            localPavilionAngleRange[1],
+                          ]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedPavilionAngleRangeFilter([
+                            localPavilionAngleRange[0],
+                            localPavilionAngleRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {passive: false},
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
+                      }}
                     ></div>
+
                     <div
-                      className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-black border-2 border-white rounded-full shadow-md z-30 pointer-events-none"
+                      className="new-slider-handle"
                       style={{
                         left: `${
                           ((localPavilionAngleRange[1] - 38) / 5) * 100
                         }%`,
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const startValue = localPavilionAngleRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleMouseMove = (e: MouseEvent) => {
+                          const deltaX = e.clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 5;
+                          const newValue = Math.max(
+                            localPavilionAngleRange[0] + 0.1,
+                            Math.min(43, startValue + deltaValue),
+                          );
+                          setLocalPavilionAngleRange([
+                            localPavilionAngleRange[0],
+                            newValue,
+                          ]);
+                        };
+
+                        const handleMouseUp = () => {
+                          document.removeEventListener(
+                            'mousemove',
+                            handleMouseMove,
+                          );
+                          document.removeEventListener(
+                            'mouseup',
+                            handleMouseUp,
+                          );
+                          debouncedPavilionAngleRangeFilter([
+                            localPavilionAngleRange[0],
+                            localPavilionAngleRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener('mousemove', handleMouseMove);
+                        document.addEventListener('mouseup', handleMouseUp);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        const startX = e.touches[0].clientX;
+                        const startValue = localPavilionAngleRange[1];
+                        const rect =
+                          e.currentTarget.parentElement!.getBoundingClientRect();
+
+                        const handleTouchMove = (e: TouchEvent) => {
+                          e.preventDefault();
+                          const deltaX = e.touches[0].clientX - startX;
+                          const deltaPercentage = (deltaX / rect.width) * 100;
+                          const deltaValue = (deltaPercentage / 100) * 5;
+                          const newValue = Math.max(
+                            localPavilionAngleRange[0] + 0.1,
+                            Math.min(43, startValue + deltaValue),
+                          );
+                          setLocalPavilionAngleRange([
+                            localPavilionAngleRange[0],
+                            newValue,
+                          ]);
+                        };
+
+                        const handleTouchEnd = () => {
+                          document.removeEventListener(
+                            'touchmove',
+                            handleTouchMove,
+                          );
+                          document.removeEventListener(
+                            'touchend',
+                            handleTouchEnd,
+                          );
+                          debouncedPavilionAngleRangeFilter([
+                            localPavilionAngleRange[0],
+                            localPavilionAngleRange[1],
+                          ]);
+                        };
+
+                        document.addEventListener(
+                          'touchmove',
+                          handleTouchMove,
+                          {passive: false},
+                        );
+                        document.addEventListener('touchend', handleTouchEnd);
                       }}
                     ></div>
                   </div>

@@ -1191,6 +1191,66 @@ export type BlogsQuery = {
   };
 };
 
+export type VariantCheckQueryVariables = StorefrontAPI.Exact<{
+  id: StorefrontAPI.Scalars['ID']['input'];
+}>;
+
+export type VariantCheckQuery = {
+  node?: StorefrontAPI.Maybe<
+    | {
+        __typename:
+          | 'AppliedGiftCard'
+          | 'Article'
+          | 'Blog'
+          | 'Cart'
+          | 'CartLine'
+          | 'Collection'
+          | 'Comment'
+          | 'Company'
+          | 'CompanyContact'
+          | 'CompanyLocation'
+          | 'ComponentizableCartLine'
+          | 'ExternalVideo'
+          | 'GenericFile'
+          | 'Location'
+          | 'MailingAddress'
+          | 'Market'
+          | 'MediaImage'
+          | 'MediaPresentation'
+          | 'Menu'
+          | 'MenuItem';
+      }
+    | {
+        __typename:
+          | 'Metafield'
+          | 'Metaobject'
+          | 'Model3d'
+          | 'Order'
+          | 'Page'
+          | 'Product'
+          | 'ProductOption'
+          | 'ProductOptionValue'
+          | 'Shop'
+          | 'ShopPayInstallmentsFinancingPlan'
+          | 'ShopPayInstallmentsFinancingPlanTerm'
+          | 'ShopPayInstallmentsProductVariantPricing'
+          | 'ShopPolicy'
+          | 'TaxonomyCategory'
+          | 'UrlRedirect'
+          | 'Video';
+      }
+    | ({__typename: 'ProductVariant'} & Pick<
+        StorefrontAPI.ProductVariant,
+        'id' | 'availableForSale' | 'title'
+      > & {
+          product: Pick<
+            StorefrontAPI.Product,
+            'id' | 'title' | 'publishedAt' | 'onlineStoreUrl'
+          >;
+        })
+  >;
+};
+
 export type MoneyProductItemFragment = Pick<
   StorefrontAPI.MoneyV2,
   'amount' | 'currencyCode'
@@ -1836,6 +1896,10 @@ interface GeneratedQueryTypes {
   '#graphql\n  query Blogs(\n    $country: CountryCode\n    $endCursor: String\n    $first: Int\n    $language: LanguageCode\n    $last: Int\n    $startCursor: String\n  ) @inContext(country: $country, language: $language) {\n    blogs(\n      first: $first,\n      last: $last,\n      before: $startCursor,\n      after: $endCursor\n    ) {\n      pageInfo {\n        hasNextPage\n        hasPreviousPage\n        startCursor\n        endCursor\n      }\n      nodes {\n        title\n        handle\n        seo {\n          title\n          description\n        }\n      }\n    }\n  }\n': {
     return: BlogsQuery;
     variables: BlogsQueryVariables;
+  };
+  '#graphql\n              query VariantCheck($id: ID!) {\n                node(id: $id) {\n                  __typename\n                  ... on ProductVariant {\n                    id\n                    availableForSale\n                    title\n                    product { id title publishedAt onlineStoreUrl }\n                  }\n                }\n              }\n            ': {
+    return: VariantCheckQuery;
+    variables: VariantCheckQueryVariables;
   };
   '#graphql\n  #graphql\n  fragment MoneyProductItem on MoneyV2 {\n    amount\n    currencyCode\n  }\n  fragment ProductItemAll on Product {\n    id\n    handle\n    title\n    featuredImage {\n      id\n      altText\n      url\n      width\n      height\n    }\n    priceRange {\n      minVariantPrice {\n        ...MoneyProductItem\n      }\n      maxVariantPrice {\n        ...MoneyProductItem\n      }\n    }\n  }\n\n  query Collection(\n    $handle: String!\n    $country: CountryCode\n    $language: LanguageCode\n    $first: Int\n    $last: Int\n    $startCursor: String\n    $endCursor: String\n  ) @inContext(country: $country, language: $language) {\n    collection(handle: $handle) {\n      id\n      handle\n      title\n      description\n      products(\n        first: $first,\n        last: $last,\n        before: $startCursor,\n        after: $endCursor\n      ) {\n        nodes {\n          ...ProductItem\n        }\n        pageInfo {\n          hasPreviousPage\n          hasNextPage\n          endCursor\n          startCursor\n        }\n      }\n    }\n  }\n': {
     return: CollectionQuery;

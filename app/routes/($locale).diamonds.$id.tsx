@@ -5,7 +5,7 @@ import {
 } from '@shopify/remix-oxygen';
 import {useLoaderData, Link} from '@remix-run/react';
 import {Money} from '@shopify/hydrogen';
-import {useState} from 'react';
+import {useState, useRef, useEffect} from 'react';
 import {AddToCartButton} from '~/components/AddToCartButton';
 
 // Types for Nivoda diamond details
@@ -29,6 +29,16 @@ type NivodaCertificateDetails = {
   table?: number | null;
 };
 
+type V360Info = {
+  url: string;
+  frame_count: number;
+  renumbered?: boolean;
+  top_index?: string;
+  dl_link?: string;
+  id?: string;
+  display_index?: number;
+};
+
 type NivodaDiamondItem = {
   id: string;
   diamond?: {
@@ -43,6 +53,7 @@ type NivodaDiamondItem = {
     eyeClean?: string | null;
     mine_of_origin?: string | null;
     certificate?: NivodaCertificateDetails | null;
+    v360?: V360Info | null;
   } | null;
   price?: number | null;
   discount?: number | null;
@@ -186,6 +197,15 @@ export async function loader({params, context}: LoaderFunctionArgs) {
               milky
               eyeClean
               mine_of_origin
+              v360 {
+                url
+                frame_count
+                renumbered
+                top_index
+                dl_link
+                id
+                display_index
+              }
               certificate {
                 id
                 lab
@@ -269,6 +289,15 @@ export async function loader({params, context}: LoaderFunctionArgs) {
     const diamondInfo = diamondItem.diamond;
     const cert = diamondInfo?.certificate;
 
+    console.warn('🔍 Diamond info:', diamondInfo);
+    console.warn('🔍 V360 data:', diamondInfo?.v360);
+    console.warn('🔍 Video URL:', diamondInfo?.video);
+
+    // Convert price from cents to dollars for UI display
+    const rawPriceCents = diamondItem.price ?? 0;
+    const priceUsd =
+      typeof rawPriceCents === 'number' ? rawPriceCents / 100 : 0;
+
     // Format the diamond data for the UI using the original structure
     const formattedDiamond = {
       id: diamondItem.id,
@@ -278,7 +307,7 @@ export async function loader({params, context}: LoaderFunctionArgs) {
               cert.shape
             } Diamond`
           : `Diamond ${diamondItem.id}`,
-      price: diamondItem.price || 0,
+      price: priceUsd,
       discount: diamondItem.discount || 0,
       availability: diamondInfo?.availability || 'Unknown',
       supplierStockId: diamondInfo?.supplierStockId,
@@ -292,6 +321,7 @@ export async function loader({params, context}: LoaderFunctionArgs) {
         : diamondInfo?.video
         ? `https://integrations.nivoda.net${diamondInfo.video}`
         : null,
+      v360: diamondInfo?.v360 || null,
       certificate: cert
         ? {
             certNumber: cert.certNumber,
@@ -331,19 +361,304 @@ export async function loader({params, context}: LoaderFunctionArgs) {
   }
 }
 
+// 360° Viewer Component
+function Diamond360Viewer({v360Info, alt}: {v360Info: V360Info; alt: string}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [currentFrame, setCurrentFrame] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastX, setLastX] = useState(0);
+  const [images, setImages] = useState<HTMLImageElement[]>([]);
+  const [isAutoRotating, setIsAutoRotating] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+
+  // Load all 360 images
+  useEffect(() => {
+    const loadImages = async () => {
+      setIsLoading(true);
+      console.log('🔍 V360 Debug Info:', v360Info);
+      console.log('🔍 Raw URL:', v360Info.url);
+      console.log('🔍 Frame count:', v360Info.frame_count);
+      console.log('🔍 Renumbered:', v360Info.renumbered);
+
+      // Decode the base64 URL
+      let baseUrl = v360Info.url;
+      try {
+        // The URL appears to be base64 encoded, let's decode it
+        if (v360Info.url.includes('nivoda-images.nivodaapi.net/')) {
+          const encodedPart = v360Info.url
+            .split('nivoda-images.nivodaapi.net/')[1]
+            .split('/')[0];
+          console.log('🔍 Encoded part:', encodedPart);
+
+          const decodedUrl = atob(encodedPart);
+          console.log('🔍 Decoded URL:', decodedUrl);
+          setViewerUrl(decodedUrl);
+
+          // Extract the actual image base URL from the decoded content
+          if (decodedUrl.includes('gem360.in')) {
+            // This appears to be a gem360 viewer URL, we need to construct image URLs differently
+            // The pattern might be: https://images.gem360.in/[diamond_id]/[frame].jpg
+            const diamondIdMatch = decodedUrl.match(/d=([^&]+)/);
+            if (diamondIdMatch) {
+              const diamondId = diamondIdMatch[1];
+              baseUrl = `https://images.gem360.in/${diamondId}`;
+              console.log('🔍 Constructed base URL:', baseUrl);
+              // Known cert issue on images.gem360.in in browser; use iframe viewer instead
+              // Skip loading images and render iframe viewer directly
+              setImages([]);
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
+      } catch (decodeError) {
+        console.warn('⚠️ Could not decode URL, using original:', decodeError);
+      }
+
+      const imagePromises: Promise<HTMLImageElement>[] = [];
+
+      for (let i = 0; i < v360Info.frame_count; i++) {
+        const promise = new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            console.log(`✅ Loaded frame ${i}:`, img.src);
+            resolve(img);
+          };
+          img.onerror = (error) => {
+            console.error(`❌ Failed to load frame ${i}:`, img.src, error);
+            reject(error);
+          };
+
+          // Pattern for frame numbering
+          const frameIndex = v360Info.renumbered
+            ? String(i + 1).padStart(3, '0')
+            : String(i).padStart(3, '0');
+
+          // Try different URL patterns for gem360 images
+          const patterns = [
+            `${baseUrl}/${frameIndex}.jpg`,
+            `${baseUrl}/${frameIndex}.png`,
+            `${baseUrl}/img_${frameIndex}.jpg`,
+            `${baseUrl}/frame_${frameIndex}.jpg`,
+            `${baseUrl}/${i + 1}.jpg`, // 1-based indexing
+            `${baseUrl}/${String(i + 1).padStart(2, '0')}.jpg`, // 2-digit padding
+          ];
+
+          img.src = patterns[0]; // Start with the most likely pattern
+          console.log(`🔍 Trying to load frame ${i}: ${img.src}`);
+        });
+        imagePromises.push(promise);
+      }
+
+      try {
+        const loadedImages = await Promise.all(imagePromises);
+        console.log(
+          '✅ All 360 images loaded successfully:',
+          loadedImages.length,
+        );
+        setImages(loadedImages);
+        setIsLoading(false);
+      } catch (error) {
+        console.error(
+          '❌ Failed to load 360 images with primary pattern:',
+          error,
+        );
+
+        // Try alternative patterns
+        console.log('🔄 Trying alternative URL patterns...');
+        const alternativePromises: Promise<HTMLImageElement>[] = [];
+
+        for (let i = 0; i < Math.min(v360Info.frame_count, 10); i++) {
+          const promise = new Promise<HTMLImageElement>((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+
+            const frameIndex = v360Info.renumbered
+              ? String(i + 1).padStart(3, '0')
+              : String(i).padStart(3, '0');
+
+            // Try all patterns systematically
+            const patterns = [
+              `${baseUrl}/${frameIndex}.png`,
+              `${baseUrl}/img_${frameIndex}.jpg`,
+              `${baseUrl}/frame_${frameIndex}.jpg`,
+              `${baseUrl}/${i + 1}.jpg`,
+              `${baseUrl}/${String(i + 1).padStart(2, '0')}.jpg`,
+              `${baseUrl}/${String(i).padStart(2, '0')}.jpg`,
+            ];
+
+            img.src = patterns[i % patterns.length];
+            console.log(`🔄 Alternative attempt ${i}:`, img.src);
+          });
+          alternativePromises.push(promise);
+        }
+
+        try {
+          const alternativeImages = await Promise.all(alternativePromises);
+          console.log(
+            '✅ Alternative pattern worked:',
+            alternativeImages.length,
+          );
+          setImages(alternativeImages);
+          setIsLoading(false);
+        } catch (altError) {
+          console.error('❌ All URL patterns failed:', altError);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    if (v360Info.url && v360Info.frame_count > 0) {
+      loadImages();
+    } else {
+      console.log('❌ V360 data missing:', {
+        hasUrl: !!v360Info.url,
+        frameCount: v360Info.frame_count,
+      });
+    }
+  }, [v360Info]);
+
+  // Draw current frame
+  useEffect(() => {
+    if (images.length > 0 && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx && images[currentFrame]) {
+        canvas.width = 500;
+        canvas.height = 500;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(images[currentFrame], 0, 0, canvas.width, canvas.height);
+      }
+    }
+  }, [currentFrame, images]);
+
+  // Auto rotation
+  useEffect(() => {
+    if (isAutoRotating && images.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentFrame((prev) => (prev + 1) % images.length);
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [isAutoRotating, images.length]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setLastX(e.clientX);
+    setIsAutoRotating(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || images.length === 0) return;
+
+    const deltaX = e.clientX - lastX;
+    const sensitivity = 2;
+    const frameChange = Math.floor(Math.abs(deltaX) / sensitivity);
+
+    if (frameChange > 0) {
+      const direction = deltaX > 0 ? 1 : -1;
+      setCurrentFrame((prev) => {
+        const newFrame = prev + direction * frameChange;
+        return ((newFrame % images.length) + images.length) % images.length;
+      });
+      setLastX(e.clientX);
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const toggleAutoRotate = () => {
+    setIsAutoRotating(!isAutoRotating);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading 360° View...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (images.length === 0) {
+    if (viewerUrl) {
+      return (
+        <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative">
+          <iframe
+            src={viewerUrl}
+            title={`${alt} 360° viewer`}
+            className="w-full h-full"
+            allow="fullscreen; autoplay"
+          />
+        </div>
+      );
+    }
+    return (
+      <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <p>360° View Unavailable</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative group">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full object-contain cursor-grab active:cursor-grabbing"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        style={{touchAction: 'none'}}
+      />
+
+      {/* 360° Badge */}
+      <div className="absolute top-4 right-4 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+        360°
+      </div>
+
+      {/* Controls */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={toggleAutoRotate}
+          className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+            isAutoRotating
+              ? 'bg-indigo-600 text-white'
+              : 'bg-white/90 text-gray-700 hover:bg-white'
+          }`}
+        >
+          {isAutoRotating ? 'Stop' : 'Auto Rotate'}
+        </button>
+      </div>
+
+      {/* Frame indicator */}
+      <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+        {currentFrame + 1}/{images.length}
+      </div>
+    </div>
+  );
+}
+
 export default function DiamondDetail() {
   const {diamond} = useLoaderData<typeof loader>();
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  const [show360, setShow360] = useState(false);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(
+      price,
+    );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -380,23 +695,89 @@ export default function DiamondDetail() {
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Left Column - Image Card */}
           <div className="space-y-6">
+            {/* View Toggle Buttons */}
+            <div className="flex space-x-2 justify-center">
+              <button
+                onClick={() => {
+                  setShowVideo(false);
+                  setShow360(false);
+                }}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  !showVideo && !show360
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                }`}
+              >
+                Photo
+              </button>
+              {/* {diamond.video && (
+                <button
+                  onClick={() => {
+                    setShowVideo(true);
+                    setShow360(false);
+                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    showVideo
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  Video
+                </button>
+              )} */}
+              {diamond.v360 &&
+                diamond.v360.url &&
+                diamond.v360.frame_count > 0 && (
+                  <button
+                    onClick={() => {
+                      setShowVideo(false);
+                      setShow360(true);
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                      show360
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                    }`}
+                  >
+                    360° View
+                  </button>
+                )}
+            </div>
+
             <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
               <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative group">
-                {showVideo && diamond.video ? (
-                  <video
-                    src={diamond.video}
-                    controls
-                    autoPlay
-                    className="w-full h-full object-cover"
-                    onError={() => setShowVideo(false)}
-                  >
-                    <track
-                      kind="captions"
-                      src=""
-                      label="No captions available"
-                    />
-                    Your browser does not support the video tag.
-                  </video>
+                {show360 && diamond.v360 ? (
+                  <Diamond360Viewer
+                    v360Info={diamond.v360}
+                    alt={diamond.title}
+                  />
+                ) : showVideo && diamond.video ? (
+                  <>
+                    {console.warn('🎥 Video URL:', diamond.video)}
+                    <video
+                      src={`/proxy.media?u=${encodeURIComponent(
+                        diamond.video,
+                      )}`}
+                      controls
+                      autoPlay
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error(
+                          '❌ Video failed to load:',
+                          diamond.video,
+                          e,
+                        );
+                        setShowVideo(false);
+                      }}
+                    >
+                      <track
+                        kind="captions"
+                        src=""
+                        label="No captions available"
+                      />
+                      Your browser does not support the video tag.
+                    </video>
+                  </>
                 ) : diamond.image && !imageLoadFailed ? (
                   <img
                     src={diamond.image}
@@ -428,13 +809,15 @@ export default function DiamondDetail() {
                 )}
 
                 {/* Floating quality badges */}
-                <div className="absolute top-4 left-4 flex flex-col space-y-2">
-                  {diamond.certificate?.lab && (
-                    <span className="bg-white/90 backdrop-blur-sm text-gray-800 px-3 py-1 rounded-full text-xs font-semibold border border-gray-200 shadow-sm">
-                      {diamond.certificate.lab} Certified
-                    </span>
-                  )}
-                </div>
+                {!show360 && (
+                  <div className="absolute top-4 left-4 flex flex-col space-y-2">
+                    {diamond.certificate?.lab && (
+                      <span className="bg-white/90 backdrop-blur-sm text-gray-800 px-3 py-1 rounded-full text-xs font-semibold border border-gray-200 shadow-sm">
+                        {diamond.certificate.lab} Certified
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

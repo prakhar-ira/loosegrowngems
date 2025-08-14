@@ -17,6 +17,20 @@ export default async function handleRequest(
       "'self'", // Allow same-origin images
       'https://cdn.shopify.com', // Shopify CDN
       'https://nivoda-images.nivodaapi.net', // Add Nivoda domain
+      'https://images.gem360.in', // Gem360 images for 360° viewer
+      'https://loupe360.com', // Loupe360 for diamond media
+      'https://*.gem360.in', // Allow all gem360 subdomains
+      'https://*.loupe360.com', // Allow all loupe360 subdomains
+    ],
+    mediaSrc: [
+      "'self'",
+      'https://loupe360.com', // Allow Loupe360 videos
+      'https://nivoda-images.nivodaapi.net', // Nivoda media
+      'https://images.gem360.in', // Gem360 media
+      'https://*.gem360.in', // Allow all gem360 subdomains
+      'https://*.loupe360.com', // Allow all loupe360 subdomains
+      'https://*.nivodaapi.net', // Allow all nivoda subdomains
+      'blob:', // Allow blob URLs for media
     ],
     styleSrc: [
       "'self'",
@@ -39,7 +53,11 @@ export default async function handleRequest(
       'https://fonts.gstatic.com',
       'https://cdn.shopify.com',
     ],
-    frameSrc: ['https://calendly.com'],
+    frameSrc: [
+      'https://calendly.com',
+      'https://view.gem360.in',
+      'https://*.gem360.in',
+    ],
     shop: {
       checkoutDomain: context.env.PUBLIC_CHECKOUT_DOMAIN,
       storeDomain: context.env.PUBLIC_STORE_DOMAIN,

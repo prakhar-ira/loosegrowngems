@@ -1,5 +1,5 @@
 import {CartForm, type OptimisticCartLineInput} from '@shopify/hydrogen';
-import {useEffect, useState, useCallback} from 'react';
+import {useEffect, useState, useCallback, useRef} from 'react';
 import {useAside} from './Aside';
 import {useFetcher, useLocation, useParams} from '@remix-run/react';
 
@@ -155,11 +155,14 @@ export function AddToCartButton({
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   // Derived state
   const isProcessing =
     isCreatingProduct || createProductFetcher.state === 'submitting';
   const cartRoute = getLocalizedCartRoute(params.locale, location.pathname);
+  // Submit to non-localized '/cart' per Shopify guidance so cart handler is consistent
+  const cartActionRoute = '/cart';
 
   // Debug logging (can be removed in production)
   useEffect(() => {
@@ -238,8 +241,18 @@ export function AddToCartButton({
         setTimeout(() => setSuccessMessage(null), 3000);
       }
 
+      // Capture checkout URL for a direct checkout CTA
+      setCheckoutUrl(cartData.cart?.checkoutUrl || null);
+
       // Open cart drawer
       open('cart');
+
+      // Notify any listeners (e.g., cart drawer) that cart was updated
+      try {
+        window.dispatchEvent(new CustomEvent('cart:updated'));
+      } catch (e) {
+        // no-op if CustomEvent not supported
+      }
 
       // Reset for future additions
       setCreatedMerchandiseId(null);
@@ -282,6 +295,14 @@ export function AddToCartButton({
           ✓ Added to Cart
         </button>
         <p className="success-message">{successMessage}</p>
+        {checkoutUrl ? (
+          <a
+            href={checkoutUrl}
+            className="mt-2 inline-flex items-center justify-center rounded-md bg-black px-3 py-2 text-xs font-medium text-white hover:bg-gray-800 transition-colors"
+          >
+            Checkout
+          </a>
+        ) : null}
       </div>
     );
   }
@@ -331,7 +352,7 @@ export function AddToCartButton({
 
   return (
     <CartForm
-      route={cartRoute}
+      route={cartActionRoute}
       inputs={cartFormInputs}
       action={CartForm.ACTIONS.LinesAdd}
     >
@@ -345,7 +366,7 @@ export function AddToCartButton({
           onSuccess={handleCartSuccess}
           onError={handleCartError}
           autoSubmitOnMount
-          cartRoute={cartRoute}
+          cartRoute={cartActionRoute}
           lines={cartFormInputs.lines}
         />
       )}
@@ -379,6 +400,7 @@ function CartSubmitSection({
   lines,
 }: CartSubmitSectionProps) {
   const isAdding = fetcher.state === 'submitting';
+  const attemptsRef = useRef(0);
 
   useEffect(() => {
     if (fetcher.state === 'idle' && fetcher.data?.cart) {
@@ -387,20 +409,20 @@ function CartSubmitSection({
   }, [fetcher.state, fetcher.data, onSuccess]);
 
   useEffect(() => {
-    if (fetcher.state === 'idle' && fetcher.data?.errors) {
+    if (
+      fetcher.state === 'idle' &&
+      Array.isArray(fetcher.data?.errors) &&
+      fetcher.data.errors.length > 0
+    ) {
       onError(fetcher.data.errors);
     }
   }, [fetcher.state, fetcher.data, onError]);
 
   // Auto-submit once on mount to complete the flow after product creation
-  useEffect(() => {
-    if (!autoSubmitOnMount) return;
-    if (fetcher.state !== 'idle') return;
+  const submitOnce = useCallback(() => {
     try {
       const formData = new FormData();
-      // CartForm.getFormInput expects 'cartAction'
       formData.append('cartAction', CartForm.ACTIONS.LinesAdd);
-      // Provide both specific field and inputs JSON for maximum compatibility
       formData.append('lines', JSON.stringify(lines));
       formData.append('inputs', JSON.stringify({lines}));
       if (analytics) {
@@ -408,12 +430,32 @@ function CartSubmitSection({
       }
       fetcher.submit(formData, {method: 'POST', action: cartRoute});
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.error('Auto-submit cart failed', e);
     }
-    // run once
+  }, [analytics, cartRoute, fetcher, lines]);
+
+  useEffect(() => {
+    if (!autoSubmitOnMount) return;
+    if (fetcher.state !== 'idle') return;
+    attemptsRef.current = 0;
+    const t = setTimeout(() => submitOnce(), 1500);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Retry several times with backoff if the server responds with an empty cart
+  useEffect(() => {
+    if (!autoSubmitOnMount) return;
+    if (fetcher.state !== 'idle' || !fetcher.data) return;
+    const totalQty = fetcher.data?.cart?.totalQuantity || 0;
+    const nodesLen = fetcher.data?.cart?.lines?.nodes?.length || 0;
+    if (totalQty > 0 || nodesLen > 0) return;
+    if (attemptsRef.current >= 4) return;
+    attemptsRef.current += 1;
+    const backoffMs = 800 + attemptsRef.current * 600;
+    const t = setTimeout(() => submitOnce(), backoffMs);
+    return () => clearTimeout(t);
+  }, [autoSubmitOnMount, fetcher.data, fetcher.state, submitOnce]);
 
   return (
     <>

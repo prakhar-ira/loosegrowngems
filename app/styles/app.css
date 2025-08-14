@@ -1969,7 +1969,205 @@ main {
   }
 }
 
-/* Mobile range slider improvements */
+/* Working Carat Slider CSS */
+.new-carat-slider {
+  position: relative;
+  height: 40px;
+  width: 100%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.new-slider-track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 4px;
+  background: #ddd;
+  border-radius: 2px;
+}
+
+.new-slider-active {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
+  background: #000;
+  border-radius: 2px;
+}
+
+.new-slider-handle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: #000;
+  border: 3px solid white;
+  border-radius: 50%;
+  cursor: grab;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.new-slider-handle:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.new-slider-handle:active {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+/* Restore Original Touch Manipulation for Old Sliders */
+.relative.h-6.touch-manipulation input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  overflow: hidden;
+  border: none;
+}
+
+.relative.h-6.touch-manipulation input[type='range']::-webkit-slider-track {
+  background: transparent;
+  height: 100%;
+}
+
+.relative.h-6.touch-manipulation input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  height: 100%;
+  width: 100%;
+  cursor: pointer;
+}
+
+.relative.h-6.touch-manipulation input[type='range']::-moz-range-track {
+  background: transparent;
+  height: 100%;
+  border: none;
+}
+
+.relative.h-6.touch-manipulation input[type='range']::-moz-range-thumb {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  height: 100%;
+  width: 100%;
+}
+
+.ultra-track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 6px;
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.ultra-active {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 6px;
+  background: #000;
+  border-radius: 3px;
+}
+
+.ultra-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+/* CRITICAL: Min slider gets lower z-index for LEFT access */
+.ultra-min {
+  z-index: 1 !important;
+}
+
+/* CRITICAL: Max slider gets higher z-index for RIGHT access */
+.ultra-max {
+  z-index: 2 !important;
+}
+
+/* HOVER DEBUGGING */
+.ultra-min:hover {
+  background: rgba(0, 255, 0, 0.5) !important; /* BRIGHT GREEN */
+  z-index: 10 !important;
+}
+
+.ultra-max:hover {
+  background: rgba(255, 0, 0, 0.5) !important; /* BRIGHT RED */
+  z-index: 11 !important;
+}
+
+/* Visual handles */
+.ultra-handle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: #000;
+  border: 3px solid white;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* COMPLETE BROWSER RESET */
+.ultra-input::-webkit-slider-track {
+  background: transparent;
+  height: 60px;
+  width: 100%;
+  border: none;
+}
+
+.ultra-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 60px;
+  height: 60px;
+  background: transparent;
+  cursor: pointer;
+  border: none;
+}
+
+.ultra-input::-moz-range-track {
+  background: transparent;
+  height: 60px;
+  width: 100%;
+  border: none;
+}
+
+.ultra-input::-moz-range-thumb {
+  width: 60px;
+  height: 60px;
+  background: transparent;
+  cursor: pointer;
+  border: none;
+}
+
+/* Range slider improvements - Desktop & Mobile */
 input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
@@ -1982,7 +2180,7 @@ input[type='range'] {
 /* WebKit (Safari/Chrome) */
 input[type='range']::-webkit-slider-track {
   background: transparent;
-  height: 44px; /* Larger track for better touch */
+  height: 44px; /* Larger track for better interaction */
   border: none;
 }
 
@@ -1991,7 +2189,7 @@ input[type='range']::-webkit-slider-thumb {
   appearance: none;
   background: transparent;
   border: none;
-  height: 44px; /* Larger thumb for better touch */
+  height: 44px; /* Larger thumb for better interaction */
   width: 44px;
   border-radius: 50%;
   cursor: pointer;
@@ -2001,18 +2199,92 @@ input[type='range']::-webkit-slider-thumb {
 /* Firefox */
 input[type='range']::-moz-range-track {
   background: transparent;
-  height: 44px; /* Larger track for better touch */
+  height: 44px; /* Larger track for better interaction */
   border: none;
 }
 
 input[type='range']::-moz-range-thumb {
   background: transparent;
   border: none;
-  height: 44px; /* Larger thumb for better touch */
+  height: 44px; /* Larger thumb for better interaction */
   width: 44px;
   border-radius: 50%;
   cursor: pointer;
   pointer-events: auto;
+}
+
+/* Dual range slider configuration - Desktop & Mobile */
+.relative.h-6.touch-manipulation {
+  min-height: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.relative.h-6.touch-manipulation input[type='range'] {
+  pointer-events: auto;
+  position: absolute;
+  width: 100%;
+  height: 44px;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Default layering: min slider prioritized on left, max slider on right */
+.relative.h-6.touch-manipulation input[type='range']:first-of-type {
+  z-index: 3; /* Higher priority for left side access */
+}
+
+.relative.h-6.touch-manipulation input[type='range']:last-of-type {
+  z-index: 2; /* Lower priority for right side access */
+}
+
+/* When actively being used, bring to front */
+.relative.h-6.touch-manipulation input[type='range']:focus,
+.relative.h-6.touch-manipulation input[type='range']:active {
+  z-index: 10;
+}
+
+/* Hover states for better desktop feedback */
+.relative.h-6.touch-manipulation:hover input[type='range']:first-of-type {
+  z-index: 4;
+}
+
+.relative.h-6.touch-manipulation:hover input[type='range']:last-of-type {
+  z-index: 4;
+}
+
+/* Enhanced cursor states for desktop */
+.relative.h-6.touch-manipulation input[type='range']:hover {
+  z-index: 5;
+}
+
+/* Ensure proper event propagation */
+.relative.h-6.touch-manipulation input[type='range'] {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Better thumb interaction */
+.relative.h-6.touch-manipulation input[type='range']::-webkit-slider-thumb {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+.relative.h-6.touch-manipulation input[type='range']::-moz-range-thumb {
+  cursor: pointer;
 }
 
 /* Mobile improvements */
@@ -2051,15 +2323,6 @@ input[type='range']::-moz-range-thumb {
     width: 44px;
   }
 
-  /* Improve touch area for slider containers */
-  .relative.h-6 {
-    min-height: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    position: relative;
-  }
-
   /* Touch manipulation class for better mobile gestures */
   .touch-manipulation {
     touch-action: manipulation;
@@ -2076,66 +2339,12 @@ input[type='range']::-moz-range-thumb {
     margin: 6px 0;
   }
 
-  /* Dual range slider touch fix */
+  /* Mobile-specific touch enhancements */
   .relative.h-6.touch-manipulation input[type='range'] {
-    pointer-events: auto;
-    position: absolute;
-    width: 100%;
-    height: 44px;
-    top: 50%;
-    left: 0;
-    transform: translateY(-50%);
-    opacity: 0;
-    cursor: pointer;
     touch-action: pan-x;
-    -webkit-appearance: none;
-    appearance: none;
   }
 
-  /* Default layering: max slider on top for right-side access */
-  .relative.h-6.touch-manipulation input[type='range']:first-of-type {
-    z-index: 1;
-    width: 50%;
-    left: 0;
-  }
-
-  .relative.h-6.touch-manipulation input[type='range']:last-of-type {
-    z-index: 2;
-    width: 50%;
-    left: 50%;
-  }
-
-  /* Hover states for better touch feedback */
-  .relative.h-6.touch-manipulation:hover input[type='range']:first-of-type {
-    z-index: 3;
-  }
-
-  .relative.h-6.touch-manipulation:hover input[type='range']:last-of-type {
-    z-index: 3;
-  }
-
-  /* When actively being used, bring to front */
-  .relative.h-6.touch-manipulation input[type='range']:focus,
-  .relative.h-6.touch-manipulation input[type='range']:active {
-    z-index: 10;
-    width: 100%;
-    left: 0;
-  }
-
-  /* Ensure proper touch event propagation */
-  .relative.h-6.touch-manipulation input[type='range'] {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-  }
-
-  /* Better thumb interaction on touch devices */
   .relative.h-6.touch-manipulation input[type='range']::-webkit-slider-thumb {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
     touch-action: pan-x;
   }
 

@@ -29,7 +29,10 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
   console.log('🛒 CartMain render - optimisticCart:', cart);
   console.log('🛒 CartMain render - totalQuantity:', cart?.totalQuantity);
   console.log('🛒 CartMain render - lines:', cart?.lines);
-  console.log('🛒 CartMain render - lines nodes length:', cart?.lines?.nodes?.length);
+  console.log(
+    '🛒 CartMain render - lines nodes length:',
+    cart?.lines?.nodes?.length,
+  );
 
   // Determine if any fetcher is currently updating the cart lines
   const isCartUpdating = fetchers.some((fetcher) => {
@@ -38,7 +41,17 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
     // We check the form action path and the state.
     // A more specific check could involve inspecting fetcher.formData,
     // but checking the action route and state is usually sufficient.
-    const isCartAction = fetcher.formAction?.startsWith('/cart');
+    let isCartAction = false;
+    if (fetcher.formAction) {
+      try {
+        const actionPath = new URL(fetcher.formAction, window.location.origin)
+          .pathname;
+        // Match '/cart' and any localized '/:locale/cart'
+        isCartAction = actionPath.endsWith('/cart');
+      } catch (_e) {
+        isCartAction = fetcher.formAction.includes('/cart');
+      }
+    }
     const isSubmitting =
       fetcher.state === 'submitting' || fetcher.state === 'loading';
     // Optionally, check for specific hidden inputs if needed, e.g.,
@@ -112,12 +125,13 @@ function CartEmpty({
   return (
     <div hidden={hidden}>
       <br />
-      <p>
-        Looks like you haven't added anything yet, let's get you
-        started!
-      </p>
+      <p>Looks like you haven't added anything yet, let's get you started!</p>
       <br />
-      <Link to="/collections/engagement-rings" onClick={close} prefetch="viewport">
+      <Link
+        to="/collections/engagement-rings"
+        onClick={close}
+        prefetch="viewport"
+      >
         Continue shopping
       </Link>
     </div>

@@ -124,6 +124,47 @@ const CREATE_MEDIA_MUTATION = `
   }
 `;
 
+// Resolve Storefront API ID for a newly created Admin product variant
+const GET_VARIANT_STOREFRONT_ID = `
+  query getVariantStorefrontId($id: ID!) {
+    productVariant(id: $id) {
+      id
+      storefrontId
+    }
+  }
+`;
+
+// Fetch available publications (sales channels)
+const GET_PUBLICATIONS_QUERY = `
+  query getPublications($first: Int = 20) {
+    publications(first: $first) {
+      nodes {
+        id
+        name
+      }
+    }
+  }
+`;
+
+// Publish newly created product to publications
+const PUBLISH_PRODUCT_MUTATION = `
+  mutation publishProduct($id: ID!, $input: [PublicationInput!]!) {
+    publishablePublish(id: $id, input: $input) {
+      publishable { id }
+      userErrors { field message }
+    }
+  }
+`;
+
+// Publish the product to the current app's headless channel
+const PUBLISH_TO_CURRENT_CHANNEL = `
+  mutation publishToCurrent($id: ID!) {
+    publishablePublishToCurrentChannel(id: $id) {
+      userErrors { field message }
+    }
+  }
+`;
+
 export async function action({request, context}: ActionFunctionArgs) {
   // Type guard for admin
   const admin = (context as any).admin;
@@ -174,8 +215,9 @@ export async function action({request, context}: ActionFunctionArgs) {
     // Prepare the product input for the GraphQL mutation
     const productInput = {
       title: productData.title,
-      handle: `${productData.title.toLowerCase()
-        .replace(/diamond/g, '')  // Remove existing "diamond" words to prevent duplication
+      handle: `${productData.title
+        .toLowerCase()
+        .replace(/diamond/g, '') // Remove existing "diamond" words to prevent duplication
         .replace(/[^a-z0-9]/g, '-')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '')}-diamond-${Date.now()}`,
@@ -183,6 +225,7 @@ export async function action({request, context}: ActionFunctionArgs) {
       productType: productData.productType || 'Diamond',
       vendor: productData.vendor || 'Nivoda',
       tags: productData.tags || [],
+      status: 'ACTIVE',
       metafields: productData.metafields
         ? productData.metafields.map((metafield: any) => ({
             namespace: metafield.namespace,
@@ -269,11 +312,13 @@ export async function action({request, context}: ActionFunctionArgs) {
 
     // Add media if images are provided
     if (productData.images && productData.images.length > 0) {
-      const mediaInputs = productData.images.map((imageUrl: string, index: number) => ({
-        originalSource: imageUrl,
-        alt: `${productData.title || 'Diamond'} - Image ${index + 1}`,
-        mediaContentType: 'IMAGE'
-      }));
+      const mediaInputs = productData.images.map(
+        (imageUrl: string, index: number) => ({
+          originalSource: imageUrl,
+          alt: `${productData.title || 'Diamond'} - Image ${index + 1}`,
+          mediaContentType: 'IMAGE',
+        }),
+      );
 
       const mediaResponse = await admin.graphql(CREATE_MEDIA_MUTATION, {
         variables: {
@@ -290,16 +335,73 @@ export async function action({request, context}: ActionFunctionArgs) {
       }
 
       if (mediaResult.data?.productCreateMedia?.mediaUserErrors?.length > 0) {
-        console.error('Media creation errors:', mediaResult.data.productCreateMedia.mediaUserErrors);
+        console.error(
+          'Media creation errors:',
+          mediaResult.data.productCreateMedia.mediaUserErrors,
+        );
       }
 
       if (mediaResult.data?.productCreateMedia?.userErrors?.length > 0) {
-        console.error('Media creation user errors:', mediaResult.data.productCreateMedia.userErrors);
+        console.error(
+          'Media creation user errors:',
+          mediaResult.data.productCreateMedia.userErrors,
+        );
       }
     }
 
-    // Get the default variant ID (Shopify automatically creates one)
-    const merchandiseId = createdProduct.variants?.edges?.[0]?.node?.id;
+    // Ensure product is published to available storefront channels so it can be added to cart
+    try {
+      const pubsResponse = await admin.graphql(GET_PUBLICATIONS_QUERY, {
+        variables: {first: 20},
+      });
+      const pubsResult = await pubsResponse.json();
+      const publications = pubsResult?.data?.publications?.nodes || [];
+      if (publications.length > 0) {
+        const inputs = publications.map((p: any) => ({publicationId: p.id}));
+        const publishResponse = await admin.graphql(PUBLISH_PRODUCT_MUTATION, {
+          variables: {id: createdProduct.id, input: inputs},
+        });
+        const publishResult = await publishResponse.json();
+        if (publishResult?.data?.publishablePublish?.userErrors?.length) {
+          console.warn(
+            'Product publish userErrors:',
+            publishResult.data.publishablePublish.userErrors,
+          );
+        }
+      } else {
+        console.warn(
+          'No publications found; product may not be visible to Storefront API',
+        );
+      }
+      // Additionally publish to the current app channel used by this Admin client
+      try {
+        const publishCurrentRes = await admin.graphql(
+          PUBLISH_TO_CURRENT_CHANNEL,
+          {
+            variables: {id: createdProduct.id},
+          },
+        );
+        const publishCurrent = await publishCurrentRes.json();
+        if (
+          publishCurrent?.data?.publishablePublishToCurrentChannel?.userErrors
+            ?.length
+        ) {
+          console.warn(
+            'publishablePublishToCurrentChannel userErrors:',
+            publishCurrent.data.publishablePublishToCurrentChannel.userErrors,
+          );
+        }
+      } catch (e) {
+        console.warn('Failed to publish to current app channel:', e);
+      }
+    } catch (e) {
+      console.warn('Failed to publish product to publications:', e);
+    }
+
+    // Get the default variant Admin ID (Shopify automatically creates one)
+    let merchandiseId = createdProduct.variants?.edges?.[0]?.node?.id as
+      | string
+      | undefined;
 
     if (!merchandiseId) {
       console.error('Product created but no merchandise ID found');
@@ -310,6 +412,44 @@ export async function action({request, context}: ActionFunctionArgs) {
         },
         {status: 500},
       );
+    }
+
+    // Ensure we have Storefront ID format (gid://shopify/ProductVariant/...) usable by Storefront API
+    try {
+      const variantSfResp = await admin.graphql(GET_VARIANT_STOREFRONT_ID, {
+        variables: {id: merchandiseId},
+      });
+      const variantSf = await variantSfResp.json();
+      const sfId = variantSf?.data?.productVariant?.storefrontId;
+      if (sfId) {
+        merchandiseId = sfId;
+      }
+    } catch (e) {
+      console.warn(
+        'Failed to resolve storefrontId for variant; using admin ID as fallback',
+        e,
+      );
+    }
+
+    // Poll Storefront API until the variant node is visible so add-to-cart can succeed immediately
+    try {
+      const storefront = (context as any).storefront;
+      if (storefront && typeof storefront.query === 'function') {
+        const VARIANT_READY = `#graphql\n          query VariantReady($id: ID!) {\n            node(id: $id) {\n              __typename\n              ... on ProductVariant { id availableForSale }\n            }\n          }\n        `;
+        let attempts = 0;
+        const maxAttempts = 20;
+        while (attempts < maxAttempts) {
+          const res = await storefront.query(VARIANT_READY, {
+            variables: {id: merchandiseId},
+          });
+          const node = (res as any)?.node;
+          if (node && node.id) break;
+          await new Promise((r) => setTimeout(r, 750));
+          attempts += 1;
+        }
+      }
+    } catch (e) {
+      console.warn('Storefront visibility polling failed:', e);
     }
 
     // If we have custom variant data and a default variant, update it with our pricing
@@ -326,6 +466,7 @@ export async function action({request, context}: ActionFunctionArgs) {
         compareAtPrice: variantData.compareAtPrice
           ? variantData.compareAtPrice.toString()
           : null,
+        inventoryPolicy: 'CONTINUE',
       };
 
       const variantResponse = await admin.graphql(UPDATE_VARIANT_MUTATION, {
@@ -342,7 +483,9 @@ export async function action({request, context}: ActionFunctionArgs) {
         console.error('Variant update GraphQL errors:', variantResult.errors);
       }
 
-      if (variantResult.data?.productVariantsBulkUpdate?.userErrors?.length > 0) {
+      if (
+        variantResult.data?.productVariantsBulkUpdate?.userErrors?.length > 0
+      ) {
         console.error(
           'Variant update errors:',
           variantResult.data.productVariantsBulkUpdate.userErrors,
@@ -351,7 +494,8 @@ export async function action({request, context}: ActionFunctionArgs) {
       }
 
       if (variantResult.data?.productVariantsBulkUpdate?.productVariants?.[0]) {
-        const updatedVariant = variantResult.data.productVariantsBulkUpdate.productVariants[0];
+        const updatedVariant =
+          variantResult.data.productVariantsBulkUpdate.productVariants[0];
       }
     }
 
